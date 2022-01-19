@@ -17,9 +17,9 @@ import gregtech.api.gui.GuiTextures;
 import gregtech.api.gui.ModularUI;
 import gregtech.api.gui.widgets.*;
 import gregtech.api.metatileentity.MetaTileEntity;
-import gregtech.client.renderer.texture.cube.SimpleSidedCubeRenderer;
-import gregtech.client.renderer.texture.Textures;
 import gregtech.api.util.GTFluidUtils;
+import gregtech.client.renderer.texture.Textures;
+import gregtech.client.renderer.texture.cube.SimpleSidedCubeRenderer;
 import gregtech.common.covers.filter.FluidFilterContainer;
 import net.minecraft.block.Block;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
@@ -70,7 +70,11 @@ public class CoverPump extends CoverBehavior implements CoverWithUI, ITickable, 
         this.distributionMode = DistributionMode.INSERT_FIRST;
         this.blocksInput = true;
         this.bucketMode = BucketMode.MILLI_BUCKET;
-        this.fluidFilter = new FluidFilterContainer(this);
+        this.fluidFilter = new FluidFilterContainer(this, this::shouldShowTip);
+    }
+
+    protected boolean shouldShowTip() {
+        return false;
     }
 
     protected void setTransferRate(int transferRate) {
