@@ -221,6 +221,9 @@ public class PhantomFluidWidget extends Widget implements IIngredientSlot, IGhos
                         }
                     }
                 }
+                else {
+                    fluidStackUpdater.accept(null);
+                }
             }
         } else if (id == 2) {
             FluidStack fluidStack;
