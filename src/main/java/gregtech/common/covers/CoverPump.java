@@ -43,7 +43,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.function.Function;
 import java.util.function.IntSupplier;
-import java.util.regex.Pattern;
 
 public class CoverPump extends CoverBehavior implements CoverWithUI, ITickable, IControllable {
 

@@ -29,7 +29,6 @@ import org.apache.logging.log4j.message.FormattedMessage;
 
 import java.util.*;
 import java.util.function.Predicate;
-import java.util.regex.Pattern;
 
 
 public class CoverFluidRegulator extends CoverPump {
@@ -81,7 +80,7 @@ public class CoverFluidRegulator extends CoverPump {
         int fluidLeftToTransfer = transferLimit;
         for (IFluidTankProperties tankProperties : sourceHandler.getTankProperties()) {
             FluidStack sourceFluid = tankProperties.getContents();
-            if (this.fluidFilter.getFilterWrapper().getFluidFilter() != null) {
+            if (this.fluidFilter.getFilterWrapper().getFluidFilter() != null && transferMode != TransferMode.TRANSFER_ANY) {
                 supplyAmount = this.fluidFilter.getFilterWrapper().getFluidFilter().getFluidTransferLimit(sourceFluid);
             }
             if (fluidLeftToTransfer < supplyAmount)
@@ -125,7 +124,7 @@ public class CoverFluidRegulator extends CoverPump {
             if (transferred >= transferLimit)
                 break;
 
-            if (this.fluidFilter.getFilterWrapper().getFluidFilter() != null) {
+            if (this.fluidFilter.getFilterWrapper().getFluidFilter() != null && transferMode != TransferMode.TRANSFER_ANY) {
                 keepAmount = this.fluidFilter.getFilterWrapper().getFluidFilter().getFluidTransferLimit(fluidStack);
             }
 
