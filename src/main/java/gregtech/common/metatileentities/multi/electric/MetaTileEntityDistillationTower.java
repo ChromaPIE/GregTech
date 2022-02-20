@@ -99,4 +99,9 @@ public class MetaTileEntityDistillationTower extends RecipeMapMultiblockControll
     public int getFluidOutputLimit() {
         return getOutputFluidInventory().getTanks();
     }
+
+    @Override
+    public int getItemOutputLimit() {
+        return getOutputInventory().getSlots();
+    }
 }
