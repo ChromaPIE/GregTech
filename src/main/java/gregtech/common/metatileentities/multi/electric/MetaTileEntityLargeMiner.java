@@ -230,7 +230,7 @@ public class MetaTileEntityLargeMiner extends MultiblockWithDisplayBase implemen
 
     private void addDisplayText2(List<ITextComponent> textList) {
         if (this.isStructureFormed()) {
-            ITextComponent spaces = new TextComponentString("    ");
+            final ITextComponent spaces = new TextComponentString("    ");
             textList.add(spaces.appendSibling(new TextComponentTranslation("gregtech.machine.miner.minex", this.minerLogic.getMineX().get())));
             textList.add(spaces.appendSibling(new TextComponentTranslation("gregtech.machine.miner.miney", this.minerLogic.getMineY().get())));
             textList.add(spaces.appendSibling(new TextComponentTranslation("gregtech.machine.miner.minez", this.minerLogic.getMineZ().get())));
