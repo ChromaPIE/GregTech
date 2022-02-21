@@ -135,9 +135,9 @@ public class MetaTileEntityMiner extends TieredMetaTileEntity implements IMiner,
         ITextComponent startText = new TextComponentTranslation("gregtech.machine.miner.start");
         withHoverTextTranslate(startText, "gregtech.machine.miner.start.info");
         textList.add(startText);
-        textList.add(new TextComponentString(I18n.format("gregtech.machine.miner.x", this.minerLogic.getX().get())));
-        textList.add(new TextComponentString(I18n.format("gregtech.machine.miner.y", this.minerLogic.getY().get())));
-        textList.add(new TextComponentString(I18n.format("gregtech.machine.miner.z", this.minerLogic.getZ().get())));
+        textList.add(new TextComponentString(String.format("X: %d", this.minerLogic.getX().get())));
+        textList.add(new TextComponentString(String.format("Y: %d", this.minerLogic.getY().get())));
+        textList.add(new TextComponentString(String.format("Z: %d", this.minerLogic.getZ().get())));
         textList.add(new TextComponentString(I18n.format("gregtech.machine.miner.radius", this.minerLogic.getCurrentRadius())));
         if (this.minerLogic.isDone())
             textList.add(new TextComponentTranslation("gregtech.multiblock.large_miner.done").setStyle(new Style().setColor(TextFormatting.GREEN)));
@@ -155,9 +155,9 @@ public class MetaTileEntityMiner extends TieredMetaTileEntity implements IMiner,
         ITextComponent miningText = new TextComponentTranslation("gregtech.machine.miner.mining");
         withHoverTextTranslate(miningext, "gregtech.machine.miner.mining.info");
         textList.add(miningText);
-        textList.add(new TextComponentString(I18n.format("gregtech.machine.miner.x", this.minerLogic.getMineX().get())));
-        textList.add(new TextComponentString(I18n.format("gregtech.machine.miner.y", this.minerLogic.getMineY().get())));
-        textList.add(new TextComponentString(I18n.format("gregtech.machine.miner.z", this.minerLogic.getMineZ().get())));
+        textList.add(new TextComponentString(String.format("X: %d", this.minerLogic.getMineX().get())));
+        textList.add(new TextComponentString(String.format("Y: %d", this.minerLogic.getMineY().get())));
+        textList.add(new TextComponentString(String.format("Z: %d", this.minerLogic.getMineZ().get())));
     }
 
     @Override
