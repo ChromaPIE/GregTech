@@ -40,6 +40,8 @@ import javax.annotation.Nullable;
 import java.util.Collections;
 import java.util.List;
 
+import static gregtech.api.gui.widgets.AdvancedTextWidget.withHoverTextTranslate;
+
 public class MetaTileEntityMiner extends TieredMetaTileEntity implements IMiner, IControllable, IDataInfoProvider {
 
     private final ItemStackHandler chargerInventory;
