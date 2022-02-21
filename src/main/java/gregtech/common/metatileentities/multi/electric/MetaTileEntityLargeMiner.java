@@ -236,7 +236,7 @@ public class MetaTileEntityLargeMiner extends MultiblockWithDisplayBase implemen
         if (this.isStructureFormed()) {
             ITextComponent miningText = new TextComponentTranslation("gregtech.machine.miner.mining");
             withHoverTextTranslate(miningText, "gregtech.machine.miner.mining.info");
-            textList.add(miningText);
+            textList.add("    "+miningText);
             textList.add(new TextComponentString(String.format("    X: %d", this.minerLogic.getMineX().get())));
             textList.add(new TextComponentString(String.format("    Y: %d", this.minerLogic.getMineY().get())));
             textList.add(new TextComponentString(String.format("    Z: %d", this.minerLogic.getMineZ().get())));
