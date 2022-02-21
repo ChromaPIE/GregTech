@@ -130,7 +130,7 @@ public class MetaTileEntityMiner extends TieredMetaTileEntity implements IMiner,
     }
 
     private void addDisplayText(@Nonnull List<ITextComponent> textList) {
-        ITextComponent startText = new TextComponentString(I18n.format("gregtech.machine.miner.start"));
+        ITextComponent startText = new TextComponentTranslation("gregtech.machine.miner.start");
         withHoverTextTranslate(startText, "gregtech.machine.miner.startinfo");
         textList.add(startText);
         textList.add(new TextComponentString(I18n.format("gregtech.machine.miner.startx", this.minerLogic.getX().get())));
