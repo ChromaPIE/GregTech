@@ -209,9 +209,12 @@ public class MetaTileEntityLargeMiner extends MultiblockWithDisplayBase implemen
                 textList.add(new TextComponentTranslation("gregtech.multiblock.max_energy_per_tick", maxVoltage, voltageName));
             }
 
-            textList.add(new TextComponentString(I18n.format("gregtech.machine.miner.startx", this.minerLogic.getX().get() == Integer.MAX_VALUE ? 0 : this.minerLogic.getX().get())));
-            textList.add(new TextComponentString(I18n.format("gregtech.machine.miner.starty", this.minerLogic.getY().get() == Integer.MAX_VALUE ? 0 : this.minerLogic.getY().get())));
-            textList.add(new TextComponentString(I18n.format("gregtech.machine.miner.startz", this.minerLogic.getZ().get() == Integer.MAX_VALUE ? 0 : this.minerLogic.getZ().get())));
+            ITextComponent startText = new TextComponentTranslation("gregtech.machine.miner.start");
+            withHoverTextTranslate(startText, "gregtech.machine.miner.start.info");
+            textList.add(startText);
+            textList.add(new TextComponentString(I18n.format("gregtech.machine.miner.x", this.minerLogic.getX().get() == Integer.MAX_VALUE ? 0 : this.minerLogic.getX().get())));
+            textList.add(new TextComponentString(I18n.format("gregtech.machine.miner.y", this.minerLogic.getY().get() == Integer.MAX_VALUE ? 0 : this.minerLogic.getY().get())));
+            textList.add(new TextComponentString(I18n.format("gregtech.machine.miner.z", this.minerLogic.getZ().get() == Integer.MAX_VALUE ? 0 : this.minerLogic.getZ().get())));
             textList.add(new TextComponentString(I18n.format("gregtech.machine.miner.chunkradius", this.minerLogic.getCurrentRadius() / CHUNK_LENGTH)));
             if (this.minerLogic.isDone())
                 textList.add(new TextComponentTranslation("gregtech.multiblock.large_miner.done").setStyle(new Style().setColor(TextFormatting.GREEN)));
@@ -230,9 +233,12 @@ public class MetaTileEntityLargeMiner extends MultiblockWithDisplayBase implemen
 
     private void addDisplayText2(List<ITextComponent> textList) {
         if (this.isStructureFormed()) {
-            textList.add(new TextComponentString("    " + I18n.format("gregtech.machine.miner.minex", this.minerLogic.getMineX().get())));
-            textList.add(new TextComponentString("    " + I18n.format("gregtech.machine.miner.miney", this.minerLogic.getMineY().get())));
-            textList.add(new TextComponentString("    " + I18n.format("gregtech.machine.miner.minez", this.minerLogic.getMineZ().get())));
+            ITextComponent miningText = new TextComponentTranslation("gregtech.machine.miner.mining");
+            withHoverTextTranslate(miningText, "gregtech.machine.miner.mining.info");
+            textList.add(miningText);
+            textList.add(new TextComponentString("    " + I18n.format("gregtech.machine.miner.x", this.minerLogic.getMineX().get())));
+            textList.add(new TextComponentString("    " + I18n.format("gregtech.machine.miner.y", this.minerLogic.getMineY().get())));
+            textList.add(new TextComponentString("    " + I18n.format("gregtech.machine.miner.z", this.minerLogic.getMineZ().get())));
         }
     }
 

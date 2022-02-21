@@ -3875,12 +3875,13 @@ gregtech.machine.miner.multi.description=A multiblock mining machine that covers
 gregtech.machine.miner.fluid_usage=Consumes §b%dmb§7 of §e%s§7 per tick. Each overclock doubles the fluid consumption.
 gregtech.machine.miner.overclock=Requires %s§7 power. Overclocks up to %s§7.
 
-gregtech.machine.miner.startx=sX: %d
-gregtech.machine.miner.starty=sY: %d
-gregtech.machine.miner.startz=sZ: %d
-gregtech.machine.miner.minex=mX: %d
-gregtech.machine.miner.miney=mY: %d
-gregtech.machine.miner.minez=mZ: %d
+gregtech.machine.miner.start=Start
+gregtech.machine.miner.start.info=Starting point of the mining operation.
+gregtech.machine.miner.mining=Mining
+gregtech.machine.miner.mining.info=Current block location the miner is working on.
+gregtech.machine.miner.x=X: %d
+gregtech.machine.miner.y=Y: %d
+gregtech.machine.miner.z=Z: %d
 gregtech.machine.miner.radius=Radius: %d
 gregtech.machine.miner.chunkradius=Chunk Radius: %d
 
