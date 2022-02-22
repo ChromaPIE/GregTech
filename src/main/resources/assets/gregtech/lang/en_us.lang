@@ -1691,7 +1691,10 @@ material.rarest_metal_mixture=Rarest Metal Mixture
 material.ammonium_chloride=Ammonium Chloride
 material.acidic_osmium_solution=Acidic Osmium Solution
 material.rhodium_plated_palladium=Rhodium Plated Palladium
-
+material.cyclohexane=Cyclohexane
+material.cyclohexanone_oxime=Cyclohexanone Oxime
+material.caprolactam=Caprolactam
+material.nitrosyl_chloride=Nitrosyl Chloride
 
 # Unknown Composition Materials
 material.wood_gas=Wood Gas
@@ -1921,7 +1924,6 @@ material.insane=Insane
 material.epic=Epic
 material.legendary=Legendary
 material.maximum=Maximum
-
 
 # Item Renaming
 item.nether_quartz.oreNetherrack=Nether Quartz Ore
@@ -4120,12 +4122,15 @@ gregtech.fluid.click_combined=§7Click with a Fluid Container to §cempty §7or 
 
 gregtech.fluid.click_to_empty=§7Click with a Fluid Container to §cempty §7the tank (Shift-click for a full stack).
 
+gregtech.fluid.generic=%s
 gregtech.fluid.plasma=%s Plasma
 gregtech.fluid.empty=Empty
 gregtech.fluid.amount=§9Amount: %,d/%,d L
 gregtech.fluid.temperature=§cTemperature: %,d K
 gregtech.fluid.state_gas=§aState: Gaseous
 gregtech.fluid.state_liquid=§aState: Liquid
+gregtech.fluid.state_plasma=§aState: Plasma
+gregtech.fluid.type_acid.tooltip=§6Acidic! Handle with care!
 gregtech.gui.fuel_amount=Fuel Amount:
 gregtech.gui.fluid_amount=Fluid Amount:
 gregtech.gui.toggle_view.disabled=Toggle View (Fluids)
