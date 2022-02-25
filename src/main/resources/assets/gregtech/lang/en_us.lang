@@ -2442,6 +2442,7 @@ tile.fusion_casing.fusion_casing_mk3.name=Fusion Machine Casing MK III
 # Transparent casing blocks
 tile.transparent_casing.tempered_glass.name=Tempered Glass
 tile.transparent_casing.fusion_glass.name=Fusion Glass
+tile.transparent_casing.cleanroom_glass.name=Cleanroom Glass
 
 # Creative tabs
 itemGroup.gregtech.main=GregTech
@@ -2495,6 +2496,10 @@ gregtech.multiblock.tank.tooltip=Fill and drain through the controller or tank v
 gregtech.tank_valve.tooltip=Use to fill and drain multiblock tanks. Auto outputs when facing down.
 
 gregtech.machine.clipboard.name=Clipboard
+
+# Cleanroom Casings
+tile.cleanroom_casing.plascrete.name=Plascrete
+tile.cleanroom_casing.filter_casing.name=Filter Casing
 
 # Asphalt
 tile.asphalt.asphalt.name=Asphalt
@@ -3966,6 +3971,24 @@ gregtech.machine.fluid_drilling_rig.depletion=Depletion Rate: §b%s%%§7
 gregtech.machine.fluid_drilling_rig.energy=Requires %s§7 power. Overclocks up to %s§7.
 gregtech.machine.fluid_drilling_rig.overclock=Overclocking increases production by §d50%%§7.
 
+gregtech.machine.cleanroom.name=Cleanroom
+gregtech.machine.cleanroom.tooltip.1=Place machines inside to run cleanroom recipes.
+gregtech.machine.cleanroom.tooltip.2=Uses §a30§7 EU per tick. Supply more energy to clean faster.
+gregtech.machine.cleanroom.tooltip.3=Can be any size from §b5x5x5§7 to §b15x15x15§7. Width and Depth must be odd numbers.
+gregtech.machine.cleanroom.tooltip.4=Requires §b60%%§7 of the volume to be Plascrete.
+gregtech.machine.cleanroom.tooltip.5=Requires Filter Casings in the ceiling, excluding the edges.
+gregtech.machine.cleanroom.tooltip.6=Accepts up to four doors! Remains clean when the door is open.
+gregtech.machine.cleanroom.tooltip.7=Generators and Muffler Hatches are too dirty for the cleanroom!
+gregtech.machine.cleanroom.tooltip.8=Send power through hulls or diodes in the walls.
+gregtech.machine.cleanroom.tooltip.9=Send items and fluids with Passthrough Hatches in the walls.
+gregtech.multiblock.cleanroom.size=Size: %sx%sx%s (WxHxD)
+gregtech.multiblock.cleanroom.size_modify_width=Structure Width:
+gregtech.multiblock.cleanroom.size_modify_height=Structure Height:
+gregtech.multiblock.cleanroom.size_modify_depth=Structure Depth:
+gregtech.multiblock.cleanroom.size_explanation=Changes the amount of blocks between the center and walls.
+gregtech.multiblock.cleanroom.clean_state=Status: §aCLEAN
+gregtech.multiblock.cleanroom.dirty_state=Status: §4CONTAMINATED
+
 gregtech.machine.central_monitor.name=Central Monitor
 gregtech.multiblock.central_monitor.low_power=Low Power
 gregtech.multiblock.central_monitor.height=Screen Height:
@@ -4166,6 +4189,11 @@ gregtech.machine.machine_hatch.locked=Machine Interface Locked
 gregtech.machine.machine_hatch.tooltip=Specialized Access Bus that only holds valid items
 gregtech.machine.machine_hatch.processing_array=When in the §eProcessing Array§7, only holds machines that work in the §eProcessing Array
 
+gregtech.machine.passthrough_hatch_item.name=Item Passthrough Hatch
+gregtech.machine.passthrough_hatch_item.tooltip=Sends Items from one Side to the other
+gregtech.machine.passthrough_hatch_fluid.name=Fluid Passthrough Hatch
+gregtech.machine.passthrough_hatch_fluid.tooltip=Sends Fluids from one Side to the other
+
 
 gregtech.machine.fluid_tank.max_multiblock=Max Multiblock Size: %,dx%,dx%,d
 gregtech.machine.fluid_tank.fluid=Contains %s L of %s
@@ -4196,6 +4224,7 @@ gregtech.recipe.temperature=Temperature: %,dK (%s)
 gregtech.recipe.explosive=Explosive: %s
 gregtech.recipe.eu_to_start=Energy To Start: %sEU
 gregtech.recipe.dimensions=Dimensions: %s
+gregtech.recipe.cleanroom=Requires %s
 
 gregtech.fluid.click_to_fill=§7Click with a Fluid Container to §bfill §7the tank (Shift-click for a full stack).
 gregtech.fluid.click_combined=§7Click with a Fluid Container to §cempty §7or §bfill §7the tank (Shift-click for a full stack).

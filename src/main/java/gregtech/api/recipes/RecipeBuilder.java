@@ -3,7 +3,9 @@ package gregtech.api.recipes;
 import gregtech.api.GTValues;
 import gregtech.api.items.metaitem.MetaItem;
 import gregtech.api.metatileentity.MetaTileEntity;
+import gregtech.api.metatileentity.multiblock.CleanroomType;
 import gregtech.api.recipes.Recipe.ChanceEntry;
+import gregtech.api.recipes.recipeproperties.CleanroomProperty;
 import gregtech.api.recipes.recipeproperties.RecipeProperty;
 import gregtech.api.unification.OreDictUnifier;
 import gregtech.api.unification.material.Material;
@@ -12,6 +14,7 @@ import gregtech.api.util.EnumValidationResult;
 import gregtech.api.util.GTLog;
 import gregtech.api.util.GTUtility;
 import gregtech.api.util.ValidationResult;
+import gregtech.common.ConfigHolder;
 import net.minecraft.block.Block;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
@@ -22,6 +25,8 @@ import net.minecraftforge.fluids.Fluid;
 import net.minecraftforge.fluids.FluidStack;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -51,6 +56,8 @@ public class RecipeBuilder<R extends RecipeBuilder<R>> {
     protected Consumer<RecipeBuilder<?>> onBuildAction = null;
 
     protected EnumValidationResult recipeStatus = EnumValidationResult.VALID;
+
+    protected CleanroomType cleanroom = null;
 
     protected RecipeBuilder() {
         this.inputs = NonNullList.create();
@@ -92,9 +99,27 @@ public class RecipeBuilder<R extends RecipeBuilder<R>> {
         this.EUt = recipeBuilder.EUt;
         this.hidden = recipeBuilder.hidden;
         this.onBuildAction = recipeBuilder.onBuildAction;
+        this.cleanroom = recipeBuilder.cleanroom;
     }
 
-    public boolean applyProperty(String key, Object value) {
+    public R cleanroom(@Nullable CleanroomType cleanroom) {
+        if (!ConfigHolder.machines.enableCleanroom)
+            return (R) this;
+
+        // cleanroom property can be null, as it is default null.
+        this.cleanroom = cleanroom;
+        return (R) this;
+    }
+
+    public boolean applyProperty(@Nonnull String key, Object value) {
+        if (key.equals(CleanroomProperty.KEY)) {
+            if (value instanceof CleanroomType)
+                this.cleanroom((CleanroomType) value);
+            else if (value instanceof String)
+                this.cleanroom(CleanroomType.getByName((String) value));
+            else return false;
+            return true;
+        }
         return false;
     }
 
@@ -560,7 +585,14 @@ public class RecipeBuilder<R extends RecipeBuilder<R>> {
     public void buildAndRegister() {
         if (onBuildAction != null)
             onBuildAction.accept(this);
+
         ValidationResult<Recipe> validationResult = build();
+        if (ConfigHolder.machines.enableCleanroom && cleanroom != null) {
+            Recipe recipe = validationResult.getResult();
+            if (!recipe.setProperty(CleanroomProperty.getInstance(), cleanroom)) {
+                validationResult = ValidationResult.newResult(EnumValidationResult.INVALID, validationResult.getResult());
+            }
+        }
         recipeMap.addRecipe(validationResult);
     }
 
@@ -609,6 +641,11 @@ public class RecipeBuilder<R extends RecipeBuilder<R>> {
         return duration;
     }
 
+    @Nullable
+    public CleanroomType getCleanroom() {
+        return cleanroom;
+    }
+
     @Override
     public String toString() {
         return new ToStringBuilder(this)
@@ -621,6 +658,7 @@ public class RecipeBuilder<R extends RecipeBuilder<R>> {
                 .append("duration", duration)
                 .append("EUt", EUt)
                 .append("hidden", hidden)
+                .append("cleanroom", cleanroom)
                 .append("recipeStatus", recipeStatus)
                 .toString();
     }

@@ -95,6 +95,14 @@ public class ConfigHolder {
                 "Add the unlocalized Recipe Map name to blacklist the machine.",
                 "Default: All machines allowed"})
         public String[] processingArrayBlacklist = new String[0];
+
+        @Config.Comment({"Whether to enable the cleanroom, required for various recipes.", "Default: true"})
+        public boolean enableCleanroom = true;
+
+        @Config.Comment({"Whether multiblocks are able to run cleanroom recipes outside the cleanroom.",
+                "This does nothing is B:enableCleanroom is false.",
+                "Default: false"})
+        public boolean cleanMultiblocks = false;
     }
 
     public static class WorldGenOptions {
