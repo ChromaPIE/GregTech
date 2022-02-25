@@ -132,7 +132,7 @@ public class MetaTileEntityItemBus extends MetaTileEntityMultiblockNotifiablePar
     private static void collapseInventorySlotContents(IItemHandlerModifiable inventory) {
 
         // Gather a snapshot of the provided inventory
-        HashMap<ItemStackKey, Integer> inventoryContents = GTHashMaps.fromItemHandler(inventory);
+        Map<ItemStackKey, Integer> inventoryContents = GTHashMaps.fromItemHandler(inventory);
 
         List<ItemStack> inventoryItemContents = new ArrayList<>();
 
