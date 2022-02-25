@@ -86,8 +86,6 @@ public class RecipePropertyStorage {
         Object value = recipeProperties.get(recipeProperty);
 
         if (value == null) {
-            GTLog.logger.warn("There is no property with key {}", recipeProperty.getKey());
-            GTLog.logger.warn(STACKTRACE, new IllegalArgumentException());
             return defaultValue;
         }
 
