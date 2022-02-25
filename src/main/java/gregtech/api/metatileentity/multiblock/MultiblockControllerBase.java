@@ -78,11 +78,9 @@ public abstract class MultiblockControllerBase extends MetaTileEntity implements
             if (getOffsetTimer() % 20 == 0 || isFirstTick()) {
                 checkStructurePattern();
             }
-        }
-        // TrackedDummyWorld is the world for the JEI preview. We do not want to update the Multi in this world,
-        // besides initially forming it in checkStructurePattern
-        if (isStructureFormed() && !(getWorld() instanceof TrackedDummyWorld)) {
-            if (!getWorld().isRemote) {
+            // TrackedDummyWorld is the world for the JEI preview. We do not want to update the Multi in this world,
+            // besides initially forming it in checkStructurePattern
+            if (isStructureFormed() && !(getWorld() instanceof TrackedDummyWorld)) {
                 updateFormedValid();
             }
         }
