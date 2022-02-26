@@ -13,6 +13,7 @@ import gregtech.api.pattern.*;
 import gregtech.api.util.BlockInfo;
 import gregtech.api.util.GTUtility;
 import gregtech.api.sound.GTSoundManager;
+import gregtech.api.util.world.DummyWorld;
 import gregtech.client.renderer.ICubeRenderer;
 import gregtech.client.renderer.handler.MultiblockPreviewRenderer;
 import gregtech.client.renderer.texture.Textures;
@@ -77,7 +78,9 @@ public abstract class MultiblockControllerBase extends MetaTileEntity implements
             if (getOffsetTimer() % 20 == 0 || isFirstTick()) {
                 checkStructurePattern();
             }
-            if (isStructureFormed()) {
+            // DummyWorld is the world for the JEI preview. We do not want to update the Multi in this world,
+            // besides initially forming it in checkStructurePattern
+            if (isStructureFormed() && !(getWorld() instanceof DummyWorld)) {
                 updateFormedValid();
             }
         }
