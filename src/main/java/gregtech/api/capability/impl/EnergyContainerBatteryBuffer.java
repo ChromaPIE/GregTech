@@ -62,7 +62,7 @@ public class EnergyContainerBatteryBuffer extends EnergyContainerHandler {
                     energy -= electricItem.charge(Math.min(distributed, GTValues.V[electricItem.getTier()] * AMPS_PER_BATTERY), getTier(), true, false);
                 } else if (item instanceof IEnergyStorage) {
                     IEnergyStorage energyStorage = (IEnergyStorage) item;
-                    energy -= FeCompat.insertEu(energyStorage, Math.min(distributed, GTValues.V[getTier()] * 2L));
+                    energy -= FeCompat.insertEu(energyStorage, Math.min(distributed, GTValues.V[getTier()] * AMPS_PER_BATTERY));
                 }
             }
 
