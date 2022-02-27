@@ -601,8 +601,8 @@ public class MetaTileEntities {
         }
 
         MACHINE_HATCH = registerMetaTileEntity(1398, new MetaTileEntityMachineHatch(gregtechId("machine_hatch"), 5));
-        PASSTHROUGH_HATCH_ITEM = registerMetaTileEntity(1399, new MetaTileEntityPassthroughHatchItem(gregtechId("passthrough_hatch_item"), 3));
-        PASSTHROUGH_HATCH_FLUID = registerMetaTileEntity(1400, new MetaTileEntityPassthroughHatchFluid(gregtechId("passthrough_hatch_fluid"), 3));
+        PASSTHROUGH_HATCH_ITEM = registerMetaTileEntity(1405, new MetaTileEntityPassthroughHatchItem(gregtechId("passthrough_hatch_item"), 3));
+        PASSTHROUGH_HATCH_FLUID = registerMetaTileEntity(1406, new MetaTileEntityPassthroughHatchFluid(gregtechId("passthrough_hatch_fluid"), 3));
 
         // 1399 and 1400 are taken by the EV 4A hatches, and are grouped near the other registration rather than here
 
