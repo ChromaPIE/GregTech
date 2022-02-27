@@ -235,6 +235,7 @@ metaitem.large_fluid_cell.stainless_steel.name=%s Stainless Steel Cell
 metaitem.large_fluid_cell.titanium.name=%s Titanium Cell
 metaitem.large_fluid_cell.tungstensteel.name=%s Tungstensteel Cell
 
+metaitem.spray.solvent.name=Spray Can (Solvent)
 metaitem.spray.can.dyes.white.name=Spray Can (White)
 metaitem.spray.can.dyes.orange.name=Spray Can (Orange)
 metaitem.spray.can.dyes.magenta.name=Spray Can (Magenta)
@@ -3888,6 +3889,7 @@ behaviour.softhammer=Activates and Deactivates Machines
 behaviour.hammer=Turns on and off Muffling for Machines (by hitting them)
 behaviour.wrench=Rotates Blocks on Rightclick
 behaviour.boor.by=by %s
+behaviour.paintspray.solvent.tooltip=Can remove color from things
 behaviour.paintspray.white.tooltip=Can paint things in White
 behaviour.paintspray.orange.tooltip=Can paint things in Orange
 behaviour.paintspray.magenta.tooltip=Can paint things in Magenta
@@ -4114,6 +4116,7 @@ gregtech.machine.energy_hatch.input.max.name=MAX Energy Hatch
 
 gregtech.machine.energy_hatch.input_hi_amp.tooltip=Multiple Ampere Energy Input for Multiblocks
 
+gregtech.machine.energy_hatch.input_4a.ev.name=EV 4A Energy Hatch
 gregtech.machine.energy_hatch.input_4a.iv.name=IV 4A Energy Hatch
 gregtech.machine.energy_hatch.input_4a.luv.name=LuV 4A Energy Hatch
 gregtech.machine.energy_hatch.input_4a.zpm.name=ZPM 4A Energy Hatch
@@ -4146,6 +4149,7 @@ gregtech.machine.energy_hatch.output.max.name=MAX Dynamo Hatch
 
 gregtech.machine.energy_hatch.output_hi_amp.tooltip=Multiple Ampere Energy Output for Multiblocks
 
+gregtech.machine.energy_hatch.output_4a.ev.name=EV 4A Dynamo Hatch
 gregtech.machine.energy_hatch.output_4a.iv.name=IV 4A Dynamo Hatch
 gregtech.machine.energy_hatch.output_4a.luv.name=LuV 4A Dynamo Hatch
 gregtech.machine.energy_hatch.output_4a.zpm.name=ZPM 4A Dynamo Hatch
@@ -4387,6 +4391,7 @@ gregtech.multiblock.large_combustion_engine.oxygen_amount=Oxygen Amount: %sL
 gregtech.multiblock.large_combustion_engine.liquid_oxygen_amount=Liquid Oxygen Amount: %sL
 gregtech.multiblock.large_combustion_engine.oxygen_boosted=§bOxygen boosted.
 gregtech.multiblock.large_combustion_engine.liquid_oxygen_boosted=§bLiquid Oxygen boosted.
+gregtech.multiblock.large_combustion_engine.boost_disallowed=§bUpgrade the Dynamo Hatch to enable Oxygen Boosting.
 gregtech.multiblock.large_combustion_engine.supply_oxygen_to_boost=Supply Oxygen to boost.
 gregtech.multiblock.large_combustion_engine.supply_liquid_oxygen_to_boost=Supply Liquid Oxygen to boost.
 gregtech.multiblock.large_combustion_engine.obstructed=Engine Intakes Obstructed.
