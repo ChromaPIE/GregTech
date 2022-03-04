@@ -17,8 +17,6 @@ import gregtech.api.util.world.DummyWorld;
 import gregtech.client.renderer.ICubeRenderer;
 import gregtech.client.renderer.handler.MultiblockPreviewRenderer;
 import gregtech.client.renderer.texture.Textures;
-import gregtech.api.util.BlockInfo;
-import gregtech.api.util.GTUtility;
 import gregtech.common.blocks.MetaBlocks;
 import gregtech.common.blocks.VariantActiveBlock;
 import net.minecraft.block.Block;
