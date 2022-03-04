@@ -23,6 +23,7 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.EnumFacing;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.Style;
@@ -41,6 +42,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class MetaTileEntityBatteryBuffer extends TieredMetaTileEntity implements IControllable, IDataInfoProvider {
+
+    private BlockPos frontPos;
 
     private final int inventorySize;
     private boolean allowEnergyOutput = true;
@@ -74,6 +77,11 @@ public class MetaTileEntityBatteryBuffer extends TieredMetaTileEntity implements
             return GregtechTileCapabilities.CAPABILITY_CONTROLLABLE.cast(this);
         }
         return super.getCapability(capability, side);
+    }
+
+    @Override
+    public void onFrontFacingSet(EnumFacing newFrontFacing) {
+        this.frontPos = null;
     }
 
     @Override
