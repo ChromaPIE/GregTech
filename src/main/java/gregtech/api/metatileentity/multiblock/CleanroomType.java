@@ -6,13 +6,11 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.Map;
 
-import net.minecraft.client.resources.I18n;
-
 public class CleanroomType {
 
     private static final Map<String, CleanroomType> CLEANROOM_TYPES = new Object2ObjectOpenHashMap<>();
 
-    public static final CleanroomType CLEANROOM = new CleanroomType(I18n.format("cleanroom.type.cleanroom"));
+    public static final CleanroomType CLEANROOM = new CleanroomType("cleanroom");
 
 
     private final String name;
