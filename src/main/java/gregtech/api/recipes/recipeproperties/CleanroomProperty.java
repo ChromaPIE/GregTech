@@ -29,7 +29,7 @@ public class CleanroomProperty extends RecipeProperty<CleanroomType> {
         if (castValue(value) == null)
             return;
 
-        if (getName(castValue(value)) == "Cleanroom"){
+        if (castValue(value).getName() == "cleanroom"){
             minecraft.fontRenderer.drawString(I18n.format("gregtech.recipe.cleanroom.cleanroom"), x, y, color);
         } else {
             minecraft.fontRenderer.drawString(I18n.format("gregtech.recipe.cleanroom",
