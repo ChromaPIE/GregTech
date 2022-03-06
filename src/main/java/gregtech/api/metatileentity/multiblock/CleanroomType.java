@@ -10,7 +10,7 @@ public class CleanroomType {
 
     private static final Map<String, CleanroomType> CLEANROOM_TYPES = new Object2ObjectOpenHashMap<>();
 
-    public static final CleanroomType CLEANROOM = new CleanroomType("cleanroom");
+    public static final CleanroomType CLEANROOM = new CleanroomType(I18n.format("cleanroom.type.cleanroom"));
 
 
     private final String name;
