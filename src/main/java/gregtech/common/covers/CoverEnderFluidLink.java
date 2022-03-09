@@ -40,7 +40,7 @@ import static gregtech.common.items.MetaItems.*;
 
 public class CoverEnderFluidLink extends CoverBehavior implements CoverWithUI, ITickable, IControllable {
 
-    protected final int TRANSFER_RATE = 0; // mB/t
+    protected final int TRANSFER_RATE = 8000; // mB/t
 
     protected CoverPump.PumpMode pumpMode;
     private int color;
@@ -65,14 +65,14 @@ public class CoverEnderFluidLink extends CoverBehavior implements CoverWithUI, I
         fluidFilter = new FluidFilterContainer(this);
         transferBoostSlot = new SingleItemStackHandler(1);
 
-        boost.put(ELECTRIC_PUMP_LV.getStackForm().getDisplayName(), 64);
-        boost.put(ELECTRIC_PUMP_MV.getStackForm().getDisplayName(), 256);
-        boost.put(ELECTRIC_PUMP_HV.getStackForm().getDisplayName(), 1024);
-        boost.put(ELECTRIC_PUMP_EV.getStackForm().getDisplayName(), 4096);
-        boost.put(ELECTRIC_PUMP_IV.getStackForm().getDisplayName(), 16384);
-        boost.put(ELECTRIC_PUMP_LUV.getStackForm().getDisplayName(), 65536);
-        boost.put(ELECTRIC_PUMP_ZPM.getStackForm().getDisplayName(), 262144);
-        boost.put(ELECTRIC_PUMP_UV.getStackForm().getDisplayName(), 1048576);
+        boost.put(ELECTRIC_PUMP_LV.getStackForm().getDisplayName(), 500);
+        boost.put(ELECTRIC_PUMP_MV.getStackForm().getDisplayName(), 2000);
+        boost.put(ELECTRIC_PUMP_HV.getStackForm().getDisplayName(), 8000);
+        boost.put(ELECTRIC_PUMP_EV.getStackForm().getDisplayName(), 32000);
+        boost.put(ELECTRIC_PUMP_IV.getStackForm().getDisplayName(), 128000);
+        boost.put(ELECTRIC_PUMP_LUV.getStackForm().getDisplayName(), 512000);
+        boost.put(ELECTRIC_PUMP_ZPM.getStackForm().getDisplayName(), 2048000);
+        boost.put(ELECTRIC_PUMP_UV.getStackForm().getDisplayName(), 8192000);
     }
 
     private String makeTankName() {
@@ -174,7 +174,7 @@ public class CoverEnderFluidLink extends CoverBehavior implements CoverWithUI, I
                 .setBackgroundTexture(GuiTextures.FLUID_SLOT).setAlwaysShowFull(true));
         widgetGroup.addWidget(new SlotWidget(transferBoostSlot, 0, 145, 61, true, true)
                 .setBackgroundTexture(GuiTextures.SLOT, GuiTextures.TOOL_SLOT_OVERLAY)
-                .setTooltipText("cover.ender_fluid_link.pump_slot"));
+                .setTooltipText("cover.ender_fluid_link.boost_slot"));
         widgetGroup.addWidget(new ImageWidget(147, 19, 16, 16)
                 .setImage(GuiTextures.INFO_ICON)
                 .setPredicate(() -> isColorTemp)
