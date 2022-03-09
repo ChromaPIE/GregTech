@@ -21,7 +21,6 @@ import gregtech.api.util.GTFluidUtils;
 import gregtech.api.util.VirtualTankRegistry;
 import gregtech.common.covers.filter.FluidFilterContainer;
 import gregtech.common.inventory.handlers.SingleItemStackHandler;
-import gregtech.common.items.MetaItems;
 import net.minecraft.block.Block;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -36,6 +35,8 @@ import net.minecraftforge.fluids.capability.IFluidHandler;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+
+import static gregtech.common.items.MetaItems.*;
 
 public class CoverEnderFluidLink extends CoverBehavior implements CoverWithUI, ITickable, IControllable {
 
@@ -63,6 +64,15 @@ public class CoverEnderFluidLink extends CoverBehavior implements CoverWithUI, I
         this.linkedTank = new FluidTankSwitchShim(VirtualTankRegistry.getTankCreate(makeTankName(), null));
         fluidFilter = new FluidFilterContainer(this);
         transferBoostSlot = new SingleItemStackHandler(1);
+
+        boost.put(ELECTRIC_PUMP_LV.getStackForm().getDisplayName(), 64);
+        boost.put(ELECTRIC_PUMP_MV.getStackForm().getDisplayName(), 256);
+        boost.put(ELECTRIC_PUMP_HV.getStackForm().getDisplayName(), 1024);
+        boost.put(ELECTRIC_PUMP_EV.getStackForm().getDisplayName(), 4096);
+        boost.put(ELECTRIC_PUMP_IV.getStackForm().getDisplayName(), 16384);
+        boost.put(ELECTRIC_PUMP_LUV.getStackForm().getDisplayName(), 65536);
+        boost.put(ELECTRIC_PUMP_ZPM.getStackForm().getDisplayName(), 262144);
+        boost.put(ELECTRIC_PUMP_UV.getStackForm().getDisplayName(), 1048576);
     }
 
     private String makeTankName() {
@@ -73,19 +83,10 @@ public class CoverEnderFluidLink extends CoverBehavior implements CoverWithUI, I
         return isPrivate ? playerUUID : null;
     }
 
-    private int getBoostingRate() {
-        Map<ItemStack, Integer> boost = new HashMap<>();
-        boost.put(ItemStack.EMPTY, 0);
-        boost.put(MetaItems.ELECTRIC_PUMP_LV.getStackForm(), 1280);
-        boost.put(MetaItems.ELECTRIC_PUMP_MV.getStackForm(), 5120);
-        boost.put(MetaItems.ELECTRIC_PUMP_HV.getStackForm(), 20480);
-        boost.put(MetaItems.ELECTRIC_PUMP_EV.getStackForm(), 81920);
-        boost.put(MetaItems.ELECTRIC_PUMP_IV.getStackForm(), 327680);
-        boost.put(MetaItems.ELECTRIC_PUMP_LUV.getStackForm(), 1310720);
-        boost.put(MetaItems.ELECTRIC_PUMP_ZPM.getStackForm(), 5242880);
-        boost.put(MetaItems.ELECTRIC_PUMP_UV.getStackForm(), 20971520);
+    private final Map<String, Integer> boost = new HashMap<>();
 
-        return boost.getOrDefault(transferBoostSlot.getStackInSlot(0), 0);
+    private int getBoostingRate() {
+        return boost.getOrDefault(transferBoostSlot.getStackInSlot(0).getDisplayName(), 0);
     }
 
     @Override
@@ -171,7 +172,7 @@ public class CoverEnderFluidLink extends CoverBehavior implements CoverWithUI, I
         widgetGroup.addWidget(new TankWidget(this.linkedTank, 123, 18, 18, 18)
                 .setContainerClicking(true, true)
                 .setBackgroundTexture(GuiTextures.FLUID_SLOT).setAlwaysShowFull(true));
-        widgetGroup.addWidget(new SlotWidget(transferBoostSlot, 0, 146, 65, true, true)
+        widgetGroup.addWidget(new SlotWidget(transferBoostSlot, 0, 145, 61, true, true)
                 .setBackgroundTexture(GuiTextures.SLOT, GuiTextures.TOOL_SLOT_OVERLAY)
                 .setTooltipText("cover.ender_fluid_link.pump_slot"));
         widgetGroup.addWidget(new ImageWidget(147, 19, 16, 16)
