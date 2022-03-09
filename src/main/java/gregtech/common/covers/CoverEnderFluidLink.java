@@ -20,6 +20,8 @@ import gregtech.api.util.FluidTankSwitchShim;
 import gregtech.api.util.GTFluidUtils;
 import gregtech.api.util.VirtualTankRegistry;
 import gregtech.common.covers.filter.FluidFilterContainer;
+import gregtech.common.inventory.handlers.SingleItemStackHandler;
+import gregtech.common.items.MetaItems;
 import net.minecraft.block.Block;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -31,11 +33,13 @@ import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.fluids.capability.CapabilityFluidHandler;
 import net.minecraftforge.fluids.capability.IFluidHandler;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 public class CoverEnderFluidLink extends CoverBehavior implements CoverWithUI, ITickable, IControllable {
 
-    private final int TRANSFER_RATE = 8000; // mB/t
+    protected final int TRANSFER_RATE = 0; // mB/t
 
     protected CoverPump.PumpMode pumpMode;
     private int color;
@@ -47,6 +51,7 @@ public class CoverEnderFluidLink extends CoverBehavior implements CoverWithUI, I
     private boolean isColorTemp;
     private final FluidTankSwitchShim linkedTank;
     protected final FluidFilterContainer fluidFilter;
+    private final SingleItemStackHandler transferBoostSlot;
 
     public CoverEnderFluidLink(ICoverable coverHolder, EnumFacing attachedSide) {
         super(coverHolder, attachedSide);
@@ -57,6 +62,7 @@ public class CoverEnderFluidLink extends CoverBehavior implements CoverWithUI, I
         color = 0xFFFFFFFF;
         this.linkedTank = new FluidTankSwitchShim(VirtualTankRegistry.getTankCreate(makeTankName(), null));
         fluidFilter = new FluidFilterContainer(this);
+        transferBoostSlot = new SingleItemStackHandler(1);
     }
 
     private String makeTankName() {
@@ -65,6 +71,21 @@ public class CoverEnderFluidLink extends CoverBehavior implements CoverWithUI, I
 
     private UUID getTankUUID() {
         return isPrivate ? playerUUID : null;
+    }
+
+    private int getBoostingRate() {
+        Map<ItemStack, Integer> boost = new HashMap<>();
+        boost.put(ItemStack.EMPTY, 0);
+        boost.put(MetaItems.ELECTRIC_PUMP_LV.getStackForm(), 1280);
+        boost.put(MetaItems.ELECTRIC_PUMP_MV.getStackForm(), 5120);
+        boost.put(MetaItems.ELECTRIC_PUMP_HV.getStackForm(), 20480);
+        boost.put(MetaItems.ELECTRIC_PUMP_EV.getStackForm(), 81920);
+        boost.put(MetaItems.ELECTRIC_PUMP_IV.getStackForm(), 327680);
+        boost.put(MetaItems.ELECTRIC_PUMP_LUV.getStackForm(), 1310720);
+        boost.put(MetaItems.ELECTRIC_PUMP_ZPM.getStackForm(), 5242880);
+        boost.put(MetaItems.ELECTRIC_PUMP_UV.getStackForm(), 20971520);
+
+        return boost.getOrDefault(transferBoostSlot.getStackInSlot(0), 0);
     }
 
     @Override
@@ -110,11 +131,12 @@ public class CoverEnderFluidLink extends CoverBehavior implements CoverWithUI, I
     }
 
     protected void transferFluids() {
+        int rate = TRANSFER_RATE + getBoostingRate();
         IFluidHandler fluidHandler = coverHolder.getCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, attachedSide);
         if (pumpMode == CoverPump.PumpMode.IMPORT) {
-            GTFluidUtils.transferFluids(fluidHandler, linkedTank, TRANSFER_RATE, fluidFilter::testFluidStack);
+            GTFluidUtils.transferFluids(fluidHandler, linkedTank, rate, fluidFilter::testFluidStack);
         } else if (pumpMode == CoverPump.PumpMode.EXPORT) {
-            GTFluidUtils.transferFluids(linkedTank, fluidHandler, TRANSFER_RATE, fluidFilter::testFluidStack);
+            GTFluidUtils.transferFluids(linkedTank, fluidHandler, rate, fluidFilter::testFluidStack);
         }
     }
 
@@ -149,6 +171,9 @@ public class CoverEnderFluidLink extends CoverBehavior implements CoverWithUI, I
         widgetGroup.addWidget(new TankWidget(this.linkedTank, 123, 18, 18, 18)
                 .setContainerClicking(true, true)
                 .setBackgroundTexture(GuiTextures.FLUID_SLOT).setAlwaysShowFull(true));
+        widgetGroup.addWidget(new SlotWidget(transferBoostSlot, 0, 146, 65, true, true)
+                .setBackgroundTexture(GuiTextures.SLOT, GuiTextures.TOOL_SLOT_OVERLAY)
+                .setTooltipText("cover.ender_fluid_link.pump_slot"));
         widgetGroup.addWidget(new ImageWidget(147, 19, 16, 16)
                 .setImage(GuiTextures.INFO_ICON)
                 .setPredicate(() -> isColorTemp)
@@ -200,6 +225,7 @@ public class CoverEnderFluidLink extends CoverBehavior implements CoverWithUI, I
         tagCompound.setBoolean("Private", isPrivate);
         tagCompound.setString("PlacedUUID", playerUUID.toString());
         tagCompound.setTag("Filter", fluidFilter.serializeNBT());
+        tagCompound.setTag("TransferBoost", transferBoostSlot.serializeNBT());
     }
 
     @Override
@@ -212,6 +238,7 @@ public class CoverEnderFluidLink extends CoverBehavior implements CoverWithUI, I
         this.isPrivate = tagCompound.getBoolean("Private");
         this.playerUUID = UUID.fromString(tagCompound.getString("PlacedUUID"));
         this.fluidFilter.deserializeNBT(tagCompound.getCompoundTag("Filter"));
+        this.transferBoostSlot.deserializeNBT(tagCompound.getCompoundTag("TransferBoost"));
         updateTankLink();
     }
 
