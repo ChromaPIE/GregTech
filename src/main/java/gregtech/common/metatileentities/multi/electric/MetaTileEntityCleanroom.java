@@ -42,6 +42,7 @@ import net.minecraft.util.text.*;
 import net.minecraft.util.text.event.HoverEvent;
 import net.minecraft.world.World;
 import net.minecraftforge.common.capabilities.Capability;
+import net.minecraftforge.fml.common.Loader;
 import org.lwjgl.input.Keyboard;
 
 import javax.annotation.Nonnull;
@@ -373,6 +374,9 @@ public class MetaTileEntityCleanroom extends MultiblockWithDisplayBase implement
             tooltip.add(I18n.format("gregtech.machine.cleanroom.tooltip.7"));
             tooltip.add(I18n.format("gregtech.machine.cleanroom.tooltip.8"));
             tooltip.add(I18n.format("gregtech.machine.cleanroom.tooltip.9"));
+            if (Loader.isModLoaded(GTValues.MODID_APPENG)) {
+                tooltip.add(I18n.format("gregtech.machine.cleanroom.tooltip.ae2"));
+            }
         } else {
             tooltip.add(I18n.format("gregtech.tooltip.hold_shift"));
         }
