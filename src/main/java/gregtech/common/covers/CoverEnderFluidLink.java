@@ -86,6 +86,9 @@ public class CoverEnderFluidLink extends CoverBehavior implements CoverWithUI, I
     private final Map<String, Integer> boost = new HashMap<>();
 
     private int getBoostingRate() {
+        //cannot get meta value
+        if (!transferBoostSlot.getStackInSlot(0).getItem().getTranslationKey().equals(ELECTRIC_PUMP_LV.getMetaItem().getTranslationKey()))
+            return 0;
         return boost.getOrDefault(transferBoostSlot.getStackInSlot(0).getDisplayName(), 0);
     }
 
