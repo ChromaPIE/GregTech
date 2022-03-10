@@ -19,6 +19,7 @@ import gregtech.client.renderer.texture.Textures;
 import gregtech.api.util.FluidTankSwitchShim;
 import gregtech.api.util.GTFluidUtils;
 import gregtech.api.util.VirtualTankRegistry;
+import gregtech.common.ConfigHolder;
 import gregtech.common.covers.filter.FluidFilterContainer;
 import gregtech.common.inventory.handlers.SingleItemStackHandler;
 import net.minecraft.block.Block;
@@ -65,14 +66,14 @@ public class CoverEnderFluidLink extends CoverBehavior implements CoverWithUI, I
         fluidFilter = new FluidFilterContainer(this);
         transferBoostSlot = new SingleItemStackHandler(1);
 
-        boost.put(ELECTRIC_PUMP_LV.getStackForm().getDisplayName(), 500);
-        boost.put(ELECTRIC_PUMP_MV.getStackForm().getDisplayName(), 2000);
-        boost.put(ELECTRIC_PUMP_HV.getStackForm().getDisplayName(), 8000);
-        boost.put(ELECTRIC_PUMP_EV.getStackForm().getDisplayName(), 32000);
-        boost.put(ELECTRIC_PUMP_IV.getStackForm().getDisplayName(), 128000);
-        boost.put(ELECTRIC_PUMP_LUV.getStackForm().getDisplayName(), 512000);
-        boost.put(ELECTRIC_PUMP_ZPM.getStackForm().getDisplayName(), 2048000);
-        boost.put(ELECTRIC_PUMP_UV.getStackForm().getDisplayName(), 8192000);
+        boost.put(ELECTRIC_PUMP_LV.getStackForm().getDisplayName(), ConfigHolder.enderFluidLinkBoostOptions.lvSpeed);
+        boost.put(ELECTRIC_PUMP_MV.getStackForm().getDisplayName(), ConfigHolder.enderFluidLinkBoostOptions.mvSpeed);
+        boost.put(ELECTRIC_PUMP_HV.getStackForm().getDisplayName(), ConfigHolder.enderFluidLinkBoostOptions.hvSpeed);
+        boost.put(ELECTRIC_PUMP_EV.getStackForm().getDisplayName(), ConfigHolder.enderFluidLinkBoostOptions.evSpeed);
+        boost.put(ELECTRIC_PUMP_IV.getStackForm().getDisplayName(), ConfigHolder.enderFluidLinkBoostOptions.ivSpeed);
+        boost.put(ELECTRIC_PUMP_LUV.getStackForm().getDisplayName(), ConfigHolder.enderFluidLinkBoostOptions.luvSpeed);
+        boost.put(ELECTRIC_PUMP_ZPM.getStackForm().getDisplayName(), ConfigHolder.enderFluidLinkBoostOptions.zpmSpeed);
+        boost.put(ELECTRIC_PUMP_UV.getStackForm().getDisplayName(), ConfigHolder.enderFluidLinkBoostOptions.uvSpeed);
     }
 
     private String makeTankName() {
@@ -86,6 +87,10 @@ public class CoverEnderFluidLink extends CoverBehavior implements CoverWithUI, I
     private final Map<String, Integer> boost = new HashMap<>();
 
     private int getBoostingRate() {
+        if (!ConfigHolder.enderFluidLinkBoostOptions.enabled) return 0;
+        //cannot get meta value
+        if (!transferBoostSlot.getStackInSlot(0).getItem().getTranslationKey().equals(ELECTRIC_PUMP_LV.getMetaItem().getTranslationKey()))
+            return 0;
         return boost.getOrDefault(transferBoostSlot.getStackInSlot(0).getDisplayName(), 0);
     }
 
@@ -172,9 +177,6 @@ public class CoverEnderFluidLink extends CoverBehavior implements CoverWithUI, I
         widgetGroup.addWidget(new TankWidget(this.linkedTank, 123, 18, 18, 18)
                 .setContainerClicking(true, true)
                 .setBackgroundTexture(GuiTextures.FLUID_SLOT).setAlwaysShowFull(true));
-        widgetGroup.addWidget(new SlotWidget(transferBoostSlot, 0, 145, 61, true, true)
-                .setBackgroundTexture(GuiTextures.SLOT, GuiTextures.TOOL_SLOT_OVERLAY)
-                .setTooltipText("cover.ender_fluid_link.boost_slot"));
         widgetGroup.addWidget(new ImageWidget(147, 19, 16, 16)
                 .setImage(GuiTextures.INFO_ICON)
                 .setPredicate(() -> isColorTemp)
@@ -185,6 +187,11 @@ public class CoverEnderFluidLink extends CoverBehavior implements CoverWithUI, I
         widgetGroup.addWidget(new CycleButtonWidget(92, 42, 75, 18,
                 this::isIoEnabled, this::setIoEnabled, "cover.ender_fluid_link.iomode.disabled", "cover.ender_fluid_link.iomode.enabled"));
         this.fluidFilter.initUI(65, widgetGroup::addWidget);
+        if (ConfigHolder.enderFluidLinkBoostOptions.enabled){
+            widgetGroup.addWidget(new SlotWidget(this.transferBoostSlot, 0, 145, 115, true, true)
+                    .setBackgroundTexture(GuiTextures.SLOT, GuiTextures.TOOL_SLOT_OVERLAY)
+                    .setTooltipText("cover.ender_fluid_link.boost_slot"));
+        }
         return ModularUI.builder(GuiTextures.BACKGROUND, 176, 221)
                 .widget(widgetGroup)
                 .bindPlayerInventory(player.inventory, 139)
