@@ -40,6 +40,10 @@ public class ConfigHolder {
     @Config.RequiresMcRestart
     public static WorldGenOptions worldgen = new WorldGenOptions();
 
+    @Config.Comment("Config EnderFluidLink boost options.")
+    @Config.Name("EnderFluidLink Boost Options")
+    @Config.RequiresMcRestart
+    public static EnderFluidLinkBoostOptions enderFluidLinkBoostOptions = new EnderFluidLinkBoostOptions();
 
     public static class MachineOptions {
 
@@ -477,5 +481,34 @@ public class ConfigHolder {
         @Config.RangeInt(min = 1, max = 512)
         @Config.Comment({"The EU/t consumption of the NanoSaber.", "Default: 64"})
         public int energyConsumption = 64;
+    }
+
+    public static class EnderFluidLinkBoostOptions {
+        @Config.Comment("Enable boost.")
+        public boolean enabled = false;
+
+        @Config.Comment({"LV Pump boost value.","Default: 500"})
+        public int lvSpeed = 500;
+
+        @Config.Comment({"MV Pump boost value.","Default: 2000"})
+        public int mvSpeed = 2000;
+
+        @Config.Comment({"HV Pump boost value.","Default: 8000"})
+        public int hvSpeed = 8000;
+
+        @Config.Comment({"EV Pump boost value.","Default: 32000"})
+        public int evSpeed = 32000;
+
+        @Config.Comment({"IV Pump boost value.","Default: 128000"})
+        public int ivSpeed = 128000;
+
+        @Config.Comment({"LUV Pump boost value.","Default: 512000"})
+        public int luvSpeed = 512000;
+
+        @Config.Comment({"ZPM Pump boost value.","Default: 2048000"})
+        public int zpmSpeed = 2048000;
+
+        @Config.Comment({"UV Pump boost value.","Default: 8192000"})
+        public int uvSpeed = 8192000;
     }
 }
