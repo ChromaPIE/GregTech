@@ -71,7 +71,7 @@ public class CoverEnderFluidLink extends CoverBehavior implements CoverWithUI, I
         boost.put(ELECTRIC_PUMP_HV.getStackForm().getDisplayName(), ConfigHolder.enderFluidLinkBoostOptions.hvSpeed);
         boost.put(ELECTRIC_PUMP_EV.getStackForm().getDisplayName(), ConfigHolder.enderFluidLinkBoostOptions.evSpeed);
         boost.put(ELECTRIC_PUMP_IV.getStackForm().getDisplayName(), ConfigHolder.enderFluidLinkBoostOptions.ivSpeed);
-        boost.put(ELECTRIC_PUMP_LUV.getStackForm().getDisplayName(), ConfigHolder.enderFluidLinkBoostOptions.luvSpeed);
+        boost.put(ELECTRIC_PUMP_LuV.getStackForm().getDisplayName(), ConfigHolder.enderFluidLinkBoostOptions.luvSpeed);
         boost.put(ELECTRIC_PUMP_ZPM.getStackForm().getDisplayName(), ConfigHolder.enderFluidLinkBoostOptions.zpmSpeed);
         boost.put(ELECTRIC_PUMP_UV.getStackForm().getDisplayName(), ConfigHolder.enderFluidLinkBoostOptions.uvSpeed);
     }
