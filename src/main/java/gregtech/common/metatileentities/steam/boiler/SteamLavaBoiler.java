@@ -1,5 +1,6 @@
 package gregtech.common.metatileentities.steam.boiler;
 
+import gregtech.api.GTValues;
 import gregtech.api.capability.GregtechCapabilities;
 import gregtech.api.capability.IFuelInfo;
 import gregtech.api.capability.IFuelable;
@@ -10,18 +11,24 @@ import gregtech.api.gui.GuiTextures;
 import gregtech.api.gui.ModularUI;
 import gregtech.api.gui.widgets.TankWidget;
 import gregtech.api.metatileentity.MetaTileEntity;
-import gregtech.api.metatileentity.MetaTileEntityHolder;
+import gregtech.api.metatileentity.interfaces.IGregTechTileEntity;
 import gregtech.api.unification.material.Materials;
 import gregtech.client.renderer.texture.Textures;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.EnumFacing;
+import net.minecraft.util.EnumParticleTypes;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.fluids.Fluid;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.FluidTank;
+import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 
-import java.util.*;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 public class SteamLavaBoiler extends SteamBoiler implements IFuelable {
 
@@ -35,7 +42,7 @@ public class SteamLavaBoiler extends SteamBoiler implements IFuelable {
     }
 
     @Override
-    public MetaTileEntity createMetaTileEntity(MetaTileEntityHolder holder) {
+    public MetaTileEntity createMetaTileEntity(IGregTechTileEntity tileEntity) {
         return new SteamLavaBoiler(metaTileEntityId, isHighPressure);
     }
 
@@ -108,5 +115,14 @@ public class SteamLavaBoiler extends SteamBoiler implements IFuelable {
                 .widget(new TankWidget(fuelFluidTank, 119, 26, 10, 54)
                         .setBackgroundTexture(GuiTextures.PROGRESS_BAR_BOILER_EMPTY.get(isHighPressure)))
                 .build(getHolder(), entityPlayer);
+    }
+
+    @SideOnly(Side.CLIENT)
+    @Override
+    public void randomDisplayTick(float x, float y, float z) {
+        super.randomDisplayTick(x, y, z);
+        if (GTValues.RNG.nextFloat() < 0.3F) {
+            getWorld().spawnParticle(EnumParticleTypes.LAVA, x + GTValues.RNG.nextFloat(), y, z + GTValues.RNG.nextFloat(), 0.0F, 0.0F, 0.0F);
+        }
     }
 }

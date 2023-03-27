@@ -1,12 +1,10 @@
 package gregtech.api.capability.impl;
 
 import gregtech.api.GTValues;
-import gregtech.api.capability.FeCompat;
-import gregtech.api.capability.GregtechCapabilities;
-import gregtech.api.capability.IElectricItem;
-import gregtech.api.capability.IEnergyContainer;
+import gregtech.api.capability.*;
 import gregtech.api.metatileentity.MetaTileEntity;
 import gregtech.api.util.GTUtility;
+import gregtech.common.ConfigHolder;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumFacing;
@@ -14,15 +12,18 @@ import net.minecraftforge.energy.CapabilityEnergy;
 import net.minecraftforge.energy.IEnergyStorage;
 import net.minecraftforge.items.IItemHandlerModifiable;
 
+import javax.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.List;
 
 public class EnergyContainerBatteryBuffer extends EnergyContainerHandler {
 
+    public static final long AMPS_PER_BATTERY = 2L;
+
     private final int tier;
 
     public EnergyContainerBatteryBuffer(MetaTileEntity metaTileEntity, int tier, int inventorySize) {
-        super(metaTileEntity, GTValues.V[tier] * inventorySize * 32L, GTValues.V[tier], inventorySize * 2L, GTValues.V[tier], inventorySize);
+        super(metaTileEntity, GTValues.V[tier] * inventorySize * 32L, GTValues.V[tier], inventorySize * AMPS_PER_BATTERY, GTValues.V[tier], inventorySize);
         this.tier = tier;
     }
 
@@ -32,7 +33,7 @@ public class EnergyContainerBatteryBuffer extends EnergyContainerHandler {
             return 0;
 
         List<Object> batteries = getNonFullBatteries();
-        long maxAmps = batteries.size() * 2L - amps;
+        long maxAmps = batteries.size() * AMPS_PER_BATTERY - amps;
         long usedAmps = Math.min(maxAmps, amperage);
         if (maxAmps <= 0)
             return 0;
@@ -56,10 +57,10 @@ public class EnergyContainerBatteryBuffer extends EnergyContainerHandler {
             for (Object item : batteries) {
                 if (item instanceof IElectricItem) {
                     IElectricItem electricItem = (IElectricItem) item;
-                    energy -= electricItem.charge(Math.min(distributed, GTValues.V[electricItem.getTier()] * 2L), getTier(), true, false);
+                    energy -= electricItem.charge(Math.min(distributed, GTValues.V[electricItem.getTier()] * AMPS_PER_BATTERY), getTier(), true, false);
                 } else if (item instanceof IEnergyStorage) {
                     IEnergyStorage energyStorage = (IEnergyStorage) item;
-                    energy -= FeCompat.insertEu(energyStorage, Math.min(distributed, GTValues.V[getTier()] * 2L));
+                    energy -= FeCompat.insertEu(energyStorage, Math.min(distributed, GTValues.V[getTier()] * AMPS_PER_BATTERY));
                 }
             }
 
@@ -134,7 +135,7 @@ public class EnergyContainerBatteryBuffer extends EnergyContainerHandler {
                 if (electricItem.getCharge() < electricItem.getMaxCharge()) {
                     batteries.add(electricItem);
                 }
-            } else {
+            } else if (ConfigHolder.compat.energy.nativeEUToFE) {
                 IEnergyStorage energyStorage = batteryStack.getCapability(CapabilityEnergy.ENERGY, null);
                 if (energyStorage != null) {
                     if (energyStorage.getEnergyStored() < energyStorage.getMaxEnergyStored()) {
@@ -169,7 +170,7 @@ public class EnergyContainerBatteryBuffer extends EnergyContainerHandler {
             IElectricItem electricItem = getBatteryContainer(batteryStack);
             if (electricItem != null) {
                 energyCapacity += electricItem.getMaxCharge();
-            } else {
+            } else if (ConfigHolder.compat.energy.nativeEUToFE) {
                 IEnergyStorage energyStorage = batteryStack.getCapability(CapabilityEnergy.ENERGY, null);
                 if (energyStorage != null) {
                     energyCapacity += FeCompat.toEu(energyStorage.getMaxEnergyStored(), FeCompat.ratio(false));
@@ -188,7 +189,7 @@ public class EnergyContainerBatteryBuffer extends EnergyContainerHandler {
             IElectricItem electricItem = getBatteryContainer(batteryStack);
             if (electricItem != null) {
                 energyStored += electricItem.getCharge();
-            } else {
+            } else if (ConfigHolder.compat.energy.nativeEUToFE) {
                 IEnergyStorage energyStorage = batteryStack.getCapability(CapabilityEnergy.ENERGY, null);
                 if (energyStorage != null) {
                     energyStored += FeCompat.toEu(energyStorage.getEnergyStored(), FeCompat.ratio(false));
@@ -230,9 +231,10 @@ public class EnergyContainerBatteryBuffer extends EnergyContainerHandler {
         return !inputsEnergy(side);
     }
 
+    @Nonnull
     @Override
-    public String getName() {
-        return "BatteryEnergyContainer";
+    public final String getName() {
+        return GregtechDataCodes.BATTERY_BUFFER_ENERGY_CONTAINER_TRAIT;
     }
 
     protected IItemHandlerModifiable getInventory() {

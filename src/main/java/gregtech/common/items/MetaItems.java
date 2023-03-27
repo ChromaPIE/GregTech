@@ -6,7 +6,6 @@ import gregtech.api.items.materialitem.MetaPrefixItem;
 import gregtech.api.items.metaitem.MetaItem;
 import gregtech.api.items.metaitem.MetaItem.MetaValueItem;
 import gregtech.api.items.metaitem.MetaOreDictItem;
-import gregtech.api.items.toolitem.ToolMetaItem;
 import gregtech.api.unification.OreDictUnifier;
 import gregtech.api.unification.material.MarkerMaterial;
 import gregtech.api.unification.ore.OrePrefix;
@@ -85,14 +84,6 @@ public final class MetaItems {
     public static MetaItem<?>.MetaValueItem SHAPE_EXTRUDER_PIPE_LARGE;
     public static MetaItem<?>.MetaValueItem SHAPE_EXTRUDER_PIPE_HUGE;
     public static MetaItem<?>.MetaValueItem SHAPE_EXTRUDER_BLOCK;
-    public static MetaItem<?>.MetaValueItem SHAPE_EXTRUDER_SWORD;
-    public static MetaItem<?>.MetaValueItem SHAPE_EXTRUDER_PICKAXE;
-    public static MetaItem<?>.MetaValueItem SHAPE_EXTRUDER_SHOVEL;
-    public static MetaItem<?>.MetaValueItem SHAPE_EXTRUDER_AXE;
-    public static MetaItem<?>.MetaValueItem SHAPE_EXTRUDER_HOE;
-    public static MetaItem<?>.MetaValueItem SHAPE_EXTRUDER_HAMMER;
-    public static MetaItem<?>.MetaValueItem SHAPE_EXTRUDER_FILE;
-    public static MetaItem<?>.MetaValueItem SHAPE_EXTRUDER_SAW;
     public static MetaItem<?>.MetaValueItem SHAPE_EXTRUDER_GEAR;
     public static MetaItem<?>.MetaValueItem SHAPE_EXTRUDER_BOTTLE;
     public static MetaItem<?>.MetaValueItem SHAPE_EXTRUDER_FOIL;
@@ -100,6 +91,7 @@ public final class MetaItems {
     public static MetaItem<?>.MetaValueItem SHAPE_EXTRUDER_ROD_LONG;
     public static MetaItem<?>.MetaValueItem SHAPE_EXTRUDER_ROTOR;
 
+    public static MetaItem<?>.MetaValueItem SPRAY_SOLVENT;
     public static MetaItem<?>.MetaValueItem SPRAY_EMPTY;
 
     public static MetaItem<?>.MetaValueItem FLUID_CELL;
@@ -109,6 +101,7 @@ public final class MetaItems {
     public static MetaItem<?>.MetaValueItem FLUID_CELL_LARGE_STAINLESS_STEEL;
     public static MetaItem<?>.MetaValueItem FLUID_CELL_LARGE_TITANIUM;
     public static MetaItem<?>.MetaValueItem FLUID_CELL_LARGE_TUNGSTEN_STEEL;
+    public static MetaItem<?>.MetaValueItem FLUID_CELL_GLASS_VIAL;
 
     public static MetaItem<?>.MetaValueItem TOOL_MATCHES;
     public static MetaItem<?>.MetaValueItem TOOL_MATCHBOX;
@@ -160,28 +153,28 @@ public final class MetaItems {
     public static MetaItem<?>.MetaValueItem ELECTRIC_MOTOR_HV;
     public static MetaItem<?>.MetaValueItem ELECTRIC_MOTOR_EV;
     public static MetaItem<?>.MetaValueItem ELECTRIC_MOTOR_IV;
-    public static MetaItem<?>.MetaValueItem ELECTRIC_MOTOR_LUV;
+    public static MetaItem<?>.MetaValueItem ELECTRIC_MOTOR_LuV;
     public static MetaItem<?>.MetaValueItem ELECTRIC_MOTOR_ZPM;
     public static MetaItem<?>.MetaValueItem ELECTRIC_MOTOR_UV;
     public static MetaItem<?>.MetaValueItem ELECTRIC_MOTOR_UHV;
     public static MetaItem<?>.MetaValueItem ELECTRIC_MOTOR_UEV;
     public static MetaItem<?>.MetaValueItem ELECTRIC_MOTOR_UIV;
-    public static MetaItem<?>.MetaValueItem ELECTRIC_MOTOR_UMV;
     public static MetaItem<?>.MetaValueItem ELECTRIC_MOTOR_UXV;
+    public static MetaItem<?>.MetaValueItem ELECTRIC_MOTOR_OpV;
 
     public static MetaItem<?>.MetaValueItem ELECTRIC_PUMP_LV;
     public static MetaItem<?>.MetaValueItem ELECTRIC_PUMP_MV;
     public static MetaItem<?>.MetaValueItem ELECTRIC_PUMP_HV;
     public static MetaItem<?>.MetaValueItem ELECTRIC_PUMP_EV;
     public static MetaItem<?>.MetaValueItem ELECTRIC_PUMP_IV;
-    public static MetaItem<?>.MetaValueItem ELECTRIC_PUMP_LUV;
+    public static MetaItem<?>.MetaValueItem ELECTRIC_PUMP_LuV;
     public static MetaItem<?>.MetaValueItem ELECTRIC_PUMP_ZPM;
     public static MetaItem<?>.MetaValueItem ELECTRIC_PUMP_UV;
     public static MetaItem<?>.MetaValueItem ELECTRIC_PUMP_UHV;
     public static MetaItem<?>.MetaValueItem ELECTRIC_PUMP_UEV;
     public static MetaItem<?>.MetaValueItem ELECTRIC_PUMP_UIV;
-    public static MetaItem<?>.MetaValueItem ELECTRIC_PUMP_UMV;
     public static MetaItem<?>.MetaValueItem ELECTRIC_PUMP_UXV;
+    public static MetaItem<?>.MetaValueItem ELECTRIC_PUMP_OpV;
 
     public static MetaItem<?>.MetaValueItem FLUID_REGULATOR_LV;
     public static MetaItem<?>.MetaValueItem FLUID_REGULATOR_MV;
@@ -201,14 +194,14 @@ public final class MetaItems {
     public static MetaItem<?>.MetaValueItem CONVEYOR_MODULE_HV;
     public static MetaItem<?>.MetaValueItem CONVEYOR_MODULE_EV;
     public static MetaItem<?>.MetaValueItem CONVEYOR_MODULE_IV;
-    public static MetaItem<?>.MetaValueItem CONVEYOR_MODULE_LUV;
+    public static MetaItem<?>.MetaValueItem CONVEYOR_MODULE_LuV;
     public static MetaItem<?>.MetaValueItem CONVEYOR_MODULE_ZPM;
     public static MetaItem<?>.MetaValueItem CONVEYOR_MODULE_UV;
     public static MetaItem<?>.MetaValueItem CONVEYOR_MODULE_UHV;
     public static MetaItem<?>.MetaValueItem CONVEYOR_MODULE_UEV;
     public static MetaItem<?>.MetaValueItem CONVEYOR_MODULE_UIV;
-    public static MetaItem<?>.MetaValueItem CONVEYOR_MODULE_UMV;
     public static MetaItem<?>.MetaValueItem CONVEYOR_MODULE_UXV;
+    public static MetaItem<?>.MetaValueItem CONVEYOR_MODULE_OpV;
 
     public static MetaItem<?>.MetaValueItem ELECTRIC_PISTON_LV;
     public static MetaItem<?>.MetaValueItem ELECTRIC_PISTON_MV;
@@ -221,64 +214,64 @@ public final class MetaItems {
     public static MetaItem<?>.MetaValueItem ELECTRIC_PISTON_UHV;
     public static MetaItem<?>.MetaValueItem ELECTRIC_PISTON_UEV;
     public static MetaItem<?>.MetaValueItem ELECTRIC_PISTON_UIV;
-    public static MetaItem<?>.MetaValueItem ELECTRIC_PISTON_UMV;
     public static MetaItem<?>.MetaValueItem ELECTRIC_PISTON_UXV;
+    public static MetaItem<?>.MetaValueItem ELECTRIC_PISTON_OpV;
 
     public static MetaItem<?>.MetaValueItem ROBOT_ARM_LV;
     public static MetaItem<?>.MetaValueItem ROBOT_ARM_MV;
     public static MetaItem<?>.MetaValueItem ROBOT_ARM_HV;
     public static MetaItem<?>.MetaValueItem ROBOT_ARM_EV;
     public static MetaItem<?>.MetaValueItem ROBOT_ARM_IV;
-    public static MetaItem<?>.MetaValueItem ROBOT_ARM_LUV;
+    public static MetaItem<?>.MetaValueItem ROBOT_ARM_LuV;
     public static MetaItem<?>.MetaValueItem ROBOT_ARM_ZPM;
     public static MetaItem<?>.MetaValueItem ROBOT_ARM_UV;
     public static MetaItem<?>.MetaValueItem ROBOT_ARM_UHV;
     public static MetaItem<?>.MetaValueItem ROBOT_ARM_UEV;
     public static MetaItem<?>.MetaValueItem ROBOT_ARM_UIV;
-    public static MetaItem<?>.MetaValueItem ROBOT_ARM_UMV;
     public static MetaItem<?>.MetaValueItem ROBOT_ARM_UXV;
+    public static MetaItem<?>.MetaValueItem ROBOT_ARM_OpV;
 
     public static MetaItem<?>.MetaValueItem FIELD_GENERATOR_LV;
     public static MetaItem<?>.MetaValueItem FIELD_GENERATOR_MV;
     public static MetaItem<?>.MetaValueItem FIELD_GENERATOR_HV;
     public static MetaItem<?>.MetaValueItem FIELD_GENERATOR_EV;
     public static MetaItem<?>.MetaValueItem FIELD_GENERATOR_IV;
-    public static MetaItem<?>.MetaValueItem FIELD_GENERATOR_LUV;
+    public static MetaItem<?>.MetaValueItem FIELD_GENERATOR_LuV;
     public static MetaItem<?>.MetaValueItem FIELD_GENERATOR_ZPM;
     public static MetaItem<?>.MetaValueItem FIELD_GENERATOR_UV;
     public static MetaItem<?>.MetaValueItem FIELD_GENERATOR_UHV;
     public static MetaItem<?>.MetaValueItem FIELD_GENERATOR_UEV;
     public static MetaItem<?>.MetaValueItem FIELD_GENERATOR_UIV;
-    public static MetaItem<?>.MetaValueItem FIELD_GENERATOR_UMV;
     public static MetaItem<?>.MetaValueItem FIELD_GENERATOR_UXV;
+    public static MetaItem<?>.MetaValueItem FIELD_GENERATOR_OpV;
 
     public static MetaItem<?>.MetaValueItem EMITTER_LV;
     public static MetaItem<?>.MetaValueItem EMITTER_MV;
     public static MetaItem<?>.MetaValueItem EMITTER_HV;
     public static MetaItem<?>.MetaValueItem EMITTER_EV;
     public static MetaItem<?>.MetaValueItem EMITTER_IV;
-    public static MetaItem<?>.MetaValueItem EMITTER_LUV;
+    public static MetaItem<?>.MetaValueItem EMITTER_LuV;
     public static MetaItem<?>.MetaValueItem EMITTER_ZPM;
     public static MetaItem<?>.MetaValueItem EMITTER_UV;
     public static MetaItem<?>.MetaValueItem EMITTER_UHV;
     public static MetaItem<?>.MetaValueItem EMITTER_UEV;
     public static MetaItem<?>.MetaValueItem EMITTER_UIV;
-    public static MetaItem<?>.MetaValueItem EMITTER_UMV;
     public static MetaItem<?>.MetaValueItem EMITTER_UXV;
+    public static MetaItem<?>.MetaValueItem EMITTER_OpV;
 
     public static MetaItem<?>.MetaValueItem SENSOR_LV;
     public static MetaItem<?>.MetaValueItem SENSOR_MV;
     public static MetaItem<?>.MetaValueItem SENSOR_HV;
     public static MetaItem<?>.MetaValueItem SENSOR_EV;
     public static MetaItem<?>.MetaValueItem SENSOR_IV;
-    public static MetaItem<?>.MetaValueItem SENSOR_LUV;
+    public static MetaItem<?>.MetaValueItem SENSOR_LuV;
     public static MetaItem<?>.MetaValueItem SENSOR_ZPM;
     public static MetaItem<?>.MetaValueItem SENSOR_UV;
     public static MetaItem<?>.MetaValueItem SENSOR_UHV;
     public static MetaItem<?>.MetaValueItem SENSOR_UEV;
     public static MetaItem<?>.MetaValueItem SENSOR_UIV;
-    public static MetaItem<?>.MetaValueItem SENSOR_UMV;
     public static MetaItem<?>.MetaValueItem SENSOR_UXV;
+    public static MetaItem<?>.MetaValueItem SENSOR_OpV;
 
     public static MetaItem<?>.MetaValueItem TOOL_DATA_STICK;
     public static MetaItem<?>.MetaValueItem TOOL_DATA_ORB;
@@ -431,8 +424,11 @@ public final class MetaItems {
     public static MetaItem<?>.MetaValueItem COVER_ACTIVITY_DETECTOR;
     public static MetaItem<?>.MetaValueItem COVER_ACTIVITY_DETECTOR_ADVANCED;
     public static MetaItem<?>.MetaValueItem COVER_FLUID_DETECTOR;
+    public static MetaItem<?>.MetaValueItem COVER_FLUID_DETECTOR_ADVANCED;
     public static MetaItem<?>.MetaValueItem COVER_ITEM_DETECTOR;
+    public static MetaItem<?>.MetaValueItem COVER_ITEM_DETECTOR_ADVANCED;
     public static MetaItem<?>.MetaValueItem COVER_ENERGY_DETECTOR;
+    public static MetaItem<?>.MetaValueItem COVER_ENERGY_DETECTOR_ADVANCED;
 
     public static MetaItem<?>.MetaValueItem COVER_SCREEN;
     public static MetaItem<?>.MetaValueItem COVER_CRAFTING;
@@ -440,6 +436,11 @@ public final class MetaItems {
     public static MetaItem<?>.MetaValueItem COVER_ENDER_FLUID_LINK;
     public static MetaItem<?>.MetaValueItem COVER_DIGITAL_INTERFACE;
     public static MetaItem<?>.MetaValueItem COVER_DIGITAL_INTERFACE_WIRELESS;
+    public static MetaItem<?>.MetaValueItem COVER_FLUID_VOIDING;
+    public static MetaItem<?>.MetaValueItem COVER_FLUID_VOIDING_ADVANCED;
+    public static MetaItem<?>.MetaValueItem COVER_ITEM_VOIDING;
+    public static MetaItem<?>.MetaValueItem COVER_ITEM_VOIDING_ADVANCED;
+    public static MetaItem<?>.MetaValueItem COVER_STORAGE;
 
     public static MetaItem<?>.MetaValueItem COVER_SOLAR_PANEL;
     public static MetaItem<?>.MetaValueItem COVER_SOLAR_PANEL_ULV;
@@ -487,6 +488,12 @@ public final class MetaItems {
     public static MetaItem<?>.MetaValueItem ITEM_MAGNET_LV;
     public static MetaItem<?>.MetaValueItem ITEM_MAGNET_HV;
 
+    public static MetaItem<?>.MetaValueItem RUBBER_WOOD_BOAT;
+    public static MetaItem<?>.MetaValueItem TREATED_WOOD_BOAT;
+
+    public static MetaItem<?>.MetaValueItem RUBBER_WOOD_DOOR;
+    public static MetaItem<?>.MetaValueItem TREATED_WOOD_DOOR;
+
     public static MetaItem<?>.MetaValueItem WIRELESS;
     public static MetaItem<?>.MetaValueItem CAMERA;
     public static MetaItem<?>.MetaValueItem TERMINAL;
@@ -495,40 +502,6 @@ public final class MetaItems {
     public static final MetaItem<?>.MetaValueItem[] SPRAY_CAN_DYES = new MetaItem.MetaValueItem[EnumDyeColor.values().length];
 
     public static MetaItem<?>.MetaValueItem TURBINE_ROTOR;
-
-    public static ToolMetaItem<?>.MetaToolValueItem SWORD;
-    public static ToolMetaItem<?>.MetaToolValueItem PICKAXE;
-    public static ToolMetaItem<?>.MetaToolValueItem SHOVEL;
-    public static ToolMetaItem<?>.MetaToolValueItem AXE;
-    public static ToolMetaItem<?>.MetaToolValueItem HOE;
-    public static ToolMetaItem<?>.MetaToolValueItem SAW;
-    public static ToolMetaItem<?>.MetaToolValueItem HARD_HAMMER;
-    public static ToolMetaItem<?>.MetaToolValueItem SOFT_HAMMER;
-    public static ToolMetaItem<?>.MetaToolValueItem WRENCH;
-    public static ToolMetaItem<?>.MetaToolValueItem FILE;
-    public static ToolMetaItem<?>.MetaToolValueItem CROWBAR;
-    public static ToolMetaItem<?>.MetaToolValueItem SCREWDRIVER;
-    public static ToolMetaItem<?>.MetaToolValueItem MORTAR;
-    public static ToolMetaItem<?>.MetaToolValueItem WIRE_CUTTER;
-    public static ToolMetaItem<?>.MetaToolValueItem BRANCH_CUTTER;
-    public static ToolMetaItem<?>.MetaToolValueItem KNIFE;
-    public static ToolMetaItem<?>.MetaToolValueItem BUTCHERY_KNIFE;
-    public static ToolMetaItem<?>.MetaToolValueItem SENSE;
-    public static ToolMetaItem<?>.MetaToolValueItem PLUNGER;
-    public static ToolMetaItem<?>.MetaToolValueItem DRILL_LV;
-    public static ToolMetaItem<?>.MetaToolValueItem DRILL_MV;
-    public static ToolMetaItem<?>.MetaToolValueItem DRILL_HV;
-    public static ToolMetaItem<?>.MetaToolValueItem DRILL_EV;
-    public static ToolMetaItem<?>.MetaToolValueItem DRILL_IV;
-    public static ToolMetaItem<?>.MetaToolValueItem MINING_HAMMER;
-    public static ToolMetaItem<?>.MetaToolValueItem CHAINSAW_LV;
-    public static ToolMetaItem<?>.MetaToolValueItem CHAINSAW_MV;
-    public static ToolMetaItem<?>.MetaToolValueItem CHAINSAW_HV;
-    public static ToolMetaItem<?>.MetaToolValueItem WRENCH_LV;
-    public static ToolMetaItem<?>.MetaToolValueItem WRENCH_MV;
-    public static ToolMetaItem<?>.MetaToolValueItem WRENCH_HV;
-    public static ToolMetaItem<?>.MetaToolValueItem BUZZSAW;
-    public static ToolMetaItem<?>.MetaToolValueItem SCREWDRIVER_LV;
 
     public static MetaItem<?>.MetaValueItem ENERGY_MODULE;
     public static MetaItem<?>.MetaValueItem ENERGY_CLUSTER;
@@ -544,7 +517,7 @@ public final class MetaItems {
     public static MetaItem<?>.MetaValueItem VOLTAGE_COIL_HV;
     public static MetaItem<?>.MetaValueItem VOLTAGE_COIL_EV;
     public static MetaItem<?>.MetaValueItem VOLTAGE_COIL_IV;
-    public static MetaItem<?>.MetaValueItem VOLTAGE_COIL_LUV;
+    public static MetaItem<?>.MetaValueItem VOLTAGE_COIL_LuV;
     public static MetaItem<?>.MetaValueItem VOLTAGE_COIL_ZPM;
     public static MetaItem<?>.MetaValueItem VOLTAGE_COIL_UV;
 
@@ -577,66 +550,59 @@ public final class MetaItems {
     public static MetaItem<?>.MetaValueItem NAN_CERTIFICATE;
 
     public static MetaItem<?>.MetaValueItem FERTILIZER;
+    public static MetaItem<?>.MetaValueItem BLACKLIGHT;
 
+    public static MetaItem<?>.MetaValueItem LOGO;
 
     public static MetaOreDictItem CT_OREDICT_ITEM;
 
-    private static final List<OrePrefix> orePrefixes = new ArrayList<OrePrefix>() {{
-        add(OrePrefix.dust);
-        add(OrePrefix.dustSmall);
-        add(OrePrefix.dustTiny);
-        add(OrePrefix.dustImpure);
-        add(OrePrefix.dustPure);
-        add(OrePrefix.crushed);
-        add(OrePrefix.crushedPurified);
-        add(OrePrefix.crushedCentrifuged);
-        add(OrePrefix.gem);
-        add(OrePrefix.gemChipped);
-        add(OrePrefix.gemFlawed);
-        add(OrePrefix.gemFlawless);
-        add(OrePrefix.gemExquisite);
-        add(OrePrefix.ingot);
-        add(OrePrefix.ingotHot);
-        add(OrePrefix.plate);
-        add(OrePrefix.plateDouble);
-        add(OrePrefix.plateDense);
-        add(OrePrefix.foil);
-        add(OrePrefix.stick);
-        add(OrePrefix.stickLong);
-        add(OrePrefix.bolt);
-        add(OrePrefix.screw);
-        add(OrePrefix.ring);
-        add(OrePrefix.nugget);
-        add(OrePrefix.round);
-        add(OrePrefix.spring);
-        add(OrePrefix.springSmall);
-        add(OrePrefix.gear);
-        add(OrePrefix.gearSmall);
-        add(OrePrefix.wireFine);
-        add(OrePrefix.rotor);
-        add(OrePrefix.lens);
-        add(OrePrefix.turbineBlade);
-        add(OrePrefix.toolHeadSword);
-        add(OrePrefix.toolHeadPickaxe);
-        add(OrePrefix.toolHeadShovel);
-        add(OrePrefix.toolHeadAxe);
-        add(OrePrefix.toolHeadHoe);
-        add(OrePrefix.toolHeadHammer);
-        add(OrePrefix.toolHeadFile);
-        add(OrePrefix.toolHeadSaw);
-        add(OrePrefix.toolHeadDrill);
-        add(OrePrefix.toolHeadChainsaw);
-        add(OrePrefix.toolHeadWrench);
-        add(OrePrefix.toolHeadSense);
-        add(OrePrefix.toolHeadBuzzSaw);
-        add(OrePrefix.toolHeadScrewdriver);
-    }};
+    private static final List<OrePrefix> orePrefixes = new ArrayList<>();
+
+    static {
+        orePrefixes.add(OrePrefix.dust);
+        orePrefixes.add(OrePrefix.dustSmall);
+        orePrefixes.add(OrePrefix.dustTiny);
+        orePrefixes.add(OrePrefix.dustImpure);
+        orePrefixes.add(OrePrefix.dustPure);
+        orePrefixes.add(OrePrefix.crushed);
+        orePrefixes.add(OrePrefix.crushedPurified);
+        orePrefixes.add(OrePrefix.crushedCentrifuged);
+        orePrefixes.add(OrePrefix.gem);
+        orePrefixes.add(OrePrefix.gemChipped);
+        orePrefixes.add(OrePrefix.gemFlawed);
+        orePrefixes.add(OrePrefix.gemFlawless);
+        orePrefixes.add(OrePrefix.gemExquisite);
+        orePrefixes.add(OrePrefix.ingot);
+        orePrefixes.add(OrePrefix.ingotHot);
+        orePrefixes.add(OrePrefix.plate);
+        orePrefixes.add(OrePrefix.plateDouble);
+        orePrefixes.add(OrePrefix.plateDense);
+        orePrefixes.add(OrePrefix.foil);
+        orePrefixes.add(OrePrefix.stick);
+        orePrefixes.add(OrePrefix.stickLong);
+        orePrefixes.add(OrePrefix.bolt);
+        orePrefixes.add(OrePrefix.screw);
+        orePrefixes.add(OrePrefix.ring);
+        orePrefixes.add(OrePrefix.nugget);
+        orePrefixes.add(OrePrefix.round);
+        orePrefixes.add(OrePrefix.spring);
+        orePrefixes.add(OrePrefix.springSmall);
+        orePrefixes.add(OrePrefix.gear);
+        orePrefixes.add(OrePrefix.gearSmall);
+        orePrefixes.add(OrePrefix.wireFine);
+        orePrefixes.add(OrePrefix.rotor);
+        orePrefixes.add(OrePrefix.lens);
+        orePrefixes.add(OrePrefix.turbineBlade);
+        orePrefixes.add(OrePrefix.toolHeadDrill);
+        orePrefixes.add(OrePrefix.toolHeadChainsaw);
+        orePrefixes.add(OrePrefix.toolHeadWrench);
+        orePrefixes.add(OrePrefix.toolHeadBuzzSaw);
+        orePrefixes.add(OrePrefix.toolHeadScrewdriver);
+    }
 
     public static void init() {
         MetaItem1 first = new MetaItem1();
         first.setRegistryName("meta_item_1");
-        MetaTool tool = new MetaTool();
-        tool.setRegistryName("meta_tool");
         CT_OREDICT_ITEM = new MetaOreDictItem((short) 0);
         CT_OREDICT_ITEM.setRegistryName("meta_oredict_item_ct");
         MetaArmor armor = new MetaArmor();

@@ -4,9 +4,6 @@ package gregtech.api.items.armor;
 import gregtech.api.capability.GregtechCapabilities;
 import gregtech.api.capability.IElectricItem;
 import gregtech.api.util.ItemStackKey;
-import gregtech.api.util.input.EnumKey;
-import gregtech.api.util.input.Key;
-import gregtech.api.util.input.KeyBinds;
 import gregtech.common.ConfigHolder;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.ScaledResolution;
@@ -145,36 +142,33 @@ public class ArmorUtils {
      * @return result of eating food
      */
     public static ActionResult<ItemStack> canEat(EntityPlayer player, ItemStack food) {
-        if (!(food.getItem() instanceof ItemFood)) return new ActionResult<>(EnumActionResult.FAIL, food);
+        if (!(food.getItem() instanceof ItemFood)) {
+            return new ActionResult<>(EnumActionResult.FAIL, food);
+        }
+
         ItemFood foodItem = (ItemFood) food.getItem();
         if (player.getFoodStats().needFood()) {
-            food.setCount(food.getCount() - 1);
+            if(!player.isCreative()) {
+                food.setCount(food.getCount() - 1);
+            }
+
+            // Find the saturation of the food
             float saturation = foodItem.getSaturationModifier(food);
+
+            // The amount of empty food haunches of the player
             int hunger = 20 - player.getFoodStats().getFoodLevel();
+
+            // Increase the saturation of the food if the food replenishes more than the amount of missing haunches
             saturation += (hunger - foodItem.getHealAmount(food)) < 0 ? foodItem.getHealAmount(food) - hunger : 1.0F;
-            player.getFoodStats().addStats(foodItem.getHealAmount(food), saturation);
+
+            // Use this method to add stats for compat with TFC, who overrides addStats(int amount, float saturation) for their food and does nothing
+            player.getFoodStats().addStats(new ItemFood(foodItem.getHealAmount(food), saturation, foodItem.isWolfsFavoriteMeat()), food);
+
             return new ActionResult<>(EnumActionResult.SUCCESS, food);
         } else {
             return new ActionResult<>(EnumActionResult.FAIL, food);
         }
     }
-
-    /**
-     * Check if current key being pressed right now on both sides
-     *
-     * @return true if key currently pressed
-     */
-    public static boolean isKeyDown(EntityPlayer player, EnumKey type) {
-        if (SIDE.isClient()) {
-            return KeyBinds.REGISTRY.get(type.getID()).state;
-        } else {
-            if (KeyBinds.PLAYER_KEYS.get(player) == null) return false;
-            List<Key> playerKeys = KeyBinds.PLAYER_KEYS.get(player);
-            if (playerKeys.isEmpty()) return false;
-            return playerKeys.get(type.getID()).state;
-        }
-    }
-
 
     /**
      * Format itemstacks list from [1xitem@1, 1xitem@1, 1xitem@2] to
@@ -255,11 +249,11 @@ public class ArmorUtils {
             } else if (ConfigHolder.client.armorHud.hudLocation == 3) {
                 posX = 1 + ConfigHolder.client.armorHud.hudOffsetX;
                 posY = windowHeight - fontHeight * (stringAmount - index) - 1 - ConfigHolder.client.armorHud.hudOffsetY;
-            } else if (ConfigHolder.client.armorHud.hudLocation == 4){
+            } else if (ConfigHolder.client.armorHud.hudLocation == 4) {
                 posX = windowWidth - (1 + ConfigHolder.client.armorHud.hudOffsetX) - stringWidth;
                 posY = windowHeight - fontHeight * (stringAmount - index) - 1 - ConfigHolder.client.armorHud.hudOffsetY;
             } else {
-                    throw new IllegalArgumentException();
+                throw new IllegalArgumentException("Armor Hud config hudLocation is improperly configured.");
             }
             return Pair.of(posX, posY);
         }

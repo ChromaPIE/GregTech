@@ -1,8 +1,9 @@
 package gregtech.common.metatileentities.multi.electric;
 
+import gregtech.api.block.IHeatingCoilBlockStats;
 import gregtech.api.capability.impl.MultiblockRecipeLogic;
 import gregtech.api.metatileentity.MetaTileEntity;
-import gregtech.api.metatileentity.MetaTileEntityHolder;
+import gregtech.api.metatileentity.interfaces.IGregTechTileEntity;
 import gregtech.api.metatileentity.multiblock.IMultiblockPart;
 import gregtech.api.metatileentity.multiblock.MultiblockAbility;
 import gregtech.api.metatileentity.multiblock.ParallelLogicType;
@@ -36,7 +37,7 @@ public class MetaTileEntityMultiSmelter extends RecipeMapMultiblockController {
     }
 
     @Override
-    public MetaTileEntity createMetaTileEntity(MetaTileEntityHolder holder) {
+    public MetaTileEntity createMetaTileEntity(IGregTechTileEntity tileEntity) {
         return new MetaTileEntityMultiSmelter(metaTileEntityId);
     }
 
@@ -53,9 +54,9 @@ public class MetaTileEntityMultiSmelter extends RecipeMapMultiblockController {
     protected void formStructure(PatternMatchContext context) {
         super.formStructure(context);
         Object coilType = context.get("CoilType");
-        if (coilType instanceof CoilType) {
-            this.heatingCoilLevel = ((CoilType) coilType).getLevel();
-            this.heatingCoilDiscount = ((CoilType) coilType).getEnergyDiscount();
+        if (coilType instanceof IHeatingCoilBlockStats) {
+            this.heatingCoilLevel = ((IHeatingCoilBlockStats) coilType).getLevel();
+            this.heatingCoilDiscount = ((IHeatingCoilBlockStats) coilType).getEnergyDiscount();
         } else {
             this.heatingCoilLevel = CoilType.CUPRONICKEL.getLevel();
             this.heatingCoilDiscount = CoilType.CUPRONICKEL.getEnergyDiscount();
@@ -109,6 +110,7 @@ public class MetaTileEntityMultiSmelter extends RecipeMapMultiblockController {
             super(tileEntity);
         }
 
+        @Nonnull
         @Override
         public ParallelLogicType getParallelLogicType() {
             return ParallelLogicType.APPEND_ITEMS;

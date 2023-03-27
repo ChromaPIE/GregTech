@@ -3,8 +3,8 @@ package gregtech.common.metatileentities.electric;
 import gregtech.api.capability.IEnergyContainer;
 import gregtech.api.capability.impl.RecipeLogicEnergy;
 import gregtech.api.metatileentity.MetaTileEntity;
-import gregtech.api.metatileentity.MetaTileEntityHolder;
 import gregtech.api.metatileentity.SimpleMachineMetaTileEntity;
+import gregtech.api.metatileentity.interfaces.IGregTechTileEntity;
 import gregtech.api.recipes.RecipeMap;
 import gregtech.api.recipes.RecipeMaps;
 import gregtech.client.renderer.ICubeRenderer;
@@ -26,15 +26,13 @@ public class MetaTileEntityRockBreaker extends SimpleMachineMetaTileEntity {
     }
 
     @Override
-    public MetaTileEntity createMetaTileEntity(MetaTileEntityHolder holder) {
+    public MetaTileEntity createMetaTileEntity(IGregTechTileEntity tileEntity) {
         return new MetaTileEntityRockBreaker(metaTileEntityId, RecipeMaps.ROCK_BREAKER_RECIPES, Textures.ROCK_BREAKER_OVERLAY, getTier());
     }
 
     @Override
     protected RecipeLogicEnergy createWorkable(RecipeMap<?> recipeMap) {
-        final RecipeLogicEnergy result = new RockBreakerRecipeLogic(this, RecipeMaps.ROCK_BREAKER_RECIPES, () -> energyContainer);
-        result.enableOverclockVoltage();
-        return result;
+        return new RockBreakerRecipeLogic(this, RecipeMaps.ROCK_BREAKER_RECIPES, () -> energyContainer);
     }
 
     @Override
@@ -44,7 +42,11 @@ public class MetaTileEntityRockBreaker extends SimpleMachineMetaTileEntity {
     }
 
     private void checkAdjacentFluids() {
-        if (getWorld() == null || getWorld().isRemote) {
+        if (getWorld() == null) {
+            hasValidFluids = true;
+            return;
+        }
+        if (getWorld().isRemote) {
             hasValidFluids = false;
             return;
         }
@@ -100,5 +102,10 @@ public class MetaTileEntityRockBreaker extends SimpleMachineMetaTileEntity {
         protected boolean shouldSearchForRecipes() {
             return hasValidFluids && super.shouldSearchForRecipes();
         }
+    }
+
+    @Override
+    public boolean getIsWeatherOrTerrainResistant(){
+        return true;
     }
 }

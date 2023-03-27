@@ -1,6 +1,5 @@
 package gregtech.common.metatileentities.multi;
 
-import codechicken.lib.raytracer.CuboidRayTraceResult;
 import codechicken.lib.render.CCRenderState;
 import codechicken.lib.render.pipeline.IVertexOperation;
 import codechicken.lib.texture.TextureUtils;
@@ -14,24 +13,29 @@ import gregtech.api.gui.widgets.ProgressWidget;
 import gregtech.api.gui.widgets.RecipeProgressWidget;
 import gregtech.api.gui.widgets.SlotWidget;
 import gregtech.api.metatileentity.MetaTileEntity;
-import gregtech.api.metatileentity.MetaTileEntityHolder;
+import gregtech.api.metatileentity.interfaces.IGregTechTileEntity;
 import gregtech.api.metatileentity.multiblock.IMultiblockPart;
 import gregtech.api.metatileentity.multiblock.RecipeMapPrimitiveMultiblockController;
 import gregtech.api.pattern.BlockPattern;
 import gregtech.api.pattern.FactoryBlockPattern;
+import gregtech.api.pattern.TraceabilityPredicate;
 import gregtech.api.recipes.RecipeMaps;
+import gregtech.api.util.GTUtility;
 import gregtech.client.renderer.CubeRendererState;
-import gregtech.client.renderer.texture.Textures;
+import gregtech.client.renderer.ICubeRenderer;
 import gregtech.client.renderer.cclop.ColourOperation;
 import gregtech.client.renderer.cclop.LightMapOperation;
-import gregtech.client.renderer.ICubeRenderer;
+import gregtech.client.renderer.texture.Textures;
 import gregtech.client.utils.BloomEffectUtil;
+import gregtech.common.ConfigHolder;
 import gregtech.common.blocks.BlockMetalCasing;
 import gregtech.common.blocks.MetaBlocks;
+import net.minecraft.block.state.IBlockState;
+import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.util.EnumFacing;
-import net.minecraft.util.EnumHand;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.init.SoundEvents;
+import net.minecraft.util.*;
+import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
 import org.apache.commons.lang3.ArrayUtils;
 
@@ -39,12 +43,14 @@ import javax.annotation.Nonnull;
 
 public class MetaTileEntityPrimitiveBlastFurnace extends RecipeMapPrimitiveMultiblockController {
 
+    private static final TraceabilityPredicate IS_SNOW_LAYER = new TraceabilityPredicate(bws -> GTUtility.isBlockSnowLayer(bws.getBlockState()));
+
     public MetaTileEntityPrimitiveBlastFurnace(ResourceLocation metaTileEntityId) {
         super(metaTileEntityId, RecipeMaps.PRIMITIVE_BLAST_FURNACE_RECIPES);
     }
 
     @Override
-    public MetaTileEntity createMetaTileEntity(MetaTileEntityHolder holder) {
+    public MetaTileEntity createMetaTileEntity(IGregTechTileEntity tileEntity) {
         return new MetaTileEntityPrimitiveBlastFurnace(metaTileEntityId);
     }
 
@@ -52,10 +58,11 @@ public class MetaTileEntityPrimitiveBlastFurnace extends RecipeMapPrimitiveMulti
     protected BlockPattern createStructurePattern() {
         return FactoryBlockPattern.start()
                 .aisle("XXX", "XXX", "XXX", "XXX")
-                .aisle("XXX", "X#X", "X#X", "X#X")
+                .aisle("XXX", "X&X", "X#X", "X#X")
                 .aisle("XXX", "XYX", "XXX", "XXX")
                 .where('X', states(MetaBlocks.METAL_CASING.getState(BlockMetalCasing.MetalCasingType.PRIMITIVE_BRICKS)))
                 .where('#', air())
+                .where('&', air().or(IS_SNOW_LAYER)) // this won't stay in the structure, and will be broken while running
                 .where('Y', selfPredicate())
                 .build();
     }
@@ -63,11 +70,6 @@ public class MetaTileEntityPrimitiveBlastFurnace extends RecipeMapPrimitiveMulti
     @Override
     public ICubeRenderer getBaseTexture(IMultiblockPart sourcePart) {
         return Textures.PRIMITIVE_BRICKS;
-    }
-
-    @Override
-    public int getLightValueForPart(IMultiblockPart sourcePart) {
-        return sourcePart == null && recipeMapWorkable.isActive() ? 15 : 0;
     }
 
     @Override
@@ -98,7 +100,7 @@ public class MetaTileEntityPrimitiveBlastFurnace extends RecipeMapPrimitiveMulti
         if (recipeMapWorkable.isActive() && isStructureFormed()) {
             EnumFacing back = getFrontFacing().getOpposite();
             Matrix4 offset = translation.copy().translate(back.getXOffset(), -0.3, back.getZOffset());
-            CubeRendererState op =Textures.RENDER_STATE.get();
+            CubeRendererState op = Textures.RENDER_STATE.get();
             Textures.RENDER_STATE.set(new CubeRendererState(op.layer, CubeRendererState.PASS_MASK, op.world));
             Textures.renderFace(renderState, offset,
                     ArrayUtils.addAll(pipeline, new LightMapOperation(240, 240), new ColourOperation(0xFFFFFFFF)),
@@ -122,8 +124,12 @@ public class MetaTileEntityPrimitiveBlastFurnace extends RecipeMapPrimitiveMulti
     public void update() {
         super.update();
 
-        if (getWorld().isRemote && this.isActive()) {
-            pollutionParticles();
+        if (this.isActive()) {
+            if (getWorld().isRemote) {
+                pollutionParticles();
+            } else {
+                damageEntitiesAndBreakSnow();
+            }
         }
     }
 
@@ -136,5 +142,44 @@ public class MetaTileEntityPrimitiveBlastFurnace extends RecipeMapPrimitiveMulti
 
         float ySpd = facing.getYOffset() * 0.1F + 0.2F + 0.1F * GTValues.RNG.nextFloat();
         runMufflerEffect(xPos, yPos, zPos, 0, ySpd, 0);
+    }
+
+    private void damageEntitiesAndBreakSnow() {
+        BlockPos middlePos = this.getPos();
+        middlePos = middlePos.offset(getFrontFacing().getOpposite());
+        this.getWorld().getEntitiesWithinAABB(EntityLivingBase.class, new AxisAlignedBB(middlePos)).forEach(entity -> entity.attackEntityFrom(DamageSource.LAVA, 3.0f));
+
+        if (getOffsetTimer() % 10 == 0) {
+            IBlockState state = getWorld().getBlockState(middlePos);
+            GTUtility.tryBreakSnowLayer(getWorld(), middlePos, state, true);
+        }
+    }
+
+    @Override
+    public void randomDisplayTick() {
+        if (this.isActive()) {
+            final BlockPos pos = getPos();
+            float x = pos.getX() + 0.5F;
+            float z = pos.getZ() + 0.5F;
+
+            final EnumFacing facing = getFrontFacing();
+            final float horizontalOffset = GTValues.RNG.nextFloat() * 0.6F - 0.3F;
+            final float y = pos.getY() + GTValues.RNG.nextFloat() * 0.375F + 0.3F;
+
+            if (facing.getAxis() == EnumFacing.Axis.X) {
+                if (facing.getAxisDirection() == EnumFacing.AxisDirection.POSITIVE) x += 0.52F;
+                else x -= 0.52F;
+                z += horizontalOffset;
+            } else if (facing.getAxis() == EnumFacing.Axis.Z) {
+                if (facing.getAxisDirection() == EnumFacing.AxisDirection.POSITIVE) z += 0.52F;
+                else z -= 0.52F;
+                x += horizontalOffset;
+            }
+            if (ConfigHolder.machines.machineSounds && GTValues.RNG.nextDouble() < 0.1) {
+                getWorld().playSound(x, y, z, SoundEvents.BLOCK_FURNACE_FIRE_CRACKLE, SoundCategory.BLOCKS, 1.0F, 1.0F, false);
+            }
+            getWorld().spawnParticle(EnumParticleTypes.SMOKE_LARGE, x, y, z, 0, 0, 0);
+            getWorld().spawnParticle(EnumParticleTypes.FLAME, x, y, z, 0, 0, 0);
+        }
     }
 }

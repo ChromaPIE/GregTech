@@ -23,12 +23,13 @@ import gregtech.api.pipenet.block.material.BlockMaterialPipe;
 import gregtech.api.pipenet.block.material.TileEntityMaterialPipeBase;
 import gregtech.api.pipenet.tile.IPipeTile;
 import gregtech.api.unification.material.Material;
+import gregtech.api.unification.material.info.MaterialIconType;
 import gregtech.api.util.GTUtility;
 import gregtech.api.util.ModCompatibility;
 import gregtech.client.renderer.CubeRendererState;
 import gregtech.client.renderer.texture.Textures;
-import gregtech.common.pipelike.itempipe.BlockItemPipe;
 import net.minecraft.block.state.IBlockState;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.block.model.ItemCameraTransforms.TransformType;
@@ -66,6 +67,7 @@ public abstract class PipeRenderer implements ICCBlockRenderer, IItemRenderer {
     private final String name;
     private EnumBlockRenderType blockRenderType;
     private static final ThreadLocal<BlockRenderer.BlockFace> blockFaces = ThreadLocal.withInitial(BlockRenderer.BlockFace::new);
+    private static final Cuboid6 FRAME_RENDER_CUBOID = new Cuboid6(0.001, 0.001, 0.001, 0.999, 0.999, 0.999);
 
     public PipeRenderer(String name, ModelResourceLocation modelLocation) {
         this.name = name;
@@ -112,7 +114,7 @@ public abstract class PipeRenderer implements ICCBlockRenderer, IItemRenderer {
         renderState.startDrawing(GL11.GL_QUADS, DefaultVertexFormats.ITEM);
         BlockPipe<?, ?, ?> blockFluidPipe = (BlockPipe<?, ?, ?>) ((ItemBlockPipe<?, ?>) stack.getItem()).getBlock();
         IPipeType<?> pipeType = blockFluidPipe.getItemPipeType(stack);
-        Material material = blockFluidPipe instanceof BlockMaterialPipe ? ((BlockMaterialPipe<?, ?, ?>) blockFluidPipe).getItemMaterial(stack) : null;
+        Material material = blockFluidPipe instanceof BlockMaterialPipe ? BlockMaterialPipe.getItemMaterial(stack) : null;
         if (pipeType != null) {
             // 12 == 0b1100 is North and South connection (index 2 & 3)
             PipeRenderContext renderContext = new PipeRenderContext(12, 0, pipeType.getThickness());
@@ -157,6 +159,7 @@ public abstract class PipeRenderer implements ICCBlockRenderer, IItemRenderer {
                 renderContext.color = GTUtility.convertRGBtoOpaqueRGBA_CL(getPipeColor(pipeMaterial, paintingColor));
                 buildRenderer(renderContext, blockPipe, pipeTile, pipeType, pipeMaterial);
                 renderPipeBlock(renderState, renderContext);
+                renderFrame(pipeTile, pos, renderState, connectedSidesMap);
             }
 
             ICoverable coverable = pipeTile.getCoverableImplementation();
@@ -166,7 +169,31 @@ public abstract class PipeRenderer implements ICCBlockRenderer, IItemRenderer {
         return true;
     }
 
-    private int getPipeColor(Material material, int paintingColor) {
+    private static void renderFrame(IPipeTile<?, ?> pipeTile, BlockPos pos, CCRenderState renderState, int connections) {
+        Material frameMaterial = pipeTile.getFrameMaterial();
+        if (frameMaterial != null) {
+            ResourceLocation rl = MaterialIconType.frameGt.getBlockTexturePath(frameMaterial.getMaterialIconSet());
+            TextureAtlasSprite sprite = Minecraft.getMinecraft().getTextureMapBlocks().getAtlasSprite(rl.toString());
+            IVertexOperation[] pipeline = {
+                    new Translation(pos),
+                    renderState.lightMatrix,
+                    new IconTransformation(sprite),
+                    new ColourMultiplier(GTUtility.convertRGBtoOpaqueRGBA_CL(frameMaterial.getMaterialRGB()))
+            };
+
+            for (EnumFacing side : EnumFacing.VALUES) {
+                // only render frame if it doesn't have a cover
+                if ((connections & 1 << (12 + side.getIndex())) == 0) {
+                    BlockRenderer.BlockFace blockFace = blockFaces.get();
+                    blockFace.loadCuboidFace(FRAME_RENDER_CUBOID, side.getIndex());
+                    renderState.setPipeline(blockFace, 0, blockFace.verts.length, pipeline);
+                    renderState.render();
+                }
+            }
+        }
+    }
+
+    private static int getPipeColor(Material material, int paintingColor) {
         if (paintingColor == -1) {
             return material == null ? 0xFFFFFF : material.getMaterialRGB();
         }
@@ -174,7 +201,7 @@ public abstract class PipeRenderer implements ICCBlockRenderer, IItemRenderer {
     }
 
     public void renderPipeBlock(CCRenderState renderState, PipeRenderContext renderContext) {
-        Cuboid6 cuboid6 = BlockItemPipe.getSideBox(null, renderContext.pipeThickness);
+        Cuboid6 cuboid6 = BlockPipe.getSideBox(null, renderContext.pipeThickness);
         if ((renderContext.connections & 63) == 0) {
             // base pipe without connections
             for (EnumFacing renderedSide : EnumFacing.VALUES) {
@@ -201,7 +228,7 @@ public abstract class PipeRenderer implements ICCBlockRenderer, IItemRenderer {
     }
 
     private void renderPipeCube(CCRenderState renderState, PipeRenderContext renderContext, EnumFacing side) {
-        Cuboid6 cuboid = BlockItemPipe.getSideBox(side, renderContext.pipeThickness);
+        Cuboid6 cuboid = BlockPipe.getSideBox(side, renderContext.pipeThickness);
         boolean doRenderBlockedOverlay = (renderContext.blockedConnections & (1 << side.getIndex())) > 0;
         // render connection cuboid
         for (EnumFacing renderedSide : EnumFacing.VALUES) {
@@ -220,25 +247,25 @@ public abstract class PipeRenderer implements ICCBlockRenderer, IItemRenderer {
         } else {
             if ((renderContext.connections & 1 << (12 + side.getIndex())) > 0) {
                 // if face has a cover offset face by 0.001 to avoid z fighting
-                cuboid = BlockItemPipe.getCoverSideBox(side, renderContext.pipeThickness);
+                cuboid = BlockPipe.getCoverSideBox(side, renderContext.pipeThickness);
             }
             renderOpenFace(renderState, renderContext, side, cuboid);
         }
     }
 
-    private void renderOpenFace(CCRenderState renderState, PipeRenderContext renderContext, EnumFacing side, Cuboid6 cuboid6) {
+    private static void renderOpenFace(CCRenderState renderState, PipeRenderContext renderContext, EnumFacing side, Cuboid6 cuboid6) {
         for (IVertexOperation[] vertexOperations : renderContext.openFaceRenderer) {
             renderFace(renderState, vertexOperations, side, cuboid6);
         }
     }
 
-    private void renderPipeSide(CCRenderState renderState, PipeRenderContext renderContext, EnumFacing side, Cuboid6 cuboid6) {
+    private static void renderPipeSide(CCRenderState renderState, PipeRenderContext renderContext, EnumFacing side, Cuboid6 cuboid6) {
         for (IVertexOperation[] vertexOperations : renderContext.pipeSideRenderer) {
             renderFace(renderState, vertexOperations, side, cuboid6);
         }
     }
 
-    private void renderFace(CCRenderState renderState, IVertexOperation[] pipeline, EnumFacing side, Cuboid6 cuboid6) {
+    private static void renderFace(CCRenderState renderState, IVertexOperation[] pipeline, EnumFacing side, Cuboid6 cuboid6) {
         BlockRenderer.BlockFace blockFace = blockFaces.get();
         blockFace.loadCuboidFace(cuboid6, side.getIndex());
         renderState.setPipeline(blockFace, 0, blockFace.verts.length, pipeline);
@@ -266,11 +293,11 @@ public abstract class PipeRenderer implements ICCBlockRenderer, IItemRenderer {
         }
         float thickness = pipeType.getThickness();
         int connectedSidesMask = pipeTile.getConnections();
-        Cuboid6 baseBox = BlockItemPipe.getSideBox(null, thickness);
+        Cuboid6 baseBox = BlockPipe.getSideBox(null, thickness);
         BlockRenderer.renderCuboid(renderState, baseBox, 0);
         for (EnumFacing renderSide : EnumFacing.VALUES) {
             if ((connectedSidesMask & (1 << renderSide.getIndex())) > 0) {
-                Cuboid6 sideBox = BlockItemPipe.getSideBox(renderSide, thickness);
+                Cuboid6 sideBox = BlockPipe.getSideBox(renderSide, thickness);
                 BlockRenderer.renderCuboid(renderState, sideBox, 0);
             }
         }

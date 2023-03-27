@@ -5,22 +5,26 @@ import codechicken.lib.render.pipeline.IVertexOperation;
 import codechicken.lib.vec.Matrix4;
 import gregtech.api.gui.ModularUI;
 import gregtech.api.metatileentity.MetaTileEntity;
-import gregtech.api.metatileentity.MetaTileEntityHolder;
+import gregtech.api.metatileentity.interfaces.IGregTechTileEntity;
 import gregtech.api.metatileentity.multiblock.IMultiblockPart;
+import gregtech.api.metatileentity.multiblock.IPrimitivePump;
 import gregtech.api.metatileentity.multiblock.MultiblockAbility;
 import gregtech.api.metatileentity.multiblock.MultiblockControllerBase;
 import gregtech.api.pattern.BlockPattern;
 import gregtech.api.pattern.FactoryBlockPattern;
 import gregtech.api.pattern.PatternMatchContext;
+import gregtech.api.unification.material.Materials;
+import gregtech.api.util.GTUtility;
 import gregtech.client.renderer.ICubeRenderer;
 import gregtech.client.renderer.texture.Textures;
-import gregtech.api.unification.material.Materials;
 import gregtech.common.blocks.BlockSteamCasing;
 import gregtech.common.blocks.MetaBlocks;
 import gregtech.common.metatileentities.MetaTileEntities;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.ResourceLocation;
+import net.minecraft.world.World;
+import net.minecraft.world.WorldProvider;
 import net.minecraft.world.biome.Biome;
 import net.minecraftforge.common.BiomeDictionary;
 import net.minecraftforge.fluids.FluidTank;
@@ -31,7 +35,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
 
-public class MetaTileEntityPrimitiveWaterPump extends MultiblockControllerBase {
+public class MetaTileEntityPrimitiveWaterPump extends MultiblockControllerBase implements IPrimitivePump {
 
     private IFluidTank waterTank;
     private int biomeModifier = 0;
@@ -43,23 +47,32 @@ public class MetaTileEntityPrimitiveWaterPump extends MultiblockControllerBase {
     }
 
     @Override
-    public MetaTileEntity createMetaTileEntity(MetaTileEntityHolder holder) {
+    public MetaTileEntity createMetaTileEntity(IGregTechTileEntity tileEntity) {
         return new MetaTileEntityPrimitiveWaterPump(metaTileEntityId);
     }
 
     @Override
     public void update() {
         super.update();
-        if (getOffsetTimer() % 20 == 0 && !getWorld().isRemote && isStructureFormed()) {
+        if (!getWorld().isRemote && getOffsetTimer() % 20 == 0 && isStructureFormed()) {
             if (biomeModifier == 0) {
-                biomeModifier = getAmountForBiome(getWorld().getBiome(getPos()));
+                biomeModifier = getAmount();
+            } else if (biomeModifier > 0) {
+                waterTank.fill(Materials.Water.getFluid(getFluidProduction()), true);
             }
-            waterTank.fill(Materials.Water.getFluid(biomeModifier * hatchModifier), true);
         }
     }
 
-    private static int getAmountForBiome(Biome biome) {
+    private int getAmount() {
+        WorldProvider provider = getWorld().provider;
+        if (provider.isNether() || provider.doesWaterVaporize()) {
+            return -1; // Disabled
+        }
+        Biome biome = getWorld().getBiome(getPos());
         Set<BiomeDictionary.Type> biomeTypes = BiomeDictionary.getTypes(biome);
+        if (biomeTypes.contains(BiomeDictionary.Type.NETHER)) {
+            return -1; // Disabled
+        }
         if (biomeTypes.contains(BiomeDictionary.Type.WATER)) {
             return 1000;
         } else if (biomeTypes.contains(BiomeDictionary.Type.SWAMP) || biomeTypes.contains(BiomeDictionary.Type.WET)) {
@@ -128,7 +141,7 @@ public class MetaTileEntityPrimitiveWaterPump extends MultiblockControllerBase {
                 .aisle("SXXX", "**F*", "**F*")
                 .where('S', selfPredicate())
                 .where('X', states(MetaBlocks.STEAM_CASING.getState(BlockSteamCasing.SteamCasingType.PUMP_DECK)))
-                .where('F', states(MetaBlocks.FRAMES.get(Materials.TreatedWood).getBlock(Materials.TreatedWood)))
+                .where('F', frames(Materials.TreatedWood))
                 .where('H', abilities(MultiblockAbility.PUMP_FLUID_HATCH).or(metaTileEntities(MetaTileEntities.FLUID_EXPORT_HATCH[0], MetaTileEntities.FLUID_EXPORT_HATCH[1])))
                 .where('*', any())
                 .build();
@@ -155,8 +168,21 @@ public class MetaTileEntityPrimitiveWaterPump extends MultiblockControllerBase {
     public String[] getDescription() {
         return Stream.of(
                 new String[]{I18n.format("gregtech.multiblock.primitive_water_pump.description")},
-                I18n.format("gregtech.multiblock.primitive_water_pump.extra1").split("/n"),
-                I18n.format("gregtech.multiblock.primitive_water_pump.extra2").split("/n")
+                GTUtility.getForwardNewLineRegex().split(I18n.format("gregtech.multiblock.primitive_water_pump.extra1")),
+                GTUtility.getForwardNewLineRegex().split(I18n.format("gregtech.multiblock.primitive_water_pump.extra2"))
         ).flatMap(Stream::of).toArray(String[]::new);
+    }
+
+    private boolean isRainingInBiome() {
+        World world = getWorld();
+        if (!world.isRaining()) {
+            return false;
+        }
+        return world.getBiome(getPos()).canRain();
+    }
+
+    @Override
+    public int getFluidProduction() {
+        return (int) (biomeModifier * hatchModifier * (isRainingInBiome() ? 1.5 : 1));
     }
 }

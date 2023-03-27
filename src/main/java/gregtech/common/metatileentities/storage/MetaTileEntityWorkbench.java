@@ -14,7 +14,7 @@ import gregtech.api.gui.widgets.*;
 import gregtech.api.gui.widgets.TabGroup.TabLocation;
 import gregtech.api.gui.widgets.tab.ItemTabInfo;
 import gregtech.api.metatileentity.MetaTileEntity;
-import gregtech.api.metatileentity.MetaTileEntityHolder;
+import gregtech.api.metatileentity.interfaces.IGregTechTileEntity;
 import gregtech.api.storage.ICraftingStorage;
 import gregtech.api.util.GTUtility;
 import gregtech.api.util.Position;
@@ -28,17 +28,22 @@ import gregtech.common.inventory.handlers.ToolItemStackHandler;
 import gregtech.common.inventory.itemsource.ItemSources;
 import gregtech.common.inventory.itemsource.sources.InventoryItemSource;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.Blocks;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.util.EnumFacing;
 import net.minecraft.util.NonNullList;
 import net.minecraft.util.ResourceLocation;
+import net.minecraft.world.World;
 import net.minecraftforge.items.ItemStackHandler;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.tuple.Pair;
 
+import javax.annotation.Nullable;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -92,7 +97,7 @@ public class MetaTileEntityWorkbench extends MetaTileEntity implements ICrafting
     }
 
     @Override
-    public MetaTileEntity createMetaTileEntity(MetaTileEntityHolder holder) {
+    public MetaTileEntity createMetaTileEntity(IGregTechTileEntity tileEntity) {
         return new MetaTileEntityWorkbench(metaTileEntityId);
     }
 
@@ -153,12 +158,12 @@ public class MetaTileEntityWorkbench extends MetaTileEntity implements ICrafting
         super.update();
         if (!getWorld().isRemote) {
             if (recipeLogic != null) {
-                getRecipeLogic().update();
+                getCraftingRecipeLogic().update();
             }
         }
     }
 
-    private CraftingRecipeLogic getRecipeLogic() {
+    private CraftingRecipeLogic getCraftingRecipeLogic() {
         Preconditions.checkState(getWorld() != null, "getRecipeResolver called too early");
         return recipeLogic;
     }
@@ -174,7 +179,7 @@ public class MetaTileEntityWorkbench extends MetaTileEntity implements ICrafting
         WidgetGroup widgetGroup = new WidgetGroup();
         widgetGroup.addWidget(new LabelWidget(5, 20, "gregtech.machine.workbench.storage_note_1"));
         widgetGroup.addWidget(new LabelWidget(5, 30, "gregtech.machine.workbench.storage_note_2"));
-        CraftingRecipeLogic recipeResolver = getRecipeLogic();
+        CraftingRecipeLogic recipeResolver = getCraftingRecipeLogic();
         IItemList itemList = recipeResolver == null ? null : recipeResolver.getItemSourceList();
         widgetGroup.addWidget(new ItemListGridWidget(11, 45, 8, 5, itemList));
         return widgetGroup;
@@ -200,10 +205,16 @@ public class MetaTileEntityWorkbench extends MetaTileEntity implements ICrafting
         return builder.build(getHolder(), entityPlayer);
     }
 
+    @Override
+    public void addInformation(ItemStack stack, @Nullable World world, List<String> tooltip, boolean advanced) {
+        tooltip.add(I18n.format("gregtech.machine.workbench.tooltip1"));
+        tooltip.add(I18n.format("gregtech.machine.workbench.tooltip2"));
+    }
+
     public void discardRecipeResolver(EntityPlayer entityPlayer) {
         this.listeners.remove(entityPlayer);
         if (listeners.isEmpty()) {
-            if (!getWorld().isRemote) {
+            if (!getWorld().isRemote && recipeLogic != null) {
                 itemsCrafted = recipeLogic.getItemsCraftedAmount();
                 this.markDirty();
             }
@@ -221,5 +232,20 @@ public class MetaTileEntityWorkbench extends MetaTileEntity implements ICrafting
 
     public CraftingRecipeMemory getRecipeMemory() {
         return recipeMemory;
+    }
+
+    @Override
+    public boolean canPlaceCoverOnSide(EnumFacing side) {
+        return false;
+    }
+
+    @Override
+    public boolean canRenderMachineGrid() {
+        return false;
+    }
+
+    @Override
+    public boolean showToolUsages() {
+        return false;
     }
 }

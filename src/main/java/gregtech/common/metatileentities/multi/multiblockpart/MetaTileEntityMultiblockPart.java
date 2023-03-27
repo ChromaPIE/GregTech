@@ -4,14 +4,13 @@ import codechicken.lib.render.CCRenderState;
 import codechicken.lib.render.pipeline.ColourMultiplier;
 import codechicken.lib.render.pipeline.IVertexOperation;
 import codechicken.lib.vec.Matrix4;
-import gregtech.api.block.machines.BlockMachine;
 import gregtech.api.metatileentity.ITieredMetaTileEntity;
 import gregtech.api.metatileentity.MetaTileEntity;
 import gregtech.api.metatileentity.multiblock.IMultiblockPart;
 import gregtech.api.metatileentity.multiblock.MultiblockControllerBase;
+import gregtech.api.util.GTUtility;
 import gregtech.client.renderer.ICubeRenderer;
 import gregtech.client.renderer.texture.Textures;
-import gregtech.api.util.GTUtility;
 import gregtech.client.renderer.texture.custom.FireboxActiveRenderer;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.network.PacketBuffer;
@@ -53,12 +52,6 @@ public abstract class MetaTileEntityMultiblockPart extends MetaTileEntity implem
         }
     }
 
-    @Override
-    public int getActualLightValue() {
-        MultiblockControllerBase controller = getController();
-        return controller == null ? 0 : controller.getLightValueForPart(this);
-    }
-
     public int getTier() {
         return tier;
     }
@@ -66,11 +59,11 @@ public abstract class MetaTileEntityMultiblockPart extends MetaTileEntity implem
     public MultiblockControllerBase getController() {
         if (getWorld() != null && getWorld().isRemote) { //check this only clientside
             if (controllerTile == null && controllerPos != null) {
-                this.controllerTile = (MultiblockControllerBase) BlockMachine.getMetaTileEntity(getWorld(), controllerPos);
+                this.controllerTile = (MultiblockControllerBase) GTUtility.getMetaTileEntity(getWorld(), controllerPos);
             }
         }
         if (controllerTile != null && (controllerTile.getHolder() == null ||
-                controllerTile.getHolder().isInvalid() || !(getWorld().isRemote || controllerTile.getMultiblockParts().contains(this)))) {
+                !controllerTile.isValid() || !(getWorld().isRemote || controllerTile.getMultiblockParts().contains(this)))) {
             //tile can become invalid for many reasons, and can also forgot to remove us once we aren't in structure anymore
             //so check it here to prevent bugs with dangling controller reference and wrong texture
             this.controllerTile = null;
@@ -132,7 +125,7 @@ public abstract class MetaTileEntityMultiblockPart extends MetaTileEntity implem
                 this.controllerPos = null;
                 this.controllerTile = null;
             }
-            getHolder().scheduleChunkForRenderUpdate();
+            scheduleRenderUpdate();
         }
     }
 

@@ -14,8 +14,8 @@ import gregtech.api.gui.ModularUI;
 import gregtech.api.gui.widgets.CycleButtonWidget;
 import gregtech.api.gui.widgets.LabelWidget;
 import gregtech.api.gui.widgets.WidgetGroup;
-import gregtech.client.renderer.texture.cube.SimpleOverlayRenderer;
 import gregtech.api.util.GTUtility;
+import gregtech.client.renderer.texture.cube.SimpleOverlayRenderer;
 import gregtech.common.covers.filter.ItemFilter;
 import gregtech.common.covers.filter.ItemFilterWrapper;
 import net.minecraft.entity.player.EntityPlayer;
@@ -49,13 +49,17 @@ public class CoverItemFilter extends CoverBehavior implements CoverWithUI {
         this.itemFilter.setMaxStackSize(1);
     }
 
-    protected void setFilterMode(ItemFilterMode filterMode) {
+    public void setFilterMode(ItemFilterMode filterMode) {
         this.filterMode = filterMode;
         coverHolder.markDirty();
     }
 
     public ItemFilterMode getFilterMode() {
         return filterMode;
+    }
+
+    public ItemFilterWrapper getItemFilter() {
+        return this.itemFilter;
     }
 
     @Override
@@ -88,7 +92,7 @@ public class CoverItemFilter extends CoverBehavior implements CoverWithUI {
                 GTUtility.mapToString(ItemFilterMode.values(), it -> it.localeName),
                 () -> filterMode.ordinal(), (newMode) -> setFilterMode(ItemFilterMode.values()[newMode])));
         this.itemFilter.initUI(45, filterGroup::addWidget);
-
+        this.itemFilter.blacklistUI(45, filterGroup::addWidget, () -> true);
         return ModularUI.builder(GuiTextures.BACKGROUND, 176, 105 + 82)
                 .widget(filterGroup)
                 .bindPlayerInventory(player.inventory, GuiTextures.SLOT, 7, 105)
@@ -101,13 +105,15 @@ public class CoverItemFilter extends CoverBehavior implements CoverWithUI {
     }
 
     @Override
-    public void writeToNBT(NBTTagCompound tagCompound) {
+    public NBTTagCompound writeToNBT(NBTTagCompound tagCompound) {
         super.writeToNBT(tagCompound);
         tagCompound.setInteger("FilterMode", filterMode.ordinal());
         tagCompound.setBoolean("IsBlacklist", this.itemFilter.isBlacklistFilter());
         NBTTagCompound filterComponent = new NBTTagCompound();
         this.itemFilter.getItemFilter().writeToNBT(filterComponent);
         tagCompound.setTag("Filter", filterComponent);
+
+        return tagCompound;
     }
 
     @Override
@@ -121,6 +127,9 @@ public class CoverItemFilter extends CoverBehavior implements CoverWithUI {
     @Override
     public <T> T getCapability(Capability<T> capability, T defaultValue) {
         if (capability == CapabilityItemHandler.ITEM_HANDLER_CAPABILITY) {
+            if (defaultValue == null) {
+                return null;
+            }
             IItemHandler delegate = (IItemHandler) defaultValue;
             if (itemHandler == null || itemHandler.delegate != delegate) {
                 this.itemHandler = new ItemHandlerFiltered(delegate);

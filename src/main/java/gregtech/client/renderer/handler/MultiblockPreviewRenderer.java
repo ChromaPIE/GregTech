@@ -1,7 +1,7 @@
 package gregtech.client.renderer.handler;
 
 import gregtech.api.metatileentity.MetaTileEntity;
-import gregtech.api.metatileentity.MetaTileEntityHolder;
+import gregtech.api.metatileentity.interfaces.IGregTechTileEntity;
 import gregtech.api.metatileentity.multiblock.MultiblockControllerBase;
 import gregtech.api.pattern.MultiblockShapeInfo;
 import gregtech.api.util.BlockInfo;
@@ -22,6 +22,7 @@ import net.minecraft.world.IBlockAccess;
 import net.minecraft.world.WorldType;
 import net.minecraft.world.biome.Biome;
 import net.minecraftforge.client.ForgeHooksClient;
+import net.minecraftforge.client.MinecraftForgeClient;
 import net.minecraftforge.client.event.RenderWorldLastEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
@@ -43,7 +44,7 @@ public class MultiblockPreviewRenderer {
         if (mbpPos != null) {
             Minecraft mc = Minecraft.getMinecraft();
             long time = System.currentTimeMillis();
-            if (opList == -1 || time > mbpEndTime || !(mc.world.getTileEntity(mbpPos) instanceof MetaTileEntityHolder)) {
+            if (opList == -1 || time > mbpEndTime || !(mc.world.getTileEntity(mbpPos) instanceof IGregTechTileEntity)) {
                 resetMultiblockRender();
                 layer = 0;
                 return;
@@ -113,7 +114,7 @@ public class MultiblockPreviewRenderer {
                 BlockInfo[] column = aisle[y];
                 for (int z = 0; z < column.length; z++) {
                     blockMap.put(new BlockPos(x, y, z), column[z]);
-                    MetaTileEntity metaTE = column[z].getTileEntity() instanceof MetaTileEntityHolder ? ((MetaTileEntityHolder) column[z].getTileEntity()).getMetaTileEntity() : null;
+                    MetaTileEntity metaTE = column[z].getTileEntity() instanceof IGregTechTileEntity ? ((IGregTechTileEntity) column[z].getTileEntity()).getMetaTileEntity() : null;
                     if (metaTE instanceof MultiblockControllerBase && metaTE.metaTileEntityId.equals(controllerBase.metaTileEntityId)) {
                         controllerPos = new BlockPos(x, y, z);
                         previewFacing = metaTE.getFrontFacing();
@@ -167,6 +168,8 @@ public class MultiblockPreviewRenderer {
             mte.checkStructurePattern();
         }
 
+        BlockRenderLayer oldLayer = MinecraftForgeClient.getRenderLayer();
+
         TargetBlockAccess targetBA = new TargetBlockAccess(world, BlockPos.ORIGIN);
         for (BlockPos pos : blockMap.keySet()) {
             targetBA.setPos(pos);
@@ -187,6 +190,7 @@ public class MultiblockPreviewRenderer {
             tes.draw();
             GlStateManager.popMatrix();
         }
+        ForgeHooksClient.setRenderLayer(oldLayer);
 
         GlStateManager.popMatrix();
 

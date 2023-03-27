@@ -20,14 +20,10 @@ import gregtech.api.recipes.Recipe;
 import gregtech.api.recipes.RecipeMap;
 import gregtech.api.util.GTUtility;
 import gregtech.common.ConfigHolder;
-import gregtech.common.blocks.BlockFireboxCasing;
-import gregtech.common.blocks.VariantActiveBlock;
-import net.minecraft.block.state.IBlockState;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.network.PacketBuffer;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.SoundEvent;
-import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.Style;
 import net.minecraft.util.text.TextComponentTranslation;
@@ -36,15 +32,14 @@ import net.minecraftforge.items.IItemHandlerModifiable;
 import net.minecraftforge.items.ItemStackHandler;
 
 import javax.annotation.Nonnull;
-import java.util.*;
+import javax.annotation.Nullable;
+import java.util.ArrayList;
+import java.util.List;
 
-public abstract class RecipeMapMultiblockController extends MultiblockWithDisplayBase implements IDataInfoProvider {
+public abstract class RecipeMapMultiblockController extends MultiblockWithDisplayBase implements IDataInfoProvider, ICleanroomReceiver {
 
     public final RecipeMap<?> recipeMap;
     protected MultiblockRecipeLogic recipeMapWorkable;
-    protected List<BlockPos> variantActiveBlocks;
-    protected boolean lastActive;
-
     protected IItemHandlerModifiable inputInventory;
     protected IItemHandlerModifiable outputInventory;
     protected IMultipleTankHandler inputFluidInventory;
@@ -52,6 +47,8 @@ public abstract class RecipeMapMultiblockController extends MultiblockWithDispla
     protected IEnergyContainer energyContainer;
 
     private boolean isDistinct = false;
+
+    private ICleanroomProvider cleanroom;
 
     public RecipeMapMultiblockController(ResourceLocation metaTileEntityId, RecipeMap<?> recipeMap) {
         super(metaTileEntityId);
@@ -88,7 +85,7 @@ public abstract class RecipeMapMultiblockController extends MultiblockWithDispla
      * Performs extra checks for validity of given recipe before multiblock
      * will start it's processing.
      */
-    public boolean checkRecipe(Recipe recipe, boolean consumeIfSuccess) {
+    public boolean checkRecipe(@Nonnull Recipe recipe, boolean consumeIfSuccess) {
         return true;
     }
 
@@ -96,7 +93,6 @@ public abstract class RecipeMapMultiblockController extends MultiblockWithDispla
     protected void formStructure(PatternMatchContext context) {
         super.formStructure(context);
         initializeAbilities();
-        variantActiveBlocks = context.getOrDefault("VABlock", new LinkedList<>());
     }
 
     @Override
@@ -104,40 +100,12 @@ public abstract class RecipeMapMultiblockController extends MultiblockWithDispla
         super.invalidateStructure();
         resetTileAbilities();
         this.recipeMapWorkable.invalidate();
-        this.replaceVariantBlocksActive(false);
-        variantActiveBlocks.clear();
-        lastActive = false;
-    }
-
-    protected void replaceVariantBlocksActive(boolean isActive) {
-        if (variantActiveBlocks != null) {
-            for (BlockPos blockPos : variantActiveBlocks) {
-                IBlockState blockState = getWorld().getBlockState(blockPos);
-                if (blockState.getBlock() instanceof VariantActiveBlock) {
-                    getWorld().setBlockState(blockPos, blockState.withProperty(BlockFireboxCasing.ACTIVE, isActive));
-                }
-            }
-        }
-    }
-
-    @Override
-    public void onRemoval() {
-        super.onRemoval();
-        if (!getWorld().isRemote && isStructureFormed()) {
-            replaceVariantBlocksActive(false);
-            variantActiveBlocks.clear();
-            lastActive = false;
-        }
     }
 
     @Override
     protected void updateFormedValid() {
-        if (!hasMufflerMechanics() || isMufflerFaceFree())
+        if (!hasMufflerMechanics() || isMufflerFaceFree()){
             this.recipeMapWorkable.updateWorkable();
-        boolean state = this.recipeMapWorkable.isWorking() && ConfigHolder.client.casingsActiveEmissiveTextures;
-        if (lastActive != state) {
-            lastActive = state;
-            replaceVariantBlocksActive(lastActive);
         }
     }
 
@@ -173,11 +141,11 @@ public abstract class RecipeMapMultiblockController extends MultiblockWithDispla
             IEnergyContainer energyContainer = recipeMapWorkable.getEnergyContainer();
             if (energyContainer != null && energyContainer.getEnergyCapacity() > 0) {
                 long maxVoltage = Math.max(energyContainer.getInputVoltage(), energyContainer.getOutputVoltage());
-                String voltageName = GTValues.VNF[GTUtility.getTierByVoltage(maxVoltage)];
+                String voltageName = GTValues.VNF[GTUtility.getFloorTierByVoltage(maxVoltage)];
                 textList.add(new TextComponentTranslation("gregtech.multiblock.max_energy_per_tick", maxVoltage, voltageName));
             }
 
-            if (canBeDistinct()) {
+            if (canBeDistinct() && inputInventory.getSlots() > 0) {
                 ITextComponent buttonText = new TextComponentTranslation("gregtech.multiblock.universal.distinct");
                 buttonText.appendText(" ");
                 ITextComponent button = AdvancedTextWidget.withButton(isDistinct() ?
@@ -239,30 +207,22 @@ public abstract class RecipeMapMultiblockController extends MultiblockWithDispla
                 .or(checkEnergyIn ? abilities(MultiblockAbility.INPUT_ENERGY).setMinGlobalLimited(1).setMaxGlobalLimited(3).setPreviewCount(1) : new TraceabilityPredicate());
 
         if (checkItemIn) {
-            if (recipeMap.getMinInputs() > 0) {
-                predicate = predicate.or(abilities(MultiblockAbility.IMPORT_ITEMS).setMinGlobalLimited(1).setPreviewCount(1));
-            } else if (recipeMap.getMaxInputs() > 0) {
+            if (recipeMap.getMaxInputs() > 0) {
                 predicate = predicate.or(abilities(MultiblockAbility.IMPORT_ITEMS).setPreviewCount(1));
             }
         }
         if (checkItemOut) {
-            if (recipeMap.getMinOutputs() > 0) {
-                predicate = predicate.or(abilities(MultiblockAbility.EXPORT_ITEMS).setMinGlobalLimited(1).setPreviewCount(1));
-            } else if (recipeMap.getMaxOutputs() > 0) {
+            if (recipeMap.getMaxOutputs() > 0) {
                 predicate = predicate.or(abilities(MultiblockAbility.EXPORT_ITEMS).setPreviewCount(1));
             }
         }
         if (checkFluidIn) {
-            if (recipeMap.getMinFluidInputs() > 0) {
-                predicate = predicate.or(abilities(MultiblockAbility.IMPORT_FLUIDS).setMinGlobalLimited(1).setPreviewCount(recipeMap.getMinFluidInputs()));
-            } else if (recipeMap.getMaxFluidInputs() > 0) {
+            if (recipeMap.getMaxFluidInputs() > 0) {
                 predicate = predicate.or(abilities(MultiblockAbility.IMPORT_FLUIDS).setPreviewCount(1));
             }
         }
         if (checkFluidOut) {
-            if (recipeMap.getMinFluidOutputs() > 0) {
-                predicate = predicate.or(abilities(MultiblockAbility.EXPORT_FLUIDS).setMinGlobalLimited(1).setPreviewCount(recipeMap.getMinFluidOutputs()));
-            } else if (recipeMap.getMaxFluidOutputs() > 0) {
+            if (recipeMap.getMaxFluidOutputs() > 0) {
                 predicate = predicate.or(abilities(MultiblockAbility.EXPORT_FLUIDS).setPreviewCount(1));
             }
         }
@@ -305,7 +265,7 @@ public abstract class RecipeMapMultiblockController extends MultiblockWithDispla
     }
 
     public boolean isDistinct() {
-        return isDistinct;
+        return isDistinct && inputInventory.getSlots() > 0;
     }
 
     protected void toggleDistinct() {
@@ -365,5 +325,16 @@ public abstract class RecipeMapMultiblockController extends MultiblockWithDispla
         }
 
         return list;
+    }
+
+    @Nullable
+    @Override
+    public ICleanroomProvider getCleanroom() {
+        return this.cleanroom;
+    }
+
+    @Override
+    public void setCleanroom(ICleanroomProvider provider) {
+        this.cleanroom = provider;
     }
 }

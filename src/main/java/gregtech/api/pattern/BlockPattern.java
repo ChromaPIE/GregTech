@@ -3,6 +3,7 @@ package gregtech.api.pattern;
 import gregtech.api.GregTechAPI;
 import gregtech.api.metatileentity.MetaTileEntity;
 import gregtech.api.metatileentity.MetaTileEntityHolder;
+import gregtech.api.metatileentity.interfaces.IGregTechTileEntity;
 import gregtech.api.metatileentity.multiblock.MultiblockControllerBase;
 import gregtech.api.util.BlockInfo;
 import gregtech.api.util.RelativeDirection;
@@ -84,7 +85,7 @@ public class BlockPattern {
             }
         }
         if (centerOffset == null) {
-            throw new IllegalArgumentException("Didn't found center predicate");
+            throw new IllegalArgumentException("Didn't find center predicate");
         }
     }
 
@@ -102,15 +103,22 @@ public class BlockPattern {
                     pass = false;
                     break;
                 }
-                TileEntity tileEntity = world.getTileEntity(pos);
-                if (tileEntity != entry.getValue().getTileEntity()) {
-                    pass = false;
-                    break;
+                TileEntity cachedTileEntity = entry.getValue().getTileEntity();
+                if (cachedTileEntity != null) {
+                    TileEntity tileEntity = world.getTileEntity(pos);
+                    if (tileEntity != cachedTileEntity) {
+                        pass = false;
+                        break;
+                    }
                 }
             }
             if (pass) return worldState.hasError() ? null : matchContext;
         }
         return checkPatternAt(world, centerPos, facing);
+    }
+
+    public void clearCache() {
+        cache.clear();
     }
 
     private PatternMatchContext checkPatternAt(World world, BlockPos centerPos, EnumFacing facing) {
@@ -136,8 +144,8 @@ public class BlockPattern {
                         worldState.update(world, pos, matchContext, globalCount, layerCount, predicate);
                         TileEntity tileEntity = worldState.getTileEntity();
                         if (predicate != TraceabilityPredicate.ANY) {
-                            if (tileEntity instanceof MetaTileEntityHolder) {
-                                if (((MetaTileEntityHolder) tileEntity).isValid()) {
+                            if (tileEntity instanceof IGregTechTileEntity) {
+                                if (((IGregTechTileEntity) tileEntity).isValid()) {
                                     cache.put(pos.toLong(), new BlockInfo(worldState.getBlockState(), tileEntity, predicate));
                                 } else {
                                     cache.put(pos.toLong(), new BlockInfo(worldState.getBlockState(), null, predicate));
@@ -290,7 +298,7 @@ public class BlockPattern {
 
                             List<ItemStack> candidates = Arrays.stream(infos).filter(info -> info.getBlockState().getBlock() != Blocks.AIR).map(info -> {
                                 IBlockState blockState = info.getBlockState();
-                                MetaTileEntity metaTileEntity = info.getTileEntity() instanceof MetaTileEntityHolder ? ((MetaTileEntityHolder) info.getTileEntity()).getMetaTileEntity() : null;
+                                MetaTileEntity metaTileEntity = info.getTileEntity() instanceof IGregTechTileEntity ? ((IGregTechTileEntity) info.getTileEntity()).getMetaTileEntity() : null;
                                 if (metaTileEntity != null) {
                                     return metaTileEntity.getStackForm();
                                 } else {
@@ -324,12 +332,13 @@ public class BlockPattern {
                             blocks.put(pos, state);
                             world.setBlockState(pos, state);
                             TileEntity holder = world.getTileEntity(pos);
-                            if (holder instanceof MetaTileEntityHolder) {
+                            if (holder instanceof IGregTechTileEntity) {
                                 MetaTileEntity sampleMetaTileEntity = GregTechAPI.MTE_REGISTRY.getObjectById(found.getItemDamage());
                                 if (sampleMetaTileEntity != null) {
-                                    MetaTileEntity metaTileEntity = ((MetaTileEntityHolder) holder).setMetaTileEntity(sampleMetaTileEntity);
+                                    MetaTileEntity metaTileEntity = ((IGregTechTileEntity) holder).setMetaTileEntity(sampleMetaTileEntity);
+                                    metaTileEntity.onPlacement();
                                     blocks.put(pos, metaTileEntity);
-                                    if (found.hasTagCompound()) {
+                                    if (found.getTagCompound() != null) {
                                         metaTileEntity.initFromItemStackData(found.getTagCompound());
                                     }
                                 }
@@ -507,9 +516,11 @@ public class BlockPattern {
                         }
                         BlockInfo info = infos == null || infos.length == 0 ? BlockInfo.EMPTY : infos[0];
                         BlockPos pos = setActualRelativeOffset(z, y, x, EnumFacing.NORTH);
+                        // TODO
                         if (info.getTileEntity() instanceof MetaTileEntityHolder) {
                             MetaTileEntityHolder holder = new MetaTileEntityHolder();
                             holder.setMetaTileEntity(((MetaTileEntityHolder) info.getTileEntity()).getMetaTileEntity());
+                            holder.getMetaTileEntity().onPlacement();
                             info = new BlockInfo(MetaBlocks.MACHINE.getDefaultState(), holder);
                         }
                         blocks.put(pos, info);

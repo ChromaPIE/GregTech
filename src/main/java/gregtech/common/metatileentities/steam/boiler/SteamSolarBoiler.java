@@ -4,11 +4,13 @@ import gregtech.api.gui.GuiTextures;
 import gregtech.api.gui.ModularUI;
 import gregtech.api.gui.widgets.ProgressWidget.MoveType;
 import gregtech.api.metatileentity.MetaTileEntity;
-import gregtech.api.metatileentity.MetaTileEntityHolder;
+import gregtech.api.metatileentity.interfaces.IGregTechTileEntity;
+import gregtech.api.util.GTUtility;
 import gregtech.client.renderer.texture.Textures;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.math.BlockPos;
+import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 
 public class SteamSolarBoiler extends SteamBoiler {
 
@@ -17,7 +19,7 @@ public class SteamSolarBoiler extends SteamBoiler {
     }
 
     @Override
-    public MetaTileEntity createMetaTileEntity(MetaTileEntityHolder holder) {
+    public MetaTileEntity createMetaTileEntity(IGregTechTileEntity tileEntity) {
         return new SteamSolarBoiler(metaTileEntityId, isHighPressure);
     }
 
@@ -26,16 +28,9 @@ public class SteamSolarBoiler extends SteamBoiler {
         return isHighPressure ? 360 : 120;
     }
 
-    protected boolean checkCanSeeSun() {
-        BlockPos blockPos = getPos().up();
-        if (!getWorld().canBlockSeeSky(blockPos))
-            return false;
-        return !getWorld().isRaining() && getWorld().isDaytime();
-    }
-
     @Override
     protected void tryConsumeNewFuel() {
-        if (checkCanSeeSun()) {
+        if (GTUtility.canSeeSunClearly(getWorld(), getPos())) {
             setFuelMaxBurnTime(20);
         }
     }
@@ -53,8 +48,14 @@ public class SteamSolarBoiler extends SteamBoiler {
     @Override
     protected ModularUI createUI(EntityPlayer entityPlayer) {
         return createUITemplate(entityPlayer)
-                .progressBar(() -> checkCanSeeSun() ? 1.0 : 0.0, 114, 44, 20, 20,
+                .progressBar(() -> GTUtility.canSeeSunClearly(getWorld(), getPos()) ? 1.0 : 0.0, 114, 44, 20, 20,
                         GuiTextures.PROGRESS_BAR_SOLAR_STEAM.get(isHighPressure), MoveType.HORIZONTAL)
                 .build(getHolder(), entityPlayer);
+    }
+
+    @SideOnly(Side.CLIENT)
+    @Override
+    public void randomDisplayTick() {
+        // Solar boilers do not display particles
     }
 }

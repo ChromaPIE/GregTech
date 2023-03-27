@@ -19,5 +19,8 @@ public class TheOneProbeCompatibility {
         oneProbe.registerProvider(new MaintenanceInfoProvider());
         oneProbe.registerProvider(new MultiRecipeMapInfoProvider());
         oneProbe.registerProvider(new ConverterInfoProvider());
+        oneProbe.registerProvider(new RecipeLogicInfoProvider());
+        oneProbe.registerProvider(new PrimitivePumpInfoProvider());
+        oneProbe.registerProvider(new CoverProvider());
     }
 }

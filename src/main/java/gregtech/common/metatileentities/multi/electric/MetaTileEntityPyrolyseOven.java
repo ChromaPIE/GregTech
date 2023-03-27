@@ -1,19 +1,18 @@
 package gregtech.common.metatileentities.multi.electric;
 
+import gregtech.api.block.IHeatingCoilBlockStats;
 import gregtech.api.capability.impl.MultiblockRecipeLogic;
 import gregtech.api.metatileentity.MetaTileEntity;
-import gregtech.api.metatileentity.MetaTileEntityHolder;
+import gregtech.api.metatileentity.interfaces.IGregTechTileEntity;
 import gregtech.api.metatileentity.multiblock.IMultiblockPart;
 import gregtech.api.metatileentity.multiblock.RecipeMapMultiblockController;
 import gregtech.api.pattern.BlockPattern;
 import gregtech.api.pattern.FactoryBlockPattern;
 import gregtech.api.pattern.PatternMatchContext;
-import gregtech.api.recipes.Recipe;
 import gregtech.api.recipes.RecipeMaps;
 import gregtech.client.renderer.ICubeRenderer;
 import gregtech.client.renderer.texture.Textures;
 import gregtech.common.blocks.BlockMachineCasing.MachineCasingType;
-import gregtech.common.blocks.BlockWireCoil.CoilType;
 import gregtech.common.blocks.MetaBlocks;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.resources.I18n;
@@ -37,7 +36,7 @@ public class MetaTileEntityPyrolyseOven extends RecipeMapMultiblockController {
     }
 
     @Override
-    public MetaTileEntity createMetaTileEntity(MetaTileEntityHolder holder) {
+    public MetaTileEntity createMetaTileEntity(IGregTechTileEntity tileEntity) {
         return new MetaTileEntityPyrolyseOven(metaTileEntityId);
     }
 
@@ -74,8 +73,8 @@ public class MetaTileEntityPyrolyseOven extends RecipeMapMultiblockController {
     protected void formStructure(PatternMatchContext context) {
         super.formStructure(context);
         Object type = context.get("CoilType");
-        if (type instanceof CoilType)
-            this.coilTier = ((CoilType) type).ordinal();
+        if (type instanceof IHeatingCoilBlockStats)
+            this.coilTier = ((IHeatingCoilBlockStats) type).getTier();
         else
             this.coilTier = 0;
     }
@@ -121,19 +120,18 @@ public class MetaTileEntityPyrolyseOven extends RecipeMapMultiblockController {
         }
 
         @Override
-        protected int[] performOverclocking(Recipe recipe, boolean negativeEU) {
-            int[] overclock = super.performOverclocking(recipe, negativeEU);
+        protected void performNonOverclockBonuses(int[] resultOverclock) {
 
             int coilTier = ((MetaTileEntityPyrolyseOven) metaTileEntity).getCoilTier();
             if (coilTier == -1)
-                return overclock;
+                return;
 
-            if (coilTier == 0) overclock[1] *= 5.0 / 4; // 25% slower with cupronickel (coilTier = 0)
-            else overclock[1] *= 2.0f / (coilTier + 1); // each coil above kanthal (coilTier = 1) is 50% faster
+            if (coilTier == 0) {
+                resultOverclock[1] *= 5.0 / 4; // 25% slower with cupronickel (coilTier = 0)
+            }
+            else resultOverclock[1] *= 2.0f / (coilTier + 1); // each coil above kanthal (coilTier = 1) is 50% faster
 
-            overclock[1] = Math.max(1, overclock[1]);
-
-            return overclock;
+            resultOverclock[1] = Math.max(1, resultOverclock[1]);
         }
     }
 }

@@ -13,28 +13,29 @@ import gregtech.api.recipes.RecipeMaps;
 import gregtech.api.recipes.builders.BlastRecipeBuilder;
 import gregtech.api.util.world.DummyWorld;
 import gregtech.common.metatileentities.MetaTileEntities;
+import gregtech.common.metatileentities.multi.electric.MetaTileEntityElectricBlastFurnace;
 import gregtech.common.metatileentities.multi.multiblockpart.MetaTileEntityFluidHatch;
 import gregtech.common.metatileentities.multi.multiblockpart.MetaTileEntityItemBus;
 import gregtech.common.metatileentities.multi.multiblockpart.MetaTileEntityMultiblockPart;
-import gregtech.common.metatileentities.multi.electric.MetaTileEntityElectricBlastFurnace;
 import net.minecraft.init.Blocks;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.world.World;
 import net.minecraftforge.items.IItemHandlerModifiable;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.hamcrest.MatcherAssert;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nonnull;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.junit.Assert.*;
+import static org.hamcrest.CoreMatchers.*;
 
 public class MultiblockRecipeLogicTest {
 
-    @BeforeClass
+    @BeforeAll
     public static void bootstrap() {
         Bootstrap.perform();
     }
@@ -119,7 +120,7 @@ public class MultiblockRecipeLogicTest {
             e.printStackTrace();
         }
 
-        mbt.getHolder().setWorld(world);
+        ((MetaTileEntityHolder) mbt.getHolder()).setWorld(world);
 
         //Controller and isAttachedToMultiBlock need the world so we fake it here.
         MetaTileEntityItemBus importItemBus = new MetaTileEntityItemBus(gregtechId("item_bus.export.lv"), 1, false) {
@@ -230,32 +231,30 @@ public class MultiblockRecipeLogicTest {
         mbl.trySearchNewRecipe();
 
         // no recipe found
-        assertFalse(mbt.isDistinct());
-        assertTrue(mbl.invalidInputsForRecipes);
-        assertFalse(mbl.isActive);
-        assertNull(mbl.previousRecipe);
+        MatcherAssert.assertThat(mbt.isDistinct(), is(false));
+        MatcherAssert.assertThat(mbl.invalidInputsForRecipes, is(true));
+        MatcherAssert.assertThat(mbl.isActive, is(false));
+        MatcherAssert.assertThat(mbl.previousRecipe, nullValue());
 
         // put an item in the inventory that will trigger recipe recheck
         mbl.getInputInventory().insertItem(0, new ItemStack(Blocks.COBBLESTONE, 16), false);
         // Inputs change. did we detect it ?
-        assertTrue(mbl.hasNotifiedInputs());
+        MatcherAssert.assertThat(mbl.hasNotifiedInputs(), is(true));
         mbl.trySearchNewRecipe();
-        assertFalse(mbl.invalidInputsForRecipes);
-        assertNotNull(mbl.previousRecipe);
-        assertTrue(mbl.isActive);
-        assertEquals(15, mbl.getInputInventory().getStackInSlot(0).getCount());
-        //assert the consumption of the inputs did not mark the arl to look for a new recipe
-        assertFalse(mbl.hasNotifiedInputs());
+        MatcherAssert.assertThat(mbl.invalidInputsForRecipes, is(false));
+        MatcherAssert.assertThat(mbl.previousRecipe, notNullValue());
+        MatcherAssert.assertThat(mbl.isActive, is(true));
+        MatcherAssert.assertThat(mbl.getInputInventory().getStackInSlot(0).getCount(), is(15));
 
         // Save a reference to the old recipe so we can make sure it's getting reused
         Recipe prev = mbl.previousRecipe;
 
         // Finish the recipe, the output should generate, and the next iteration should begin
         mbl.updateWorkable();
-        assertEquals(prev, mbl.previousRecipe);
-        assertTrue(AbstractRecipeLogic.areItemStacksEqual(mbl.getOutputInventory().getStackInSlot(0),
-                new ItemStack(Blocks.STONE, 1)));
-        assertTrue(mbl.isActive);
+        MatcherAssert.assertThat(mbl.previousRecipe, is(prev));
+        MatcherAssert.assertThat(AbstractRecipeLogic.areItemStacksEqual(mbl.getOutputInventory().getStackInSlot(0),
+                new ItemStack(Blocks.STONE, 1)), is(true));
+        MatcherAssert.assertThat(mbl.isActive, is(true));
 
         // Complete the second iteration, but the machine stops because its output is now full
         mbl.getOutputInventory().setStackInSlot(0, new ItemStack(Blocks.STONE, 63));
@@ -263,23 +262,23 @@ public class MultiblockRecipeLogicTest {
         mbl.getOutputInventory().setStackInSlot(2, new ItemStack(Blocks.STONE, 64));
         mbl.getOutputInventory().setStackInSlot(3, new ItemStack(Blocks.STONE, 64));
         mbl.updateWorkable();
-        assertFalse(mbl.isActive);
-        assertTrue(mbl.isOutputsFull);
+        MatcherAssert.assertThat(mbl.isActive, is(false));
+        MatcherAssert.assertThat(mbl.isOutputsFull, is(true));
 
         // Try to process again and get failed out because of full buffer.
         mbl.updateWorkable();
-        assertFalse(mbl.isActive);
-        assertTrue(mbl.isOutputsFull);
+        MatcherAssert.assertThat(mbl.isActive, is(false));
+        MatcherAssert.assertThat(mbl.isOutputsFull, is(true));
 
         // Some room is freed in the output bus, so we can continue now.
         mbl.getOutputInventory().setStackInSlot(1, ItemStack.EMPTY);
-        assertTrue(mbl.hasNotifiedOutputs());
+        MatcherAssert.assertThat(mbl.hasNotifiedOutputs(), is(true));
         mbl.updateWorkable();
-        assertTrue(mbl.isActive);
-        assertFalse(mbl.isOutputsFull);
+        MatcherAssert.assertThat(mbl.isActive, is(true));
+        MatcherAssert.assertThat(mbl.isOutputsFull, is(false));
         mbl.completeRecipe();
-        assertTrue(AbstractRecipeLogic.areItemStacksEqual(mbl.getOutputInventory().getStackInSlot(0),
-                new ItemStack(Blocks.STONE, 1)));
+        MatcherAssert.assertThat(AbstractRecipeLogic.areItemStacksEqual(mbl.getOutputInventory().getStackInSlot(0),
+                new ItemStack(Blocks.STONE, 1)), is(true));
     }
 
     @Test
@@ -330,6 +329,11 @@ public class MultiblockRecipeLogicTest {
 
                             }
 
+                            @Override
+                            public boolean isDistinct() {
+                                return true;
+                            }
+
                             // function checks for the temperature of the recipe against the coils
                             @Override
                             public boolean checkRecipe(@Nonnull Recipe recipe, boolean consumeIfSuccess) {
@@ -354,15 +358,7 @@ public class MultiblockRecipeLogicTest {
             e.printStackTrace();
         }
 
-        mbt.getHolder().setWorld(world);
-
-        try {
-            Field field = RecipeMapMultiblockController.class.getDeclaredField("isDistinct");
-            field.setAccessible(true);
-            field.setBoolean(mbt, true);
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            e.printStackTrace();
-        }
+        ((MetaTileEntityHolder) mbt.getHolder()).setWorld(world);
 
 
         //Controller and isAttachedToMultiBlock need the world so we fake it here.
@@ -489,17 +485,17 @@ public class MultiblockRecipeLogicTest {
 
         };
 
-        assertTrue(mbt.isDistinct());
+        MatcherAssert.assertThat(mbt.isDistinct(), is(true));
 
         mbl.isOutputsFull = false;
         mbl.invalidInputsForRecipes = false;
         mbl.trySearchNewRecipe();
 
         // no recipe found
-        assertTrue(mbt.isDistinct());
-        assertTrue(mbl.invalidatedInputList.containsAll(mbl.getInputBuses()));
-        assertFalse(mbl.isActive);
-        assertNull(mbl.previousRecipe);
+        MatcherAssert.assertThat(mbt.isDistinct(), is(true));
+        MatcherAssert.assertThat(mbl.invalidatedInputList.containsAll(mbl.getInputBuses()), is(true));
+        MatcherAssert.assertThat(mbl.isActive, is(false));
+        MatcherAssert.assertThat(mbl.previousRecipe, nullValue());
 
         // put an item in the first input bus that will trigger recipe recheck
 
@@ -507,25 +503,24 @@ public class MultiblockRecipeLogicTest {
         firstBus.insertItem(0, new ItemStack(Blocks.COBBLESTONE, 16), false);
 
         // Inputs change. did we detect it ?
-        assertTrue(mbl.hasNotifiedInputs());
-        assertTrue(mbl.getMetaTileEntity().getNotifiedItemInputList().contains(firstBus));
+        MatcherAssert.assertThat(mbl.hasNotifiedInputs(), is(true));
+        MatcherAssert.assertThat(mbl.getMetaTileEntity().getNotifiedItemInputList(), hasItem(firstBus));
+        MatcherAssert.assertThat(mbl.canWorkWithInputs(), is(true));
         mbl.trySearchNewRecipe();
-        assertFalse(mbl.invalidatedInputList.contains(firstBus));
-        assertNotNull(mbl.previousRecipe);
-        assertTrue(mbl.isActive);
-        assertEquals(15, firstBus.getStackInSlot(0).getCount());
-        //assert the consumption of the inputs did not mark the arl to look for a new recipe
-        assertFalse(mbl.hasNotifiedInputs());
+        MatcherAssert.assertThat(mbl.invalidatedInputList, not(hasItem(firstBus)));
+        MatcherAssert.assertThat(mbl.previousRecipe, notNullValue());
+        MatcherAssert.assertThat(mbl.isActive, is(true));
+        MatcherAssert.assertThat(firstBus.getStackInSlot(0).getCount(), is(15));
 
         // Save a reference to the old recipe so we can make sure it's getting reused
         Recipe prev = mbl.previousRecipe;
 
         // Finish the recipe, the output should generate, and the next iteration should begin
         mbl.updateWorkable();
-        assertEquals(prev, mbl.previousRecipe);
-        assertTrue(AbstractRecipeLogic.areItemStacksEqual(mbl.getOutputInventory().getStackInSlot(0),
-                new ItemStack(Blocks.STONE, 1)));
-        assertTrue(mbl.isActive);
+        MatcherAssert.assertThat(mbl.previousRecipe, is(prev));
+        MatcherAssert.assertThat(AbstractRecipeLogic.areItemStacksEqual(mbl.getOutputInventory().getStackInSlot(0),
+                new ItemStack(Blocks.STONE, 1)), is(true));
+        MatcherAssert.assertThat(mbl.isActive, is(true));
 
         // Complete the second iteration, but the machine stops because its output is now full
         mbl.getOutputInventory().setStackInSlot(0, new ItemStack(Blocks.STONE, 63));
@@ -533,22 +528,22 @@ public class MultiblockRecipeLogicTest {
         mbl.getOutputInventory().setStackInSlot(2, new ItemStack(Blocks.STONE, 64));
         mbl.getOutputInventory().setStackInSlot(3, new ItemStack(Blocks.STONE, 64));
         mbl.updateWorkable();
-        assertFalse(mbl.isActive);
-        assertTrue(mbl.isOutputsFull);
+        MatcherAssert.assertThat(mbl.isActive, is(false));
+        MatcherAssert.assertThat(mbl.isOutputsFull, is(true));
 
         // Try to process again and get failed out because of full buffer.
         mbl.updateWorkable();
-        assertFalse(mbl.isActive);
-        assertTrue(mbl.isOutputsFull);
+        MatcherAssert.assertThat(mbl.isActive, is(false));
+        MatcherAssert.assertThat(mbl.isOutputsFull, is(true));
 
         // Some room is freed in the output bus, so we can continue now.
         mbl.getOutputInventory().setStackInSlot(1, ItemStack.EMPTY);
-        assertTrue(mbl.hasNotifiedOutputs());
+        MatcherAssert.assertThat(mbl.hasNotifiedOutputs(), is(true));
         mbl.updateWorkable();
-        assertTrue(mbl.isActive);
-        assertFalse(mbl.isOutputsFull);
+        MatcherAssert.assertThat(mbl.isActive, is(true));
+        MatcherAssert.assertThat(mbl.isOutputsFull, is(false));
         mbl.completeRecipe();
-        assertTrue(AbstractRecipeLogic.areItemStacksEqual(mbl.getOutputInventory().getStackInSlot(0),
-                new ItemStack(Blocks.STONE, 1)));
+        MatcherAssert.assertThat(AbstractRecipeLogic.areItemStacksEqual(mbl.getOutputInventory().getStackInSlot(0),
+                new ItemStack(Blocks.STONE, 1)), is(true));
     }
 }

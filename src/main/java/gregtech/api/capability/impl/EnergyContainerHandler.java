@@ -1,13 +1,11 @@
 package gregtech.api.capability.impl;
 
 import gregtech.api.GTValues;
-import gregtech.api.capability.FeCompat;
-import gregtech.api.capability.GregtechCapabilities;
-import gregtech.api.capability.IElectricItem;
-import gregtech.api.capability.IEnergyContainer;
+import gregtech.api.capability.*;
 import gregtech.api.metatileentity.MTETrait;
 import gregtech.api.metatileentity.MetaTileEntity;
 import gregtech.api.util.GTUtility;
+import gregtech.common.ConfigHolder;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
@@ -17,6 +15,7 @@ import net.minecraftforge.energy.CapabilityEnergy;
 import net.minecraftforge.energy.IEnergyStorage;
 import net.minecraftforge.items.IItemHandlerModifiable;
 
+import javax.annotation.Nonnull;
 import java.util.function.Predicate;
 
 public class EnergyContainerHandler extends MTETrait implements IEnergyContainer {
@@ -75,14 +74,10 @@ public class EnergyContainerHandler extends MTETrait implements IEnergyContainer
         return lastEnergyOutputPerSec;
     }
 
+    @Nonnull
     @Override
     public String getName() {
-        return "EnergyContainer";
-    }
-
-    @Override
-    public int getNetworkID() {
-        return TraitNetworkIds.TRAIT_ID_ENERGY_CONTAINER;
+        return GregtechDataCodes.ENERGY_CONTAINER_TRAIT;
     }
 
     @Override
@@ -93,6 +88,7 @@ public class EnergyContainerHandler extends MTETrait implements IEnergyContainer
         return null;
     }
 
+    @Nonnull
     @Override
     public NBTTagCompound serializeNBT() {
         NBTTagCompound compound = new NBTTagCompound();
@@ -101,7 +97,7 @@ public class EnergyContainerHandler extends MTETrait implements IEnergyContainer
     }
 
     @Override
-    public void deserializeNBT(NBTTagCompound compound) {
+    public void deserializeNBT(@Nonnull NBTTagCompound compound) {
         this.energyStored = compound.getLong("EnergyStored");
         notifyEnergyListener(true);
     }
@@ -139,7 +135,7 @@ public class EnergyContainerHandler extends MTETrait implements IEnergyContainer
         IElectricItem electricItem = stackInSlot.getCapability(GregtechCapabilities.CAPABILITY_ELECTRIC_ITEM, null);
         if (electricItem != null) {
             return handleElectricItem(electricItem);
-        } else {
+        } else if (ConfigHolder.compat.energy.nativeEUToFE) {
             IEnergyStorage energyStorage = stackInSlot.getCapability(CapabilityEnergy.ENERGY, null);
             if (energyStorage != null) {
                 return handleForgeEnergyItem(energyStorage);
@@ -220,7 +216,7 @@ public class EnergyContainerHandler extends MTETrait implements IEnergyContainer
 
     @Override
     public long acceptEnergyFromNetwork(EnumFacing side, long voltage, long amperage) {
-        if(amps >= getInputAmperage()) return 0;
+        if (amps >= getInputAmperage()) return 0;
         long canAccept = getEnergyCapacity() - getEnergyStored();
         if (voltage > 0L && (side == null || inputsEnergy(side))) {
             if (voltage > getInputVoltage()) {

@@ -4,6 +4,7 @@ import com.google.common.base.Preconditions;
 import gregtech.api.gui.widgets.WidgetUIAccess;
 import gregtech.api.util.Position;
 import gregtech.api.util.Size;
+import gregtech.client.utils.TooltipHelper;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.audio.PositionedSoundRecord;
 import net.minecraft.client.gui.FontRenderer;
@@ -20,7 +21,6 @@ import net.minecraftforge.fml.client.config.GuiUtils;
 import net.minecraftforge.fml.common.FMLCommonHandler;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
-import org.lwjgl.input.Keyboard;
 import org.lwjgl.opengl.GL11;
 
 import javax.annotation.Nullable;
@@ -275,7 +275,7 @@ public abstract class Widget {
     @SideOnly(Side.CLIENT)
     public void drawHoveringText(ItemStack itemStack, List<String> tooltip, int maxTextWidth, int mouseX, int mouseY) {
         Minecraft mc = Minecraft.getMinecraft();
-        GuiUtils.drawHoveringText(itemStack == null ? ItemStack.EMPTY : itemStack, tooltip, mouseX, mouseY,
+        GuiUtils.drawHoveringText(itemStack, tooltip, mouseX, mouseY,
                 sizes.getScreenWidth(),
                 sizes.getScreenHeight(), maxTextWidth, mc.fontRenderer);
         GlStateManager.disableLighting();
@@ -427,15 +427,13 @@ public abstract class Widget {
             buffer.pos(x + width, y, 0).color(endRed, endGreen, endBlue, endAlpha).endVertex();
             buffer.pos(x, y, 0).color(startRed, startGreen, startBlue, startAlpha).endVertex();
             buffer.pos(x, y + height, 0).color(startRed, startGreen, startBlue, startAlpha).endVertex();
-            buffer.pos(x + width, y + height, 0).color(endRed, endGreen, endBlue, endAlpha).endVertex();
-            tessellator.draw();
         } else {
             buffer.pos(x + width, y, 0).color(startRed, startGreen, startBlue, startAlpha).endVertex();
             buffer.pos(x, y, 0).color(startRed, startGreen, startBlue, startAlpha).endVertex();
             buffer.pos(x, y + height, 0).color(endRed, endGreen, endBlue, endAlpha).endVertex();
-            buffer.pos(x + width, y + height, 0).color(endRed, endGreen, endBlue, endAlpha).endVertex();
-            tessellator.draw();
         }
+        buffer.pos(x + width, y + height, 0).color(endRed, endGreen, endBlue, endAlpha).endVertex();
+        tessellator.draw();
         GlStateManager.shadeModel(GL11.GL_FLAT);
         GlStateManager.enableAlpha();
         GlStateManager.enableTexture2D();
@@ -464,13 +462,13 @@ public abstract class Widget {
         }
         tessellator.draw();
         GlStateManager.enableTexture2D();
-        GlStateManager.color(1,1,1,1);
+        GlStateManager.color(1, 1, 1, 1);
     }
 
     @SideOnly(Side.CLIENT)
     public static void drawSector(float x, float y, float r, int color, int segments, int from, int to) {
         if (from > to || from < 0 || color == 0) return;
-        if(to > segments) to = segments;
+        if (to > segments) to = segments;
         Tessellator tessellator = Tessellator.getInstance();
         BufferBuilder bufferbuilder = tessellator.getBuffer();
         GlStateManager.enableBlend();
@@ -590,18 +588,18 @@ public abstract class Widget {
     }
 
     @SideOnly(Side.CLIENT)
-    protected void playButtonClickSound() {
+    protected static void playButtonClickSound() {
         Minecraft.getMinecraft().getSoundHandler().playSound(PositionedSoundRecord.getMasterRecord(SoundEvents.UI_BUTTON_CLICK, 1.0F));
     }
 
     @SideOnly(Side.CLIENT)
-    protected boolean isShiftDown() {
-        return Keyboard.isKeyDown(Keyboard.KEY_LSHIFT) || Keyboard.isKeyDown(Keyboard.KEY_RSHIFT);
+    protected static boolean isShiftDown() {
+        return TooltipHelper.isShiftDown();
     }
 
     @SideOnly(Side.CLIENT)
-    protected boolean isCtrlDown() {
-        return Keyboard.isKeyDown(Keyboard.KEY_LCONTROL) || Keyboard.isKeyDown(Keyboard.KEY_RCONTROL);
+    protected static boolean isCtrlDown() {
+        return TooltipHelper.isCtrlDown();
     }
 
     public boolean isRemote() {
@@ -645,6 +643,42 @@ public abstract class Widget {
             boolean ctrlClick = buf.readBoolean();
             boolean isClient = buf.readBoolean();
             return new ClickData(button, shiftClick, ctrlClick, isClient);
+        }
+    }
+
+    public static final class WheelData {
+        public final int wheelDelta;
+        public final boolean isShiftClick;
+        public final boolean isCtrlClick;
+        public final boolean isClient;
+
+        public WheelData(int wheelDelta, boolean isShiftClick, boolean isCtrlClick) {
+            this.wheelDelta = wheelDelta;
+            this.isShiftClick = isShiftClick;
+            this.isCtrlClick = isCtrlClick;
+            this.isClient = false;
+        }
+
+        public WheelData(int wheelDelta, boolean isShiftClick, boolean isCtrlClick, boolean isClient) {
+            this.wheelDelta = wheelDelta;
+            this.isShiftClick = isShiftClick;
+            this.isCtrlClick = isCtrlClick;
+            this.isClient = isClient;
+        }
+
+        public void writeToBuf(PacketBuffer buf) {
+            buf.writeVarInt(wheelDelta);
+            buf.writeBoolean(isShiftClick);
+            buf.writeBoolean(isCtrlClick);
+            buf.writeBoolean(isClient);
+        }
+
+        public static WheelData readFromBuf(PacketBuffer buf) {
+            int button = buf.readVarInt();
+            boolean shiftClick = buf.readBoolean();
+            boolean ctrlClick = buf.readBoolean();
+            boolean isClient = buf.readBoolean();
+            return new WheelData(button, shiftClick, ctrlClick, isClient);
         }
     }
 

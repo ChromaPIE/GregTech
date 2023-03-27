@@ -15,20 +15,29 @@ import gregtech.api.gui.widgets.CycleButtonWidget;
 import gregtech.api.gui.widgets.ImageWidget;
 import gregtech.api.gui.widgets.TextFieldWidget2;
 import gregtech.api.metatileentity.MetaTileEntity;
-import gregtech.api.metatileentity.MetaTileEntityHolder;
+import gregtech.api.metatileentity.interfaces.IGregTechTileEntity;
 import gregtech.api.util.GTUtility;
 import gregtech.client.renderer.texture.Textures;
+import gregtech.client.utils.TooltipHelper;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.network.PacketBuffer;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.ResourceLocation;
+import net.minecraft.world.World;
 import net.minecraftforge.common.capabilities.Capability;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.tuple.Pair;
 
+import javax.annotation.Nullable;
+import java.util.List;
 import java.util.function.Function;
+
+import static gregtech.api.capability.GregtechDataCodes.UPDATE_IO_SPEED;
 
 public class MetaTileEntityCreativeEnergy extends MetaTileEntity implements IEnergyContainer {
 
@@ -37,9 +46,13 @@ public class MetaTileEntityCreativeEnergy extends MetaTileEntity implements IEne
 
     private int setTier = 0;
     private boolean active = false;
+    private boolean source = true;
 
-    private long lastEnergyOutputPerSec = 0;
-    private long energyOutputPerSec = 0;
+    private long lastEnergyIOPerSec = 0;
+    private long energyIOPerSec = 0;
+
+    private long ampsReceived = 0;
+    private boolean doExplosion = false;
 
     public MetaTileEntityCreativeEnergy() {
         super(new ResourceLocation(GTValues.MODID, "infinite_energy"));
@@ -60,7 +73,7 @@ public class MetaTileEntityCreativeEnergy extends MetaTileEntity implements IEne
     }
 
     @Override
-    public MetaTileEntity createMetaTileEntity(MetaTileEntityHolder holder) {
+    public MetaTileEntity createMetaTileEntity(IGregTechTileEntity tileEntity) {
         return new MetaTileEntityCreativeEnergy();
     }
 
@@ -88,33 +101,71 @@ public class MetaTileEntityCreativeEnergy extends MetaTileEntity implements IEne
         }).setAllowedChars(TextFieldWidget2.NATURAL_NUMS).setMaxLength(19).setValidator(getTextFieldValidator()));
 
         builder.label(7, 74, "gregtech.creative.energy.amperage");
-        builder.widget(new ClickButtonWidget(7, 87, 20, 20, "-", data -> amps = amps-- == -1 ? 0 : amps--));
+        builder.widget(new ClickButtonWidget(7, 87, 20, 20, "-", data -> amps = --amps == -1 ? 0 : amps));
         builder.widget(new ImageWidget(29, 87, 118, 20, GuiTextures.DISPLAY));
         builder.widget(new TextFieldWidget2(31, 93, 114, 16, () -> String.valueOf(amps), value -> {
             if (!value.isEmpty()) {
                 amps = Integer.parseInt(value);
             }
         }).setMaxLength(10).setNumbersOnly(0, Integer.MAX_VALUE));
-        builder.widget(new ClickButtonWidget(149, 87, 20, 20, "+", data -> amps++));
+        builder.widget(new ClickButtonWidget(149, 87, 20, 20, "+", data -> {
+            if (amps < Integer.MAX_VALUE) {
+                amps++;
+            }
+        }));
 
-        builder.widget(new CycleButtonWidget(7, 139, 162, 20, () -> active, value -> active = value, "gregtech.creative.activity.off", "gregtech.creative.activity.on"));
+        builder.dynamicLabel(7, 110, () -> "Energy I/O per sec: " + this.lastEnergyIOPerSec, 0x232323);
+
+        builder.widget(new CycleButtonWidget(7, 139, 77, 20, () -> active, value -> active = value, "gregtech.creative.activity.off", "gregtech.creative.activity.on"));
+        builder.widget(new CycleButtonWidget(85, 139, 77, 20, () -> source, value -> {
+            source = value;
+            if (source) {
+                voltage = 0;
+                amps = 0;
+                setTier = 0;
+            } else {
+                voltage = GTValues.V[14];
+                amps = Integer.MAX_VALUE;
+                setTier = 14;
+            }
+        }, "Sink", "Source")); //TODO: localisation
 
         return builder.build(getHolder(), entityPlayer);
     }
 
     @Override
+    public void addToolUsages(ItemStack stack, @Nullable World world, List<String> tooltip, boolean advanced) {
+        tooltip.add(I18n.format("gregtech.tool_action.screwdriver.access_covers"));
+        super.addToolUsages(stack, world, tooltip, advanced);
+    }
+
+    @Override
+    public void addInformation(ItemStack stack, @Nullable World world, List<String> tooltip, boolean advanced) {
+        tooltip.add(I18n.format("gregtech.creative_tooltip.1")
+                + TooltipHelper.RAINBOW + I18n.format("gregtech.creative_tooltip.2")
+                + I18n.format("gregtech.creative_tooltip.3"));
+    }
+
+    @Override
     public long getOutputPerSec() {
-        return lastEnergyOutputPerSec;
+        return lastEnergyIOPerSec;
     }
 
     @Override
     public void update() {
         super.update();
+        if (getWorld().isRemote) return;
         if (getOffsetTimer() % 20 == 0) {
-            lastEnergyOutputPerSec = energyOutputPerSec;
-            energyOutputPerSec = 0;
+            this.setIOSpeed(energyIOPerSec);
+            energyIOPerSec = 0;
+            if (doExplosion) {
+                getWorld().createExplosion(null, getPos().getX() + 0.5, getPos().getY() + 0.5, getPos().getZ() + 0.5,
+                        1, false);
+                doExplosion = false;
+            }
         }
-        if (getWorld().isRemote || !active || voltage <= 0 || amps <= 0) return;
+        ampsReceived = 0;
+        if (!active || !source || voltage <= 0 || amps <= 0) return;
         int ampsUsed = 0;
         for (EnumFacing facing : EnumFacing.values()) {
             EnumFacing opposite = facing.getOpposite();
@@ -128,7 +179,7 @@ public class MetaTileEntityCreativeEnergy extends MetaTileEntity implements IEne
                     break;
             }
         }
-        energyOutputPerSec += ampsUsed * voltage;
+        energyIOPerSec += ampsUsed * voltage;
     }
 
     @Override
@@ -137,6 +188,8 @@ public class MetaTileEntityCreativeEnergy extends MetaTileEntity implements IEne
         data.setInteger("Amps", amps);
         data.setByte("Tier", (byte) setTier);
         data.setBoolean("Active", active);
+        data.setBoolean("Source", source);
+        data.setLong("EnergyIOPerSec", lastEnergyIOPerSec);
         return super.writeToNBT(data);
     }
 
@@ -146,27 +199,49 @@ public class MetaTileEntityCreativeEnergy extends MetaTileEntity implements IEne
         amps = data.getInteger("Amps");
         setTier = data.getByte("Tier");
         active = data.getBoolean("Active");
+        source = data.getBoolean("Source");
+        if (data.hasKey("EnergyIOPerSec"))
+            lastEnergyIOPerSec = data.getLong("EnergyIOPerSec");
         super.readFromNBT(data);
     }
 
     @Override
     public long acceptEnergyFromNetwork(EnumFacing side, long voltage, long amperage) {
+        if (source || !active || ampsReceived >= amps) {
+            return 0;
+        }
+        if (voltage > this.voltage) {
+            if (doExplosion)
+                return 0;
+            doExplosion = true;
+            return Math.min(amperage, getInputAmperage() - ampsReceived);
+        }
+        long amperesAccepted = Math.min(amperage, getInputAmperage() - ampsReceived);
+        if (amperesAccepted > 0) {
+            ampsReceived += amperesAccepted;
+            energyIOPerSec += amperesAccepted * voltage;
+            return amperesAccepted;
+        }
         return 0;
     }
 
     @Override
     public boolean inputsEnergy(EnumFacing side) {
-        return false;
+        return !source;
     }
 
     @Override
     public boolean outputsEnergy(EnumFacing side) {
-        return true;
+        return source;
     }
 
     @Override
     public long changeEnergy(long differenceAmount) {
-        return 0;
+        if (source || !active) {
+            return 0;
+        }
+        energyIOPerSec += differenceAmount;
+        return differenceAmount;
     }
 
     @Override
@@ -181,25 +256,40 @@ public class MetaTileEntityCreativeEnergy extends MetaTileEntity implements IEne
 
     @Override
     public long getInputAmperage() {
-        return 0;
+        return source ? 0 : amps;
     }
 
     @Override
     public long getInputVoltage() {
-        return 0;
+        return source ? 0 : voltage;
     }
 
     @Override
     public long getOutputVoltage() {
-        return voltage;
+        return source ? voltage : 0;
     }
 
     @Override
     public long getOutputAmperage() {
-        return amps;
+        return source ? amps : 0;
     }
 
-    public Function<String, String> getTextFieldValidator() {
+    public void setIOSpeed(long energyIOPerSec) {
+        if (this.lastEnergyIOPerSec != energyIOPerSec) {
+            this.lastEnergyIOPerSec = energyIOPerSec;
+            this.writeCustomData(UPDATE_IO_SPEED, packetBuffer -> packetBuffer.writeLong(energyIOPerSec));
+        }
+    }
+
+    @Override
+    public void receiveCustomData(int dataId, PacketBuffer buf) {
+        super.receiveCustomData(dataId, buf);
+        if (dataId == UPDATE_IO_SPEED) {
+            this.lastEnergyIOPerSec = buf.readLong();
+        }
+    }
+
+    public static Function<String, String> getTextFieldValidator() {
         return val -> {
             if (val.isEmpty()) {
                 return "0";

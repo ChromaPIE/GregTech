@@ -1,34 +1,42 @@
 package gregtech.common.blocks;
 
-import gregtech.api.GTValues;
 import gregtech.api.GregTechAPI;
-import gregtech.client.model.IModelSupplier;
-import gregtech.client.model.SimpleStateMapper;
+import gregtech.api.block.DelayedStateBlock;
+import gregtech.api.items.toolitem.ToolClasses;
+import gregtech.api.items.toolitem.ToolHelper;
+import gregtech.api.pipenet.block.BlockPipe;
+import gregtech.api.pipenet.block.ItemBlockPipe;
+import gregtech.api.pipenet.tile.IPipeTile;
+import gregtech.api.pipenet.tile.TileEntityPipeBase;
 import gregtech.api.recipes.ModHandler;
 import gregtech.api.unification.material.Material;
 import gregtech.api.unification.material.Materials;
 import gregtech.api.unification.material.info.MaterialIconType;
+import gregtech.api.util.GTLog;
+import gregtech.api.util.GTUtility;
+import gregtech.client.model.MaterialStateMapper;
+import gregtech.client.model.modelfactories.MaterialBlockModelLoader;
 import gregtech.common.blocks.properties.PropertyMaterial;
+import net.minecraft.block.Block;
 import net.minecraft.block.SoundType;
 import net.minecraft.block.material.EnumPushReaction;
 import net.minecraft.block.state.BlockFaceShape;
 import net.minecraft.block.state.BlockStateContainer;
 import net.minecraft.block.state.IBlockState;
-import net.minecraft.client.renderer.block.model.ModelResourceLocation;
 import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLiving.SpawnPlacementType;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.Item;
+import net.minecraft.item.ItemBlock;
 import net.minecraft.item.ItemStack;
+import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.*;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.BlockPos.MutableBlockPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.world.IBlockAccess;
 import net.minecraft.world.World;
-import net.minecraftforge.client.event.TextureStitchEvent;
 import net.minecraftforge.client.model.ModelLoader;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
@@ -36,10 +44,9 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-public final class BlockFrame extends DelayedStateBlock implements IModelSupplier {
+public final class BlockFrame extends DelayedStateBlock {
 
-    public static final ModelResourceLocation MODEL_LOCATION = new ModelResourceLocation(new ResourceLocation(GTValues.MODID, "frame_block"), "normal");
-    private static final AxisAlignedBB COLLISION_BOX = new AxisAlignedBB(0.05, 0.0, 0.05, 0.95, 1.0, 0.95);
+    public static final AxisAlignedBB COLLISION_BOX = new AxisAlignedBB(0.05, 0.0, 0.05, 0.95, 1.0, 0.95);
 
     public final PropertyMaterial variantProperty;
 
@@ -78,15 +85,23 @@ public final class BlockFrame extends DelayedStateBlock implements IModelSupplie
     public String getHarvestTool(IBlockState state) {
         Material material = state.getValue(variantProperty);
         if (ModHandler.isMaterialWood(material)) {
-            return "axe";
+            return ToolClasses.AXE;
         }
-        return "pickaxe";
+        return ToolClasses.WRENCH;
     }
 
     @Nonnull
     @Override
     public SoundType getSoundType(IBlockState state, @Nonnull World world, @Nonnull BlockPos pos, @Nullable Entity entity) {
         Material material = state.getValue(variantProperty);
+        if (ModHandler.isMaterialWood(material)) {
+            return SoundType.WOOD;
+        }
+        return SoundType.METAL;
+    }
+
+    public SoundType getSoundType(ItemStack stack) {
+        Material material = getGtMaterial(stack.getMetadata());
         if (ModHandler.isMaterialWood(material)) {
             return SoundType.WOOD;
         }
@@ -121,8 +136,8 @@ public final class BlockFrame extends DelayedStateBlock implements IModelSupplie
                 .forEach(blockState -> list.add(getItem(blockState)));
     }
 
-    public ItemStack getItem(IBlockState blockState) {
-        return new ItemStack(this, 1, getMetaFromState(blockState));
+    public static ItemStack getItem(IBlockState blockState) {
+        return GTUtility.toItem(blockState);
     }
 
     public ItemStack getItem(Material material) {
@@ -142,26 +157,101 @@ public final class BlockFrame extends DelayedStateBlock implements IModelSupplie
         return false;
     }
 
+    public boolean replaceWithFramedPipe(World worldIn, BlockPos pos, IBlockState state, EntityPlayer playerIn, ItemStack stackInHand, EnumFacing facing) {
+        BlockPipe<?, ?, ?> blockPipe = (BlockPipe<?, ?, ?>) ((ItemBlockPipe<?, ?>) stackInHand.getItem()).getBlock();
+        if (blockPipe.getItemPipeType(stackInHand).getThickness() < 1) {
+            ItemBlock itemBlock = (ItemBlock) stackInHand.getItem();
+            IBlockState pipeState = blockPipe.getDefaultState();
+            // these 0 values are not actually used by forge
+            itemBlock.placeBlockAt(stackInHand, playerIn, worldIn, pos, facing, 0, 0, 0, pipeState);
+            IPipeTile<?, ?> pipeTile = blockPipe.getPipeTileEntity(worldIn, pos);
+            if (pipeTile instanceof TileEntityPipeBase) {
+                ((TileEntityPipeBase<?, ?>) pipeTile).setFrameMaterial(getGtMaterial(getMetaFromState(state)));
+            } else {
+                GTLog.logger.error("Pipe was not placed!");
+                return false;
+            }
+            SoundType type = blockPipe.getSoundType(state, worldIn, pos, playerIn);
+            worldIn.playSound(playerIn, pos, type.getPlaceSound(), SoundCategory.BLOCKS, (type.getVolume() + 1.0F) / 2.0F, type.getPitch() * 0.8F);
+            if (!playerIn.capabilities.isCreativeMode) {
+                stackInHand.shrink(1);
+            }
+            return true;
+        }
+        return false;
+    }
+
+    public boolean removeFrame(World world, BlockPos pos, EntityPlayer player, ItemStack stack) {
+
+        TileEntity te = world.getTileEntity(pos);
+        if (te instanceof TileEntityPipeBase<?, ?> && ((IPipeTile<?, ?>) te).getFrameMaterial() != null) {
+            TileEntityPipeBase<?, ?> pipeTile = (TileEntityPipeBase<?, ?>) te;
+            Material frameMaterial = pipeTile.getFrameMaterial();
+            pipeTile.setFrameMaterial(null);
+            Block.spawnAsEntity(world, pos, this.getItem(frameMaterial));
+            ToolHelper.damageItem(stack, player);
+            ToolHelper.playToolSound(stack, player);
+            return true;
+
+        }
+        return false;
+    }
+
     @Override
     public boolean onBlockActivated(@Nonnull World worldIn, @Nonnull BlockPos pos, @Nonnull IBlockState state, EntityPlayer playerIn, @Nonnull EnumHand hand, @Nonnull EnumFacing facing, float hitX, float hitY, float hitZ) {
         ItemStack stackInHand = playerIn.getHeldItem(hand);
-        if (stackInHand.isEmpty() || !(stackInHand.getItem() instanceof FrameItemBlock)) {
+        if (stackInHand.isEmpty()) {
             return false;
         }
-        MutableBlockPos blockPos = new MutableBlockPos(pos);
+        // replace frame with pipe and set the frame material to this frame
+        if (stackInHand.getItem() instanceof ItemBlockPipe) {
+            return replaceWithFramedPipe(worldIn, pos, state, playerIn, stackInHand, facing);
+        }
+
+        if (stackInHand.getItem().getToolClasses(stackInHand).contains(ToolClasses.CROWBAR)) {
+            return removeFrame(worldIn, pos, playerIn, stackInHand);
+        }
+
+        if (!(stackInHand.getItem() instanceof FrameItemBlock)) {
+            return false;
+        }
+        BlockPos.PooledMutableBlockPos blockPos = BlockPos.PooledMutableBlockPos.retain();
+        blockPos.setPos(pos);
         for (int i = 0; i < 32; i++) {
             if (worldIn.getBlockState(blockPos).getBlock() instanceof BlockFrame) {
                 blockPos.move(EnumFacing.UP);
                 continue;
             }
+            TileEntity te = worldIn.getTileEntity(blockPos);
+            if (te instanceof IPipeTile && ((IPipeTile<?, ?>) te).getFrameMaterial() != null) {
+                blockPos.move(EnumFacing.UP);
+                continue;
+            }
             if (canPlaceBlockAt(worldIn, blockPos)) {
                 worldIn.setBlockState(blockPos, ((FrameItemBlock) stackInHand.getItem()).getBlockState(stackInHand));
+                SoundType type = getSoundType(stackInHand);
+                worldIn.playSound(null, pos, type.getPlaceSound(), SoundCategory.BLOCKS, (type.getVolume() + 1.0F) / 2.0F, type.getPitch() * 0.8F);
                 if (!playerIn.capabilities.isCreativeMode) {
                     stackInHand.shrink(1);
                 }
+                blockPos.release();
                 return true;
+            } else if (te instanceof TileEntityPipeBase && ((TileEntityPipeBase<?, ?>) te).getFrameMaterial() == null) {
+                Material material = ((BlockFrame) ((FrameItemBlock) stackInHand.getItem()).getBlock()).getGtMaterial(stackInHand.getMetadata());
+                ((TileEntityPipeBase<?, ?>) te).setFrameMaterial(material);
+                SoundType type = getSoundType(stackInHand);
+                worldIn.playSound(null, pos, type.getPlaceSound(), SoundCategory.BLOCKS, (type.getVolume() + 1.0F) / 2.0F, type.getPitch() * 0.8F);
+                if (!playerIn.capabilities.isCreativeMode) {
+                    stackInHand.shrink(1);
+                }
+                blockPos.release();
+                return true;
+            } else {
+                blockPos.release();
+                return false;
             }
         }
+        blockPos.release();
         return false;
     }
 
@@ -213,21 +303,15 @@ public final class BlockFrame extends DelayedStateBlock implements IModelSupplie
         return BlockFaceShape.UNDEFINED;
     }
 
-    @Override
-    @SideOnly(Side.CLIENT)
-    public void onTextureStitch(TextureStitchEvent.Pre event) {
-        for (IBlockState state : this.getBlockState().getValidStates()) {
-            Material material = state.getValue(variantProperty);
-            event.getMap().registerSprite(MaterialIconType.frameGt.getBlockPath(material.getMaterialIconSet()));
-        }
-    }
-
-    @Override
     @SideOnly(Side.CLIENT)
     public void onModelRegister() {
-        ModelLoader.setCustomStateMapper(this, new SimpleStateMapper(MODEL_LOCATION));
+        ModelLoader.setCustomStateMapper(this, new MaterialStateMapper(
+                MaterialIconType.frameGt, s -> s.getValue(this.variantProperty).getMaterialIconSet()));
         for (IBlockState state : this.getBlockState().getValidStates()) {
-            ModelLoader.setCustomModelResourceLocation(Item.getItemFromBlock(this), this.getMetaFromState(state), MODEL_LOCATION);
+            ModelLoader.setCustomModelResourceLocation(Item.getItemFromBlock(this), this.getMetaFromState(state),
+                    MaterialBlockModelLoader.registerItemModel(
+                            MaterialIconType.frameGt,
+                            state.getValue(this.variantProperty).getMaterialIconSet()));
         }
     }
 }

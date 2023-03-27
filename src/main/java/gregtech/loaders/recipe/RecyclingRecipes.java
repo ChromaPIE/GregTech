@@ -2,8 +2,13 @@ package gregtech.loaders.recipe;
 
 import com.google.common.collect.ImmutableList;
 import gregtech.api.GTValues;
+import gregtech.api.metatileentity.MetaTileEntity;
 import gregtech.api.recipes.RecipeBuilder;
 import gregtech.api.recipes.RecipeMaps;
+import gregtech.api.recipes.builders.SimpleRecipeBuilder;
+import gregtech.api.recipes.ingredients.nbtmatch.NBTCondition;
+import gregtech.api.recipes.ingredients.nbtmatch.NBTMatcher;
+import gregtech.api.recipes.ingredients.nbtmatch.NBTTagType;
 import gregtech.api.unification.OreDictUnifier;
 import gregtech.api.unification.material.Material;
 import gregtech.api.unification.material.Materials;
@@ -29,6 +34,8 @@ import static gregtech.api.GTValues.M;
 import static gregtech.api.unification.material.info.MaterialFlags.*;
 
 public class RecyclingRecipes {
+
+    private static final NBTCondition RENAMED_NBT = NBTCondition.create(NBTTagType.COMPOUND, "display", "");
 
     // TODO - Fix recipe order with some things (noticed Hermetic Casings)
     // TODO - Figure out solution to LuV+ components
@@ -82,6 +89,12 @@ public class RecyclingRecipes {
             if (OreDictUnifier.getPrefix(input) == OrePrefix.ingot && m.getProperty(PropertyKey.INGOT).getArcSmeltInto() == m) {
                 return;
             }
+
+            // Prevent Magnetic dust -> Regular Ingot Arc Furnacing, avoiding the EBF recipe
+            // "I will rework magnetic materials soon" - DStrand1
+            if(prefix == OrePrefix.dust && m.hasFlag(IS_MAGNETIC)) {
+                return;
+            }
         }
         registerArcRecycling(input, components, prefix);
     }
@@ -99,12 +112,16 @@ public class RecyclingRecipes {
         if (outputs.size() == 0) return;
 
         // Build the final Recipe.
-        RecipeMaps.MACERATOR_RECIPES.recipeBuilder()
+        RecipeBuilder<SimpleRecipeBuilder> recipe = RecipeMaps.MACERATOR_RECIPES.recipeBuilder()
                 .inputs(input.copy())
                 .outputs(outputs)
                 .duration(calculateDuration(outputs))
-                .EUt(2 * multiplier)
-                .buildAndRegister();
+                .EUt(2 * multiplier);
+
+        cleanInputNBT(input, recipe);
+
+        recipe.buildAndRegister();
+
     }
 
     private static void registerExtractorRecycling(ItemStack input, List<MaterialStack> materials, int multiplier, @Nullable OrePrefix prefix) {
@@ -159,10 +176,10 @@ public class RecyclingRecipes {
         // Null check the Item before adding it to the Builder.
         // - Try to output an Ingot, otherwise output a Dust.
         if (itemMs != null) {
-            OrePrefix outputPrefix = itemMs.material.hasProperty(PropertyKey.INGOT) ? OrePrefix.ingot : OrePrefix.dust;
-            extractorBuilder.output(outputPrefix, itemMs.material, (int) (itemMs.amount / M));
+            extractorBuilder.outputs(OreDictUnifier.getIngotOrDust(itemMs));
         }
 
+        cleanInputNBT(input, extractorBuilder);
         extractorBuilder.buildAndRegister();
     }
 
@@ -203,12 +220,14 @@ public class RecyclingRecipes {
         if (outputs.size() == 0) return;
 
         // Build the final Recipe.
-        RecipeMaps.ARC_FURNACE_RECIPES.recipeBuilder()
+        RecipeBuilder<SimpleRecipeBuilder> recipe = RecipeMaps.ARC_FURNACE_RECIPES.recipeBuilder()
                 .inputs(input.copy())
                 .outputs(outputs)
                 .duration(calculateDuration(outputs))
-                .EUt(GTValues.VA[GTValues.LV])
-                .buildAndRegister();
+                .EUt(GTValues.VA[GTValues.LV]);
+
+        cleanInputNBT(input, recipe);
+        recipe.buildAndRegister();
     }
 
     private static MaterialStack getArcSmeltingResult(MaterialStack materialStack) {
@@ -284,6 +303,12 @@ public class RecyclingRecipes {
                     highestTemp = prop.getBlastTemperature();
                 }
             }
+            else if(m.hasFlag(IS_MAGNETIC) && m.hasProperty(PropertyKey.INGOT) && m.getProperty(PropertyKey.INGOT).getSmeltingInto().hasProperty(PropertyKey.BLAST)) {
+                BlastProperty prop = m.getProperty(PropertyKey.INGOT).getSmeltingInto().getProperty(PropertyKey.BLAST);
+                if (prop.getBlastTemperature() > highestTemp) {
+                    highestTemp = prop.getBlastTemperature();
+                }
+            }
         }
 
         // No blast temperature in the list means no multiplier
@@ -305,7 +330,7 @@ public class RecyclingRecipes {
         long duration = 0;
         for (ItemStack is : materials) {
             MaterialStack ms = OreDictUnifier.getMaterial(is);
-            if (ms != null) duration += ms.amount * ms.material.getMass();
+            if (ms != null) duration += ms.amount * ms.material.getMass() * is.getCount();
         }
         return (int) Math.max(1L, duration / M);
     }
@@ -470,5 +495,22 @@ public class RecyclingRecipes {
 
     private static boolean isAshMaterial(MaterialStack ms) {
         return ms.material == Materials.Ash || ms.material == Materials.DarkAsh || ms.material == Materials.Carbon;
+    }
+
+    /**
+     * Performs various NBT matching on the provided input and adds the result to the provided RecipeBuilder
+     *
+     * @param input The input itemStack
+     * @param builder The RecipeBuilder to add the NBT condition to
+     */
+    private static void cleanInputNBT(ItemStack input, RecipeBuilder<?> builder) {
+
+        // Ignore String tag from naming machines
+        MetaTileEntity mte = GTUtility.getMetaTileEntity(input);
+        if (mte != null) {
+            builder.clearInputs();
+            // Don't use ANY to avoid issues with Drums, Super Chests, and other MTEs that hold an inventory
+            builder.inputNBT(mte, NBTMatcher.NOT_PRESENT_OR_HAS_KEY, RENAMED_NBT);
+        }
     }
 }

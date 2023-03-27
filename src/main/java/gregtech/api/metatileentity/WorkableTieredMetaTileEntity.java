@@ -5,7 +5,8 @@ import codechicken.lib.render.pipeline.IVertexOperation;
 import codechicken.lib.vec.Matrix4;
 import gregtech.api.GTValues;
 import gregtech.api.capability.impl.*;
-import gregtech.api.recipes.Recipe;
+import gregtech.api.metatileentity.multiblock.ICleanroomProvider;
+import gregtech.api.metatileentity.multiblock.ICleanroomReceiver;
 import gregtech.api.recipes.RecipeMap;
 import gregtech.api.util.GTUtility;
 import gregtech.client.renderer.ICubeRenderer;
@@ -18,21 +19,17 @@ import net.minecraft.util.text.Style;
 import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
-import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.FluidTank;
-import net.minecraftforge.fluids.IFluidTank;
 import net.minecraftforge.items.IItemHandlerModifiable;
 import net.minecraftforge.items.ItemStackHandler;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.function.Function;
 
-public abstract class WorkableTieredMetaTileEntity extends TieredMetaTileEntity implements IDataInfoProvider {
+public abstract class WorkableTieredMetaTileEntity extends TieredMetaTileEntity implements IDataInfoProvider, ICleanroomReceiver {
 
     protected final RecipeLogicEnergy workable;
     protected final RecipeMap<?> recipeMap;
@@ -41,6 +38,8 @@ public abstract class WorkableTieredMetaTileEntity extends TieredMetaTileEntity 
     private final Function<Integer, Integer> tankScalingFunction;
 
     public final boolean handlesRecipeOutputs;
+
+    private ICleanroomProvider cleanroom;
 
     public WorkableTieredMetaTileEntity(ResourceLocation metaTileEntityId, RecipeMap<?> recipeMap, ICubeRenderer renderer, int tier,
                                         Function<Integer, Integer> tankScalingFunction) {
@@ -106,10 +105,9 @@ public abstract class WorkableTieredMetaTileEntity extends TieredMetaTileEntity 
     @Override
     protected FluidTankList createImportFluidHandler() {
         if (workable == null) return new FluidTankList(false);
-        FilteredFluidHandler[] fluidImports = new FilteredFluidHandler[workable.getRecipeMap().getMaxFluidInputs()];
+        NotifiableFluidTank[] fluidImports = new NotifiableFluidTank[workable.getRecipeMap().getMaxFluidInputs()];
         for (int i = 0; i < fluidImports.length; i++) {
-            NotifiableFilteredFluidHandler filteredFluidHandler = new NotifiableFilteredFluidHandler(this.tankScalingFunction.apply(this.getTier()), this, false);
-            filteredFluidHandler.setFillPredicate(this::canInputFluid);
+            NotifiableFluidTank filteredFluidHandler = new NotifiableFluidTank(this.tankScalingFunction.apply(this.getTier()), this, false);
             fluidImports[i] = filteredFluidHandler;
         }
         return new FluidTankList(false, fluidImports);
@@ -123,32 +121,6 @@ public abstract class WorkableTieredMetaTileEntity extends TieredMetaTileEntity 
             fluidExports[i] = new NotifiableFluidTank(this.tankScalingFunction.apply(this.getTier()), this, true);
         }
         return new FluidTankList(false, fluidExports);
-    }
-
-    protected boolean canInputFluid(FluidStack inputFluid) {
-        RecipeMap<?> recipeMap = workable.getRecipeMap();
-        if (recipeMap.canInputFluidForce(inputFluid.getFluid()))
-            return true; //if recipe map forces input of given fluid, return true
-        Set<Recipe> matchingRecipes = null;
-        for (IFluidTank fluidTank : importFluids) {
-            FluidStack fluidInTank = fluidTank.getFluid();
-            if (fluidInTank != null) {
-                if (matchingRecipes == null) {
-                    //if we didn't have a list of recipes with any fluids, obtain it from first tank with fluid
-                    matchingRecipes = new HashSet<>(recipeMap.getRecipesForFluid(fluidInTank));
-                } else {
-                    //retain recipes which use the fluid in this tank
-                    matchingRecipes.retainAll(recipeMap.getRecipesForFluid(fluidInTank));
-                }
-            }
-        }
-        if (matchingRecipes == null) {
-            //if all tanks are empty, generally fluid can be inserted if there are recipes for it
-            return !recipeMap.getRecipesForFluid(inputFluid).isEmpty();
-        } else {
-            matchingRecipes.retainAll(recipeMap.getRecipesForFluid(inputFluid));
-            return !matchingRecipes.isEmpty();
-        }
     }
 
     @Override
@@ -205,5 +177,16 @@ public abstract class WorkableTieredMetaTileEntity extends TieredMetaTileEntity 
         }
 
         return list;
+    }
+
+    @Nullable
+    @Override
+    public ICleanroomProvider getCleanroom() {
+        return this.cleanroom;
+    }
+
+    @Override
+    public void setCleanroom(ICleanroomProvider provider) {
+        this.cleanroom = provider;
     }
 }

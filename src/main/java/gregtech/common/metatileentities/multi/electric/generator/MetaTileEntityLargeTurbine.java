@@ -4,9 +4,8 @@ import gregtech.api.GTValues;
 import gregtech.api.capability.IRotorHolder;
 import gregtech.api.capability.impl.FluidTankList;
 import gregtech.api.metatileentity.ITieredMetaTileEntity;
-import gregtech.api.metatileentity.IVoidable;
 import gregtech.api.metatileentity.MetaTileEntity;
-import gregtech.api.metatileentity.MetaTileEntityHolder;
+import gregtech.api.metatileentity.interfaces.IGregTechTileEntity;
 import gregtech.api.metatileentity.multiblock.FuelMultiblockController;
 import gregtech.api.metatileentity.multiblock.IMultiblockPart;
 import gregtech.api.metatileentity.multiblock.MultiblockAbility;
@@ -54,12 +53,11 @@ public class MetaTileEntityLargeTurbine extends FuelMultiblockController impleme
         this.frontOverlay = frontOverlay;
         this.tier = tier;
         this.recipeMapWorkable = new LargeTurbineWorkableHandler(this, tier);
-        this.recipeMapWorkable.enableOverclockVoltage();
-        this.recipeMapWorkable.setOverclockTier(tier);
+        this.recipeMapWorkable.setMaximumOverclockVoltage(GTValues.V[tier]);
     }
 
     @Override
-    public MetaTileEntity createMetaTileEntity(MetaTileEntityHolder holder) {
+    public MetaTileEntity createMetaTileEntity(IGregTechTileEntity tileEntity) {
         return new MetaTileEntityLargeTurbine(metaTileEntityId, recipeMap, tier, casingState, gearboxState, casingRenderer, hasMufflerHatch, frontOverlay);
     }
 
@@ -135,7 +133,7 @@ public class MetaTileEntityLargeTurbine extends FuelMultiblockController impleme
     @Override
     public void addInformation(ItemStack stack, @Nullable World player, List<String> tooltip, boolean advanced) {
         super.addInformation(stack, player, tooltip, advanced);
-        tooltip.add(I18n.format("gregtech.multiblock.turbine.voltage_tooltip", GTValues.V[tier] * 2));
+        tooltip.add(I18n.format("gregtech.universal.tooltip.base_production_eut", GTValues.V[tier] * 2));
         tooltip.add(I18n.format("gregtech.multiblock.turbine.efficiency_tooltip", GTValues.VNF[tier]));
     }
 
@@ -164,11 +162,6 @@ public class MetaTileEntityLargeTurbine extends FuelMultiblockController impleme
         return new String[]{I18n.format("gregtech.multiblock.large_turbine.description")};
     }
 
-    @Override
-    public boolean canShare() {
-        return false;
-    }
-
     public IBlockState getCasingState() {
         return casingState;
     }
@@ -195,7 +188,7 @@ public class MetaTileEntityLargeTurbine extends FuelMultiblockController impleme
 
     @Override
     public boolean isStructureObstructed() {
-        return !isRotorFaceFree();
+        return super.isStructureObstructed() || !isRotorFaceFree();
     }
 
     @Override

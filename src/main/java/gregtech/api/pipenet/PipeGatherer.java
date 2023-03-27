@@ -44,7 +44,7 @@ public class PipeGatherer extends PipeNetWalker {
     }
 
     @Override
-    protected PipeNetWalker createSubWalker(World world, BlockPos nextPos, int walkedBlocks) {
+    protected PipeNetWalker createSubWalker(World world, EnumFacing facingToNextPos, BlockPos nextPos, int walkedBlocks) {
         return new PipeGatherer(world, nextPos, walkedBlocks, pipePredicate, pipes);
     }
 
@@ -61,6 +61,6 @@ public class PipeGatherer extends PipeNetWalker {
 
     @Override
     protected boolean isValidPipe(IPipeTile<?, ?> currentPipe, IPipeTile<?, ?> neighbourPipe, BlockPos pipePos, EnumFacing faceToNeighbour) {
-        return (!returnAfterFirst || pipes.size() <= 0) && pipePredicate.test(neighbourPipe);
+        return (!returnAfterFirst || pipes.size() == 0) && pipePredicate.test(neighbourPipe);
     }
 }

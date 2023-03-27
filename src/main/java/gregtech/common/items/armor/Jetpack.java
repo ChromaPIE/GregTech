@@ -5,7 +5,7 @@ import gregtech.api.capability.IElectricItem;
 import gregtech.api.items.armor.ArmorLogicSuite;
 import gregtech.api.items.armor.ArmorUtils;
 import gregtech.api.util.GTUtility;
-import gregtech.api.util.input.EnumKey;
+import gregtech.api.util.input.KeyBind;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
@@ -26,8 +26,15 @@ import java.util.List;
 
 public class Jetpack extends ArmorLogicSuite implements IJetpack {
 
+    @SideOnly(Side.CLIENT)
+    protected ArmorUtils.ModularHUD HUD;
+
     public Jetpack(int energyPerUse, long capacity, int tier) {
         super(energyPerUse, capacity, tier, EntityEquipmentSlot.CHEST);
+        if (ArmorUtils.SIDE.isClient() && this.shouldDrawHUD()) {
+            //noinspection NewExpressionSideOnly
+            HUD = new ArmorUtils.ModularHUD();
+        }
     }
 
     @Override
@@ -38,7 +45,7 @@ public class Jetpack extends ArmorLogicSuite implements IJetpack {
         if (data.hasKey("toggleTimer")) toggleTimer = data.getByte("toggleTimer");
         if (data.hasKey("hover")) hover = data.getBoolean("hover");
 
-        if (toggleTimer == 0 && ArmorUtils.isKeyDown(player, EnumKey.HOVER_KEY)) {
+        if (toggleTimer == 0 && KeyBind.ARMOR_HOVER.isKeyDown(player)) {
             hover = !hover;
             toggleTimer = 5;
             data.setBoolean("hover", hover);
@@ -83,7 +90,7 @@ public class Jetpack extends ArmorLogicSuite implements IJetpack {
         return container.getCharge() > 0;
     }
 
-    private IElectricItem getIElectricItem(@Nonnull ItemStack stack) {
+    private static IElectricItem getIElectricItem(@Nonnull ItemStack stack) {
         return stack.getCapability(GregtechCapabilities.CAPABILITY_ELECTRIC_ITEM, null);
     }
 
@@ -99,14 +106,8 @@ public class Jetpack extends ArmorLogicSuite implements IJetpack {
 
     @SideOnly(Side.CLIENT)
     @Override
-    public boolean isNeedDrawHUD() {
-        return true;
-    }
-
-    @SideOnly(Side.CLIENT)
-    @Override
     public void drawHUD(ItemStack item) {
-        super.addCapacityHUD(item);
+        addCapacityHUD(item, this.HUD);
         NBTTagCompound data = item.getTagCompound();
         if (data != null) {
             if (data.hasKey("hover")) {
@@ -131,11 +132,6 @@ public class Jetpack extends ArmorLogicSuite implements IJetpack {
             }
             lines.add(I18n.format("metaarmor.hud.hover_mode", status));
         }
-    }
-
-    @Override
-    public double getVerticalHoverSpeed() {
-        return 0.18D;
     }
 
     @Override

@@ -10,7 +10,7 @@ import gregtech.api.gui.widgets.TextFieldWidget2;
 import gregtech.api.items.gui.ItemUIFactory;
 import gregtech.api.items.gui.PlayerInventoryHolder;
 import gregtech.api.items.metaitem.stats.IItemBehaviour;
-import gregtech.api.metatileentity.MetaTileEntityHolder;
+import gregtech.api.metatileentity.interfaces.IGregTechTileEntity;
 import gregtech.common.items.MetaItems;
 import gregtech.common.metatileentities.MetaTileEntityClipboard;
 import net.minecraft.block.Block;
@@ -79,7 +79,7 @@ public class ClipboardBehavior implements IItemBehaviour, ItemUIFactory {
         return builder.build(holder, entityPlayer);
     }
 
-    public ModularUI createMTEUI(PlayerInventoryHolder holder, EntityPlayer entityPlayer) { // So that people don't click on any text fields
+    public static ModularUI createMTEUI(PlayerInventoryHolder holder, EntityPlayer entityPlayer) { // So that people don't click on any text fields
         initNBT(holder.getCurrentItem());
         ModularUI.Builder builder = ModularUI.builder(GuiTextures.CLIPBOARD_PAPER_BACKGROUND, 170, 238);
 
@@ -107,9 +107,7 @@ public class ClipboardBehavior implements IItemBehaviour, ItemUIFactory {
     }
 
     private static NBTTagCompound getPageCompound(ItemStack stack) {
-        if (!MetaItems.CLIPBOARD.isItemEqual(stack))
-            return null;
-        assert stack.getTagCompound() != null;
+        if (!MetaItems.CLIPBOARD.isItemEqual(stack)) return null;
         short pageNum = stack.getTagCompound().getShort("PageIndex");
         return stack.getTagCompound().getCompoundTag("Page" + pageNum);
     }
@@ -117,7 +115,6 @@ public class ClipboardBehavior implements IItemBehaviour, ItemUIFactory {
     private static void setPageCompound(ItemStack stack, NBTTagCompound pageCompound) {
         if (!MetaItems.CLIPBOARD.isItemEqual(stack))
             return;
-        assert stack.getTagCompound() != null;
         short pageNum = stack.getTagCompound().getShort("PageIndex");
         stack.getTagCompound().setTag("Page" + pageNum, pageCompound);
     }
@@ -227,7 +224,6 @@ public class ClipboardBehavior implements IItemBehaviour, ItemUIFactory {
         stack.setTagCompound(tagCompound);
     }
 
-
     @Override
     public ActionResult<ItemStack> onItemRightClick(World world, EntityPlayer player, EnumHand hand) {
         ItemStack heldItem = player.getHeldItem(hand);
@@ -247,7 +243,7 @@ public class ClipboardBehavior implements IItemBehaviour, ItemUIFactory {
             IBlockState testState = world.getBlockState(pos);
             Block testBlock = testState.getBlock();
             if (!testBlock.isAir(world.getBlockState(pos), world, pos) && testState.isSideSolid(world, pos, facing)) {
-                // Step away from the block so you don't replace it, and then give it our fun blockstate
+                // Step away from the block so that you don't replace it, and then give it our fun blockstate
                 BlockPos shiftedPos = pos.offset(facing);
                 Block shiftedBlock = world.getBlockState(shiftedPos).getBlock();
                 if (shiftedBlock.isAir(world.getBlockState(shiftedPos), world, shiftedPos)) {
@@ -256,12 +252,12 @@ public class ClipboardBehavior implements IItemBehaviour, ItemUIFactory {
                     // Get new TE
                     shiftedBlock.createTileEntity(world, state);
                     // And manipulate it to our liking
-                    MetaTileEntityHolder holder = (MetaTileEntityHolder) world.getTileEntity(shiftedPos);
+                    IGregTechTileEntity holder = (IGregTechTileEntity) world.getTileEntity(shiftedPos);
                     if (holder != null) {
-                        MetaTileEntityClipboard clipboard = (MetaTileEntityClipboard) holder.setMetaTileEntity(CLIPBOARD_TILE, heldItem);
+                        MetaTileEntityClipboard clipboard = (MetaTileEntityClipboard) holder.setMetaTileEntity(CLIPBOARD_TILE);
                         if (clipboard != null) {
+                            clipboard.initializeClipboard(heldItem);
                             clipboard.setFrontFacing(facing.getOpposite());
-                            clipboard.setClipboard(heldItem);
                             ItemStack returnedStack = player.getHeldItem(hand);
                             if (!player.isCreative()) {
                                 returnedStack.setCount(player.getHeldItem(hand).getCount() - 1);

@@ -10,14 +10,13 @@ import gregtech.api.unification.material.Material;
 import gregtech.api.unification.material.info.MaterialFlag;
 import gregtech.api.unification.material.info.MaterialIconSet;
 import gregtech.api.unification.material.properties.BlastProperty;
+import gregtech.api.unification.material.properties.ToolProperty;
 import gregtech.api.unification.stack.MaterialStack;
 import net.minecraft.enchantment.Enchantment;
 import stanhebben.zenscript.annotations.Optional;
 import stanhebben.zenscript.annotations.ZenClass;
 import stanhebben.zenscript.annotations.ZenConstructor;
 import stanhebben.zenscript.annotations.ZenMethod;
-
-import javax.annotation.Nonnull;
 
 import static gregtech.api.unification.crafttweaker.CTMaterialHelpers.validateComponentList;
 import static gregtech.api.unification.crafttweaker.CTMaterialHelpers.validateFluidTypeNoPlasma;
@@ -42,14 +41,20 @@ public class CTMaterialBuilder {
     }
 
     @ZenMethod
+    public CTMaterialBuilder fluid() {
+        backingBuilder.fluid(validateFluidTypeNoPlasma(null), false);
+        return this;
+    }
+
+    @ZenMethod
     public CTMaterialBuilder fluid(@Optional String type, @Optional boolean hasBlock) {
         backingBuilder.fluid(validateFluidTypeNoPlasma(type), hasBlock);
         return this;
     }
 
     @ZenMethod
-    public CTMaterialBuilder fluid(@Nonnull @Optional FluidType type, @Optional boolean hasBlock) {
-        backingBuilder.fluid(validateFluidTypeNoPlasma(type.getName()), hasBlock);
+    public CTMaterialBuilder fluid(@Optional FluidType type, @Optional boolean hasBlock) {
+        backingBuilder.fluid(validateFluidTypeNoPlasma(type == null ? null : type.getName()), hasBlock);
         return this;
     }
 
@@ -78,6 +83,13 @@ public class CTMaterialBuilder {
     public CTMaterialBuilder gem(@Optional int harvestLevel, @Optional int burnTime) {
         if (harvestLevel == 0) harvestLevel = 2;
         backingBuilder.gem(harvestLevel, burnTime);
+        return this;
+    }
+
+    @ZenMethod
+    public CTMaterialBuilder polymer(@Optional int harvestLevel) {
+        if (harvestLevel == 0) harvestLevel = 2;
+        backingBuilder.polymer(harvestLevel);
         return this;
     }
 
@@ -134,11 +146,14 @@ public class CTMaterialBuilder {
     }
 
     @ZenMethod
-    public CTMaterialBuilder toolStats(float speed, float damage, int durability, @Optional int enchantability) {
-        if (enchantability == 0) {
-            enchantability = 21; // Lowest enchantability by default
-        }
-        backingBuilder.toolStats(speed, damage, durability, enchantability);
+    public CTMaterialBuilder toolStats(float speed, float damage, int durability, int harvestLevel, @Optional int enchantability) {
+        if (enchantability == 0) enchantability = 10;
+        backingBuilder.toolStats(ToolProperty.Builder.of(speed, damage, durability, harvestLevel).enchantability(enchantability).build());
+        return this;
+    }
+    @ZenMethod
+    public CTMaterialBuilder rotorStats(float speed, float damage, int durability) {
+        backingBuilder.rotorStats(speed, damage, durability);
         return this;
     }
 
@@ -223,6 +238,12 @@ public class CTMaterialBuilder {
     @ZenMethod
     public CTMaterialBuilder fluidPipeProperties(int maxTemp, int throughput, boolean gasProof) {
         backingBuilder.fluidPipeProperties(maxTemp, throughput, gasProof);
+        return this;
+    }
+
+    @ZenMethod
+    public CTMaterialBuilder fluidPipeProperties(int maxTemp, int throughput, boolean gasProof, boolean acidProof, boolean cryoProof, boolean plasmaProof) {
+        backingBuilder.fluidPipeProperties(maxTemp, throughput, gasProof, acidProof, cryoProof, plasmaProof);
         return this;
     }
 

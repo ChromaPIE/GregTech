@@ -1,26 +1,24 @@
 package gregtech.api.block.machines;
 
-import codechicken.lib.block.property.unlisted.UnlistedIntegerProperty;
-import codechicken.lib.block.property.unlisted.UnlistedStringProperty;
 import codechicken.lib.raytracer.CuboidRayTraceResult;
 import codechicken.lib.raytracer.IndexedCuboid6;
 import codechicken.lib.raytracer.RayTracer;
 import codechicken.lib.vec.Cuboid6;
+import gregtech.api.GTValues;
 import gregtech.api.GregTechAPI;
 import gregtech.api.block.BlockCustomParticle;
-import gregtech.api.capability.GregtechCapabilities;
-import gregtech.api.capability.tool.IScrewdriverItem;
-import gregtech.api.capability.tool.IWrenchItem;
+import gregtech.api.block.UnlistedIntegerProperty;
+import gregtech.api.block.UnlistedStringProperty;
 import gregtech.api.cover.CoverBehavior;
-import gregtech.api.cover.ICoverable;
 import gregtech.api.cover.IFacadeCover;
-import gregtech.api.items.toolitem.IToolStats;
+import gregtech.api.items.toolitem.ToolClasses;
+import gregtech.api.items.toolitem.ToolHelper;
 import gregtech.api.metatileentity.MetaTileEntity;
 import gregtech.api.metatileentity.MetaTileEntityHolder;
+import gregtech.api.metatileentity.interfaces.IGregTechTileEntity;
 import gregtech.api.pipenet.IBlockAppearance;
 import gregtech.client.renderer.handler.MetaTileEntityRenderer;
-import gregtech.common.ConfigHolder;
-import gregtech.common.tools.DamageValues;
+import gregtech.common.items.MetaItems;
 import gregtech.integration.ctm.IFacadeWrapper;
 import net.minecraft.block.Block;
 import net.minecraft.block.ITileEntityProvider;
@@ -33,16 +31,13 @@ import net.minecraft.block.state.BlockStateContainer;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.creativetab.CreativeTabs;
-import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLiving.SpawnPlacementType;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.boss.EntityWither;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.projectile.EntityWitherSkull;
-import net.minecraft.init.Enchantments;
 import net.minecraft.item.EnumDyeColor;
-import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
@@ -53,34 +48,38 @@ import net.minecraft.util.math.RayTraceResult;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.Explosion;
 import net.minecraft.world.IBlockAccess;
-import net.minecraft.world.IWorldNameable;
 import net.minecraft.world.World;
 import net.minecraftforge.common.property.ExtendedBlockState;
 import net.minecraftforge.common.property.IExtendedBlockState;
 import net.minecraftforge.common.property.IUnlistedProperty;
+import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import org.apache.commons.lang3.tuple.Pair;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
+
+import static gregtech.api.util.GTUtility.getMetaTileEntity;
 
 @SuppressWarnings("deprecation")
 public class BlockMachine extends BlockCustomParticle implements ITileEntityProvider, IFacadeWrapper, IBlockAppearance {
 
     private static final List<IndexedCuboid6> EMPTY_COLLISION_BOX = Collections.emptyList();
-    private static final IUnlistedProperty<String> HARVEST_TOOL = new UnlistedStringProperty("harvest_tool");
-    private static final IUnlistedProperty<Integer> HARVEST_LEVEL = new UnlistedIntegerProperty("harvest_level");
     //used for rendering purposes of non-opaque machines like chests and tanks
     public static final PropertyBool OPAQUE = PropertyBool.create("opaque");
 
+    // Vanilla MC's getHarvestTool() and getHarvestLevel() only pass the state, which is
+    // not enough information to get the harvest tool and level from a MetaTileEntity on its own.
+    // Using unlisted properties lets us get this information from getActualState(), which
+    // provides enough information to get and read the MetaTileEntity data.
+    private static final IUnlistedProperty<String> HARVEST_TOOL = new UnlistedStringProperty("harvest_tool");
+    private static final IUnlistedProperty<Integer> HARVEST_LEVEL = new UnlistedIntegerProperty("harvest_level");
+
     public BlockMachine() {
         super(Material.IRON);
-        setCreativeTab(GregTechAPI.TAB_GREGTECH);
+        setCreativeTab(GregTechAPI.TAB_GREGTECH_MACHINES);
         setSoundType(SoundType.METAL);
         setHardness(6.0f);
         setResistance(6.0f);
@@ -88,25 +87,17 @@ public class BlockMachine extends BlockCustomParticle implements ITileEntityProv
         setDefaultState(getDefaultState().withProperty(OPAQUE, true));
     }
 
-    @Override
-    public boolean canHarvestBlock(@Nonnull IBlockAccess world, @Nonnull BlockPos pos, @Nonnull EntityPlayer player) {
-        if (ConfigHolder.machines.requireWrenchForMachines) {
-            return player.getHeldItemMainhand().hasCapability(GregtechCapabilities.CAPABILITY_WRENCH, null);
-        }
-        return super.canHarvestBlock(world, pos, player);
-    }
-
     @Nullable
     @Override
     public String getHarvestTool(@Nonnull IBlockState state) {
         String value = ((IExtendedBlockState) state).getValue(HARVEST_TOOL);
-        return value == null ? "wrench" : value; //safety check for mods who don't handle state properly
+        return value == null ? ToolClasses.WRENCH : value;
     }
 
     @Override
     public int getHarvestLevel(@Nonnull IBlockState state) {
         Integer value = ((IExtendedBlockState) state).getValue(HARVEST_LEVEL);
-        return value == null ? 0 : value; //safety check for mods who don't handle state properly
+        return value == null ? 1 : value;
     }
 
     @Override
@@ -118,11 +109,10 @@ public class BlockMachine extends BlockCustomParticle implements ITileEntityProv
     @Override
     public IBlockState getActualState(@Nonnull IBlockState state, @Nonnull IBlockAccess worldIn, @Nonnull BlockPos pos) {
         MetaTileEntity metaTileEntity = getMetaTileEntity(worldIn, pos);
-        if (metaTileEntity == null)
-            return state;
+        if (metaTileEntity == null) return state;
 
         return ((IExtendedBlockState) state)
-                .withProperty(HARVEST_TOOL, metaTileEntity.getHarvestTool() == null ? "wrench" : metaTileEntity.getHarvestTool())
+                .withProperty(HARVEST_TOOL, metaTileEntity.getHarvestTool())
                 .withProperty(HARVEST_LEVEL, metaTileEntity.getHarvestLevel());
     }
 
@@ -130,6 +120,13 @@ public class BlockMachine extends BlockCustomParticle implements ITileEntityProv
     @Override
     protected BlockStateContainer createBlockState() {
         return new ExtendedBlockState(this, new IProperty[]{OPAQUE}, new IUnlistedProperty[]{HARVEST_TOOL, HARVEST_LEVEL});
+    }
+
+    @Override
+    public float getPlayerRelativeBlockHardness(@Nonnull IBlockState state, @Nonnull EntityPlayer player, @Nonnull World worldIn, @Nonnull BlockPos pos) {
+        // make sure our extended block state info is here for callers (since forge does not do it for us in this case)
+        state = state.getBlock().getActualState(state, worldIn, pos);
+        return super.getPlayerRelativeBlockHardness(state, player, worldIn, pos);
     }
 
     @Nonnull
@@ -148,11 +145,6 @@ public class BlockMachine extends BlockCustomParticle implements ITileEntityProv
         return false;
     }
 
-    public static MetaTileEntity getMetaTileEntity(IBlockAccess blockAccess, BlockPos pos) {
-        TileEntity holder = blockAccess.getTileEntity(pos);
-        return holder instanceof MetaTileEntityHolder ? ((MetaTileEntityHolder) holder).getMetaTileEntity() : null;
-    }
-
     @Override
     public float getBlockHardness(@Nonnull IBlockState blockState, @Nonnull World worldIn, @Nonnull BlockPos pos) {
         MetaTileEntity metaTileEntity = getMetaTileEntity(worldIn, pos);
@@ -165,11 +157,10 @@ public class BlockMachine extends BlockCustomParticle implements ITileEntityProv
         return metaTileEntity == null ? 1.0f : metaTileEntity.getBlockResistance();
     }
 
-    private List<IndexedCuboid6> getCollisionBox(IBlockAccess blockAccess, BlockPos pos) {
+    private static List<IndexedCuboid6> getCollisionBox(IBlockAccess blockAccess, BlockPos pos) {
         MetaTileEntity metaTileEntity = getMetaTileEntity(blockAccess, pos);
-        if (metaTileEntity == null)
-            return EMPTY_COLLISION_BOX;
-        ArrayList<IndexedCuboid6> collisionList = new ArrayList<>();
+        if (metaTileEntity == null) return EMPTY_COLLISION_BOX;
+        List<IndexedCuboid6> collisionList = new ArrayList<>();
         metaTileEntity.addCollisionBoundingBox(collisionList);
         metaTileEntity.addCoverCollisionBoundingBox(collisionList);
         return collisionList;
@@ -209,13 +200,12 @@ public class BlockMachine extends BlockCustomParticle implements ITileEntityProv
     @Override
     public boolean rotateBlock(@Nonnull World world, @Nonnull BlockPos pos, @Nonnull EnumFacing axis) {
         MetaTileEntity metaTileEntity = getMetaTileEntity(world, pos);
-        if (metaTileEntity == null ||
-                !metaTileEntity.isValidFrontFacing(axis) ||
-                metaTileEntity.getFrontFacing() == axis ||
-                !metaTileEntity.hasFrontFacing())
-            return false;
-        metaTileEntity.setFrontFacing(axis);
-        return true;
+        if (metaTileEntity == null) return false;
+        if (metaTileEntity.hasFrontFacing() && metaTileEntity.isValidFrontFacing(axis)) {
+            metaTileEntity.setFrontFacing(axis);
+            return true;
+        }
+        return false;
     }
 
     @Nullable
@@ -231,8 +221,7 @@ public class BlockMachine extends BlockCustomParticle implements ITileEntityProv
     @Override
     public boolean recolorBlock(@Nonnull World world, @Nonnull BlockPos pos, @Nonnull EnumFacing side, @Nonnull EnumDyeColor color) {
         MetaTileEntity metaTileEntity = getMetaTileEntity(world, pos);
-        if (metaTileEntity == null ||
-                metaTileEntity.getPaintingColor() == color.colorValue)
+        if (metaTileEntity == null || metaTileEntity.getPaintingColor() == color.colorValue)
             return false;
         metaTileEntity.setPaintingColor(color.colorValue);
         return true;
@@ -240,11 +229,12 @@ public class BlockMachine extends BlockCustomParticle implements ITileEntityProv
 
     @Override
     public void onBlockPlacedBy(World worldIn, @Nonnull BlockPos pos, @Nonnull IBlockState state, @Nonnull EntityLivingBase placer, ItemStack stack) {
-        MetaTileEntityHolder holder = (MetaTileEntityHolder) worldIn.getTileEntity(pos);
+        IGregTechTileEntity holder = (IGregTechTileEntity) worldIn.getTileEntity(pos);
         MetaTileEntity sampleMetaTileEntity = GregTechAPI.MTE_REGISTRY.getObjectById(stack.getItemDamage());
         if (holder != null && sampleMetaTileEntity != null) {
-            if (stack.hasDisplayName()) {
-                holder.setCustomName(stack.getDisplayName());
+            // TODO Fix this
+            if (stack.hasDisplayName() && holder instanceof MetaTileEntityHolder) {
+                ((MetaTileEntityHolder) holder).setCustomName(stack.getDisplayName());
             }
             MetaTileEntity metaTileEntity = holder.setMetaTileEntity(sampleMetaTileEntity);
             if (stack.hasTagCompound()) {
@@ -256,6 +246,24 @@ public class BlockMachine extends BlockCustomParticle implements ITileEntityProv
             } else {
                 metaTileEntity.setFrontFacing(placer.getHorizontalFacing().getOpposite());
             }
+            if (Loader.isModLoaded(GTValues.MODID_APPENG)) {
+                if (metaTileEntity.getProxy() != null) {
+                    metaTileEntity.getProxy().setOwner((EntityPlayer) placer);
+                }
+            }
+
+            // Color machines on place if holding spray can in off-hand
+            if (placer instanceof EntityPlayer) {
+                ItemStack offhand = placer.getHeldItemOffhand();
+                for (int i  = 0; i < EnumDyeColor.values().length; i++) {
+                    if (offhand.isItemEqual(MetaItems.SPRAY_CAN_DYES[i].getStackForm())) {
+                        MetaItems.SPRAY_CAN_DYES[i].getBehaviours().get(0).onItemUse((EntityPlayer) placer, worldIn, pos, EnumHand.OFF_HAND, EnumFacing.UP, 0, 0 , 0);
+                        break;
+                    }
+                }
+            }
+
+            metaTileEntity.onPlacement();
         }
     }
 
@@ -290,8 +298,12 @@ public class BlockMachine extends BlockCustomParticle implements ITileEntityProv
         //only set item tag if it's not empty, so newly created items will stack with dismantled
         if (!tagCompound.isEmpty())
             itemStack.setTagCompound(tagCompound);
-        if (metaTileEntity.getHolder().hasCustomName()) {
-            itemStack.setStackDisplayName(metaTileEntity.getHolder().getName());
+        // TODO Clean this up
+        if (metaTileEntity.getHolder() instanceof MetaTileEntityHolder) {
+            MetaTileEntityHolder holder = (MetaTileEntityHolder) metaTileEntity.getHolder();
+            if (holder.hasCustomName()) {
+                itemStack.setStackDisplayName(holder.getName());
+            }
         }
         drops.add(itemStack);
         metaTileEntity.getDrops(drops, harvesters.get());
@@ -306,33 +318,16 @@ public class BlockMachine extends BlockCustomParticle implements ITileEntityProv
             return false;
         }
 
-        if (itemStack.hasCapability(GregtechCapabilities.CAPABILITY_SCREWDRIVER, null)) {
-            IScrewdriverItem screwdriver = itemStack.getCapability(GregtechCapabilities.CAPABILITY_SCREWDRIVER, null);
-
-            if (screwdriver.damageItem(DamageValues.DAMAGE_FOR_SCREWDRIVER, true) &&
-                    metaTileEntity.onCoverScrewdriverClick(playerIn, hand, rayTraceResult)) {
-                screwdriver.damageItem(DamageValues.DAMAGE_FOR_SCREWDRIVER, false);
-                IToolStats.onOtherUse(itemStack, worldIn, pos);
-                return true;
-            }
-            return false;
+        // try to click with a tool first
+        Set<String> toolClasses = itemStack.getItem().getToolClasses(itemStack);
+        if (!toolClasses.isEmpty() && metaTileEntity.onToolClick(playerIn, toolClasses, hand, rayTraceResult)) {
+            ToolHelper.damageItem(itemStack, playerIn);
+            ToolHelper.playToolSound(itemStack, playerIn);
+            return true;
         }
 
-        if (itemStack.hasCapability(GregtechCapabilities.CAPABILITY_WRENCH, null)) {
-            IWrenchItem wrenchItem = itemStack.getCapability(GregtechCapabilities.CAPABILITY_WRENCH, null);
-            EnumFacing wrenchDirection = ICoverable.determineGridSideHit(rayTraceResult);
-
-            if (wrenchItem.damageItem(DamageValues.DAMAGE_FOR_WRENCH, true) &&
-                    metaTileEntity.onWrenchClick(playerIn, hand, wrenchDirection, rayTraceResult)) {
-
-                wrenchItem.damageItem(DamageValues.DAMAGE_FOR_WRENCH, false);
-                IToolStats.onOtherUse(itemStack, worldIn, pos);
-                return true;
-            }
-            return false;
-        }
-
-        return metaTileEntity.onCoverRightClick(playerIn, hand, rayTraceResult);
+        // then try to click with normal right hand
+        return metaTileEntity.onRightClick(playerIn, hand, facing, rayTraceResult);
     }
 
     @Override
@@ -383,7 +378,7 @@ public class BlockMachine extends BlockCustomParticle implements ITileEntityProv
 
     @Override
     public void harvestBlock(@Nonnull World worldIn, @Nonnull EntityPlayer player, @Nonnull BlockPos pos, @Nonnull IBlockState state, @Nullable TileEntity te, @Nonnull ItemStack stack) {
-        tileEntities.set(te == null ? tileEntities.get() : ((MetaTileEntityHolder) te).getMetaTileEntity());
+        tileEntities.set(te == null ? tileEntities.get() : ((IGregTechTileEntity) te).getMetaTileEntity());
         super.harvestBlock(worldIn, player, pos, state, te, stack);
         tileEntities.set(null);
     }
@@ -395,7 +390,7 @@ public class BlockMachine extends BlockCustomParticle implements ITileEntityProv
 
     @Nullable
     @Override
-    public MetaTileEntityHolder createNewTileEntity(@Nullable World worldIn, int meta) {
+    public TileEntity createNewTileEntity(@Nullable World worldIn, int meta) {
         return new MetaTileEntityHolder();
     }
 
@@ -445,7 +440,9 @@ public class BlockMachine extends BlockCustomParticle implements ITileEntityProv
     @Override
     public void getSubBlocks(@Nonnull CreativeTabs tab, @Nonnull NonNullList<ItemStack> items) {
         for (MetaTileEntity metaTileEntity : GregTechAPI.MTE_REGISTRY) {
-            metaTileEntity.getSubItems(tab, items);
+            if (metaTileEntity.isInCreativeTab(tab)) {
+                metaTileEntity.getSubItems(tab, items);
+            }
         }
     }
 
@@ -482,7 +479,7 @@ public class BlockMachine extends BlockCustomParticle implements ITileEntityProv
     @Override
     @SideOnly(Side.CLIENT)
     protected Pair<TextureAtlasSprite, Integer> getParticleTexture(World world, BlockPos blockPos) {
-        return MetaTileEntityRenderer.INSTANCE.getParticleTexture(world, blockPos);
+        return MetaTileEntityRenderer.getParticleTexture(world, blockPos);
     }
 
     @Override
@@ -492,5 +489,13 @@ public class BlockMachine extends BlockCustomParticle implements ITileEntityProv
             return super.canEntityDestroy(state, world, pos, entity);
         }
         return !((entity instanceof EntityWither || entity instanceof EntityWitherSkull) && metaTileEntity.getWitherProof());
+    }
+
+    @SideOnly(Side.CLIENT)
+    @Override
+    public void randomDisplayTick(@Nonnull IBlockState stateIn, @Nonnull World worldIn, @Nonnull BlockPos pos, @Nonnull Random rand) {
+        super.randomDisplayTick(stateIn, worldIn, pos, rand);
+        MetaTileEntity metaTileEntity = getMetaTileEntity(worldIn, pos);
+        if (metaTileEntity != null) metaTileEntity.randomDisplayTick();
     }
 }

@@ -2,14 +2,14 @@ package gregtech.common;
 
 import gregtech.api.GTValues;
 import gregtech.api.GregTechAPI;
+import gregtech.api.block.VariantItemBlock;
 import gregtech.api.block.machines.MachineItemBlock;
-import gregtech.api.enchants.EnchantmentEnderDamage;
-import gregtech.api.enchants.EnchantmentHardHammer;
 import gregtech.api.items.metaitem.MetaItem;
+import gregtech.api.items.toolitem.IGTTool;
 import gregtech.api.recipes.ModHandler;
 import gregtech.api.recipes.crafttweaker.MetaItemBracketHandler;
+import gregtech.api.recipes.ingredients.GTRecipeInput;
 import gregtech.api.recipes.recipeproperties.FusionEUToStartProperty;
-import gregtech.api.recipes.recipeproperties.TemperatureProperty;
 import gregtech.api.terminal.TerminalRegistry;
 import gregtech.api.unification.material.Material;
 import gregtech.api.unification.material.Materials;
@@ -18,30 +18,31 @@ import gregtech.api.unification.material.properties.FluidPipeProperties;
 import gregtech.api.unification.material.properties.PropertyKey;
 import gregtech.api.unification.ore.OrePrefix;
 import gregtech.api.unification.ore.StoneType;
+import gregtech.api.unification.stack.ItemMaterialInfo;
 import gregtech.api.util.GTLog;
-import gregtech.api.util.advancement.GTTrigger;
-import gregtech.common.advancement.GTTriggers;
 import gregtech.common.blocks.*;
 import gregtech.common.items.MetaItems;
+import gregtech.common.items.ToolItems;
 import gregtech.common.pipelike.cable.BlockCable;
 import gregtech.common.pipelike.cable.ItemBlockCable;
 import gregtech.common.pipelike.fluidpipe.BlockFluidPipe;
 import gregtech.common.pipelike.fluidpipe.ItemBlockFluidPipe;
 import gregtech.common.pipelike.itempipe.BlockItemPipe;
 import gregtech.common.pipelike.itempipe.ItemBlockItemPipe;
+import gregtech.integration.groovy.GroovyScriptCompat;
 import gregtech.integration.jei.GTJeiPlugin;
 import gregtech.loaders.MaterialInfoLoader;
 import gregtech.loaders.OreDictionaryLoader;
 import gregtech.loaders.recipe.CraftingComponent;
 import gregtech.loaders.recipe.GTRecipeManager;
-import net.minecraft.advancements.CriteriaTriggers;
-import net.minecraft.advancements.ICriterionTrigger;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import net.minecraft.block.Block;
-import net.minecraft.enchantment.Enchantment;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemBlock;
+import net.minecraft.item.ItemSlab;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.crafting.IRecipe;
+import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.config.Config.Type;
 import net.minecraftforge.common.config.ConfigManager;
@@ -50,7 +51,6 @@ import net.minecraftforge.event.furnace.FurnaceFuelBurnTimeEvent;
 import net.minecraftforge.fml.client.event.ConfigChangedEvent;
 import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.common.ObfuscationReflectionHelper;
 import net.minecraftforge.fml.common.event.FMLLoadCompleteEvent;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
@@ -58,8 +58,6 @@ import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.registries.IForgeRegistry;
 import org.apache.commons.lang3.ArrayUtils;
 
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.function.Function;
@@ -80,7 +78,7 @@ public class CommonProxy {
 
         for (Material material : GregTechAPI.MATERIAL_REGISTRY) {
 
-           if (material.hasProperty(PropertyKey.ORE)) {
+            if (material.hasProperty(PropertyKey.ORE)) {
                 createOreBlock(material);
             }
 
@@ -92,24 +90,24 @@ public class CommonProxy {
             }
             if (material.hasProperty(PropertyKey.FLUID_PIPE)) {
                 for (BlockFluidPipe pipe : FLUID_PIPES) {
-                    if(!pipe.getItemPipeType(pipe.getItem(material)).getOrePrefix().isIgnored(material)) {
+                    if (!pipe.getItemPipeType(pipe.getItem(material)).getOrePrefix().isIgnored(material)) {
                         pipe.addPipeMaterial(material, material.getProperty(PropertyKey.FLUID_PIPE));
                     }
                 }
             }
             if (material.hasProperty(PropertyKey.ITEM_PIPE)) {
                 for (BlockItemPipe pipe : ITEM_PIPES) {
-                    if(!pipe.getItemPipeType(pipe.getItem(material)).getOrePrefix().isIgnored(material)) {
+                    if (!pipe.getItemPipeType(pipe.getItem(material)).getOrePrefix().isIgnored(material)) {
                         pipe.addPipeMaterial(material, material.getProperty(PropertyKey.ITEM_PIPE));
                     }
                 }
             }
         }
         for (BlockFluidPipe pipe : FLUID_PIPES) {
-            if(!pipe.getItemPipeType(pipe.getItem(Materials.Wood)).getOrePrefix().isIgnored(Materials.Wood) ||
+            if (!pipe.getItemPipeType(pipe.getItem(Materials.Wood)).getOrePrefix().isIgnored(Materials.Wood) ||
                     !pipe.getItemPipeType(pipe.getItem(Materials.TreatedWood)).getOrePrefix().isIgnored(Materials.TreatedWood)) {
-                pipe.addPipeMaterial(Materials.Wood, new FluidPipeProperties(310, 5, false));
-                pipe.addPipeMaterial(Materials.TreatedWood, new FluidPipeProperties(310, 8, false));
+                pipe.addPipeMaterial(Materials.Wood, new FluidPipeProperties(340, 5, false, false, false, false));
+                pipe.addPipeMaterial(Materials.TreatedWood, new FluidPipeProperties(340, 10, false, false, false, false));
             }
         }
 
@@ -118,6 +116,7 @@ public class CommonProxy {
         for (BlockItemPipe pipe : ITEM_PIPES) registry.register(pipe);
 
         registry.register(HERMETIC_CASING);
+        registry.register(CLEANROOM_CASING);
         registry.register(FOAM);
         registry.register(REINFORCED_FOAM);
         registry.register(PETRIFIED_FOAM);
@@ -133,25 +132,24 @@ public class CommonProxy {
         registry.register(WIRE_COIL);
         registry.register(FUSION_CASING);
         registry.register(WARNING_SIGN);
+        registry.register(WARNING_SIGN_1);
         registry.register(ASPHALT);
-        registry.register(STONE_SMOOTH);
-        registry.register(STONE_COBBLE);
-        registry.register(STONE_COBBLE_MOSSY);
-        registry.register(STONE_POLISHED);
-        registry.register(STONE_BRICKS);
-        registry.register(STONE_BRICKS_CRACKED);
-        registry.register(STONE_BRICKS_MOSSY);
-        registry.register(STONE_CHISELED);
-        registry.register(STONE_TILED);
-        registry.register(STONE_TILED_SMALL);
-        registry.register(STONE_BRICKS_SMALL);
-        registry.register(STONE_WINDMILL_A);
-        registry.register(STONE_WINDMILL_B);
-        registry.register(STONE_BRICKS_SQUARE);
+        for (StoneVariantBlock block : STONE_BLOCKS.values()) registry.register(block);
         registry.register(RUBBER_LOG);
         registry.register(RUBBER_LEAVES);
         registry.register(RUBBER_SAPLING);
         registry.register(PLANKS);
+        registry.register(WOOD_SLAB);
+        registry.register(DOUBLE_WOOD_SLAB);
+        registry.register(RUBBER_WOOD_STAIRS);
+        registry.register(TREATED_WOOD_STAIRS);
+        registry.register(RUBBER_WOOD_FENCE);
+        registry.register(TREATED_WOOD_FENCE);
+        registry.register(RUBBER_WOOD_FENCE_GATE);
+        registry.register(TREATED_WOOD_FENCE_GATE);
+        registry.register(RUBBER_WOOD_DOOR);
+        registry.register(TREATED_WOOD_DOOR);
+        registry.register(BRITTLE_CHARCOAL);
 
         COMPRESSED.values().stream().distinct().forEach(registry::register);
         FRAMES.values().stream().distinct().forEach(registry::register);
@@ -203,6 +201,11 @@ public class CommonProxy {
             registry.register(item);
             item.registerSubItems();
         }
+
+        for (IGTTool tool : ToolItems.getAllTools()) {
+            registry.register(tool.get());
+        }
+
         GTRecipeManager.preLoad();
 
         registry.register(createItemBlock(MACHINE, MachineItemBlock::new));
@@ -212,6 +215,7 @@ public class CommonProxy {
         for (BlockItemPipe pipe : ITEM_PIPES) registry.register(createItemBlock(pipe, ItemBlockItemPipe::new));
 
         registry.register(createItemBlock(HERMETIC_CASING, VariantItemBlock::new));
+        registry.register(createItemBlock(CLEANROOM_CASING, VariantItemBlock::new));
         registry.register(createItemBlock(BOILER_CASING, VariantItemBlock::new));
         registry.register(createItemBlock(BOILER_FIREBOX_CASING, VariantItemBlock::new));
         registry.register(createItemBlock(METAL_CASING, VariantItemBlock::new));
@@ -223,22 +227,20 @@ public class CommonProxy {
         registry.register(createItemBlock(WIRE_COIL, VariantItemBlock::new));
         registry.register(createItemBlock(FUSION_CASING, VariantItemBlock::new));
         registry.register(createItemBlock(WARNING_SIGN, VariantItemBlock::new));
+        registry.register(createItemBlock(WARNING_SIGN_1, VariantItemBlock::new));
         registry.register(createItemBlock(ASPHALT, VariantItemBlock::new));
-        registry.register(createItemBlock(STONE_SMOOTH, VariantItemBlock::new));
-        registry.register(createItemBlock(STONE_COBBLE, VariantItemBlock::new));
-        registry.register(createItemBlock(STONE_COBBLE_MOSSY, VariantItemBlock::new));
-        registry.register(createItemBlock(STONE_POLISHED, VariantItemBlock::new));
-        registry.register(createItemBlock(STONE_BRICKS, VariantItemBlock::new));
-        registry.register(createItemBlock(STONE_BRICKS_CRACKED, VariantItemBlock::new));
-        registry.register(createItemBlock(STONE_BRICKS_MOSSY, VariantItemBlock::new));
-        registry.register(createItemBlock(STONE_CHISELED, VariantItemBlock::new));
-        registry.register(createItemBlock(STONE_TILED, VariantItemBlock::new));
-        registry.register(createItemBlock(STONE_TILED_SMALL, VariantItemBlock::new));
-        registry.register(createItemBlock(STONE_BRICKS_SMALL, VariantItemBlock::new));
-        registry.register(createItemBlock(STONE_WINDMILL_A, VariantItemBlock::new));
-        registry.register(createItemBlock(STONE_WINDMILL_B, VariantItemBlock::new));
-        registry.register(createItemBlock(STONE_BRICKS_SQUARE, VariantItemBlock::new));
+        for (StoneVariantBlock block : STONE_BLOCKS.values()) {
+            registry.register(createItemBlock(block, VariantItemBlock::new));
+        }
         registry.register(createItemBlock(PLANKS, VariantItemBlock::new));
+        registry.register(createItemBlock(WOOD_SLAB, b -> new ItemSlab(b, b, DOUBLE_WOOD_SLAB)));
+        registry.register(createItemBlock(RUBBER_WOOD_STAIRS, ItemBlock::new));
+        registry.register(createItemBlock(TREATED_WOOD_STAIRS, ItemBlock::new));
+        registry.register(createItemBlock(RUBBER_WOOD_FENCE, ItemBlock::new));
+        registry.register(createItemBlock(TREATED_WOOD_FENCE, ItemBlock::new));
+        registry.register(createItemBlock(RUBBER_WOOD_FENCE_GATE, ItemBlock::new));
+        registry.register(createItemBlock(TREATED_WOOD_FENCE_GATE, ItemBlock::new));
+        registry.register(createItemBlock(BRITTLE_CHARCOAL, ItemBlock::new));
         registry.register(createItemBlock(RUBBER_LOG, ItemBlock::new));
         registry.register(createItemBlock(RUBBER_LEAVES, ItemBlock::new));
         registry.register(createItemBlock(RUBBER_SAPLING, ItemBlock::new));
@@ -266,12 +268,6 @@ public class CommonProxy {
     //ore dictionary and recipes will get recipes accessible in time
     @SubscribeEvent
     public static void registerRecipes(RegistryEvent.Register<IRecipe> event) {
-        // registers coiltypes for the BlastTemperatureProperty used in Blast Furnace Recipes
-        for (BlockWireCoil.CoilType values : BlockWireCoil.CoilType.values()) {
-            TemperatureProperty.registerCoilType(values.getCoilTemperature(), values.getMaterial(),
-                    String.format("tile.wire_coil.%s.name", values.getName()));
-        }
-
         //Registers Fusion tiers for the FusionEUToStartProperty
         FusionEUToStartProperty.registerFusionTier(6, "(MK1)");
         FusionEUToStartProperty.registerFusionTier(7, "(MK2)");
@@ -280,9 +276,13 @@ public class CommonProxy {
         GTLog.logger.info("Registering ore dictionary...");
 
         MetaItems.registerOreDict();
+        ToolItems.registerOreDict();
         MetaBlocks.registerOreDict();
         OreDictionaryLoader.init();
         MaterialInfoLoader.init();
+
+        // post an event for addons to modify unification data before base GT registers recycling recipes
+        MinecraftForge.EVENT_BUS.post(new GregTechAPI.RegisterEvent<>(null, ItemMaterialInfo.class));
 
         GTLog.logger.info("Registering recipes...");
 
@@ -309,12 +309,9 @@ public class CommonProxy {
         if (Loader.isModLoaded(GTValues.MODID_CT)) {
             MetaItemBracketHandler.rebuildComponentRegistry();
         }
-    }
-
-    @SubscribeEvent
-    public static void registerEnchantments(RegistryEvent.Register<Enchantment> event) {
-        EnchantmentEnderDamage.INSTANCE.register(event);
-        EnchantmentHardHammer.INSTANCE.register(event);
+        if (GroovyScriptCompat.isLoaded()) {
+            GroovyScriptCompat.loadMetaItemBracketHandler();
+        }
     }
 
     @SubscribeEvent
@@ -329,13 +326,12 @@ public class CommonProxy {
         ItemStack stack = event.getItemStack();
         Block block = Block.getBlockFromItem(stack.getItem());
         //handle sapling and log burn rates
-        if (block == RUBBER_LOG || block == PLANKS) {
-            event.setBurnTime(300);
-        } else if (block == RUBBER_SAPLING) {
+        if (block == RUBBER_SAPLING) {
             event.setBurnTime(100);
-        }
-        //handle material blocks burn value
-        if (stack.getItem() instanceof CompressedItemBlock) {
+        } else if (block == WOOD_SLAB) {
+            event.setBurnTime(150);
+        } else if (stack.getItem() instanceof CompressedItemBlock) {
+            //handle material blocks burn value
             CompressedItemBlock itemBlock = (CompressedItemBlock) stack.getItem();
             Material material = itemBlock.getBlockState(stack).getValue(itemBlock.compressedBlock.variantProperty);
             DustProperty property = material.getProperty(PropertyKey.DUST);
@@ -350,7 +346,11 @@ public class CommonProxy {
 
     private static <T extends Block> ItemBlock createItemBlock(T block, Function<T, ItemBlock> producer) {
         ItemBlock itemBlock = producer.apply(block);
-        itemBlock.setRegistryName(block.getRegistryName());
+        ResourceLocation registryName = block.getRegistryName();
+        if (registryName == null) {
+            throw new IllegalArgumentException("Block " + block.getTranslationKey() + " has no registry name.");
+        }
+        itemBlock.setRegistryName(registryName);
         return itemBlock;
     }
 
@@ -358,31 +358,21 @@ public class CommonProxy {
     }
 
     public void onLoad() {
-        Method triggerRegistry = ObfuscationReflectionHelper.findMethod(CriteriaTriggers.class, "func_192118_a", ICriterionTrigger.class, ICriterionTrigger.class);
-        triggerRegistry.setAccessible(true);
-        for (GTTrigger<?> trigger : GTTriggers.GT_TRIGGERS) {
-            try {
-                triggerRegistry.invoke(null, trigger);
-            } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
-                GTLog.logger.error("Failed to register Advancement trigger: {}", trigger.getId());
-                GTLog.logger.error("Stacktrace:", e);
-            }
-        }
     }
 
     public void onPostLoad() {
-        GTRecipeManager.postLoad();
         TerminalRegistry.init();
 
-        if(ConfigHolder.compat.removeSmeltingForEBFMetals) {
+        if (ConfigHolder.compat.removeSmeltingForEBFMetals) {
             ModHandler.removeSmeltingEBFMetals();
         }
     }
 
     public void onLoadComplete(FMLLoadCompleteEvent event) {
-        if(Loader.isModLoaded(GTValues.MODID_JEI) && event.getSide() == Side.CLIENT) {
+        if (Loader.isModLoaded(GTValues.MODID_JEI) && event.getSide() == Side.CLIENT) {
             GTJeiPlugin.setupInputHandler();
         }
+        GTRecipeInput.INSTANCES = new ObjectOpenHashSet<>();
     }
 
     public boolean isFancyGraphics() {

@@ -12,6 +12,7 @@ import gregtech.api.terminal.gui.widgets.CircleButtonWidget;
 import gregtech.api.terminal.gui.widgets.ColorWidget;
 import gregtech.api.terminal.gui.widgets.TreeListWidget;
 import gregtech.api.terminal.util.FileTree;
+import gregtech.api.util.GTLog;
 import gregtech.api.util.Position;
 import gregtech.api.util.Size;
 import net.minecraft.client.renderer.GlStateManager;
@@ -170,9 +171,10 @@ public class TerminalDialogWidget extends AnimaWidgetGroup {
      * Show Color Dialog
      * @return color (rgba)
      */
-    public static TerminalDialogWidget showColorDialog(TerminalOSWidget os, String title, Consumer<Integer> result) {
+    public static TerminalDialogWidget showColorDialog(TerminalOSWidget os, String title, Consumer<Integer> result, int startColor) {
         TerminalDialogWidget dialog = createEmptyTemplate(os).addTitle(title);
         ColorWidget colorWidget = new ColorWidget(WIDTH / 2 - 60, HEIGHT / 2 - 35, 80, 10);
+        colorWidget.setStartColor(startColor);
         dialog.addWidget(colorWidget);
         dialog.addConfirmButton(b -> {
             if (b) {
@@ -258,11 +260,11 @@ public class TerminalDialogWidget extends AnimaWidgetGroup {
         dialog.addWidget(new CircleButtonWidget(x + 17, y + 15, 10, 1, 16)
                 .setClickListener(cd -> {
                     File file = selected.get();
-                    if (file != null) {
+                    if (file != null && Desktop.isDesktopSupported()) {
                         try {
                             Desktop.getDesktop().open(file.isDirectory() ? file : file.getParentFile());
                         } catch (IOException e) {
-                            e.printStackTrace();
+                            GTLog.logger.error("Error reading opening file " + file.getPath(), e);
                         }
                     }
                 })

@@ -3,7 +3,7 @@ package gregtech.api;
 import gregtech.GregTechVersion;
 import gregtech.api.util.XSTR;
 import net.minecraftforge.fml.common.FMLCommonHandler;
-import net.minecraftforge.fml.common.Loader;
+import net.minecraftforge.fml.relauncher.FMLLaunchHandler;
 import net.minecraftforge.oredict.OreDictionary;
 
 import java.time.LocalDate;
@@ -20,7 +20,7 @@ public class GTValues {
     /**
      * Version String for use in addon mods' @Mod(dependencies = "...") block.
      */
-    public static final String MOD_VERSION_DEP = "required-after:gregtech@[" + GregTechVersion.VERSION + ",);";
+    public static final String MOD_VERSION_DEP = "required-after:gregtech@[" + GregTechVersion.DEP_VERSION + ",);";
 
     /**
      * <p/>
@@ -49,6 +49,9 @@ public class GTValues {
 
     public static final Random RNG = new XSTR();
 
+    /** Current time on the Client. Will always be zero on the server. */
+    public static long CLIENT_TIME = 0;
+
     /**
      * The Voltage Tiers. Use this Array instead of the old named Voltage Variables
      */
@@ -73,14 +76,14 @@ public class GTValues {
     public static final int UHV = 9;
     public static final int UEV = 10;
     public static final int UIV = 11;
-    public static final int UMV = 12;
-    public static final int UXV = 13;
+    public static final int UXV = 12;
+    public static final int OpV = 13;
     public static final int MAX = 14;
 
     /**
      * The short names for the voltages, used for registration primarily
      */
-    public static final String[] VN = new String[]{"ULV", "LV", "MV", "HV", "EV", "IV", "LuV", "ZPM", "UV", "UHV", "UEV", "UIV", "UMV", "UXV", "MAX"};
+    public static final String[] VN = new String[]{"ULV", "LV", "MV", "HV", "EV", "IV", "LuV", "ZPM", "UV", "UHV", "UEV", "UIV", "UXV", "OpV", "MAX"};
 
     /**
      * The short names for the voltages, formatted for text
@@ -88,20 +91,20 @@ public class GTValues {
     public static final String[] VNF = new String[]{
             DARK_GRAY + "ULV", GRAY + "LV", AQUA + "MV",
             GOLD + "HV", DARK_PURPLE + "EV", DARK_BLUE + "IV",
-            LIGHT_PURPLE + "LuV", WHITE + "ZPM", DARK_AQUA + "UV",
+            LIGHT_PURPLE + "LuV", RED + "ZPM", DARK_AQUA + "UV",
             DARK_RED + "UHV", GREEN + "UEV", DARK_GREEN + "UIV",
-            YELLOW + "UMV", BLUE + "UXV", RED + "MAX"};
+            YELLOW + "UXV", BLUE + "OpV", RED.toString() + BOLD + "MAX"};
 
     /**
      * Color values for the voltages
      */
-    public static final int[] VC = new int[]{0xB4B4B4, 0xDCDCDC, 0xFF6400, 0xFFFF1E, 0x808080, 0xF0F0F5, 0xDCDCF5, 0xC8C8F5, 0xB4B4F5, 0xA0A0F5, 0x8C8CF5, 0x7878F5, 0x6464F5, 0x5050F5, 0x2828F5};
+    public static final int[] VC = new int[]{0xC80000, 0xDCDCDC, 0xFF6400, 0xFFFF1E, 0x808080, 0xF0F0F5, 0xE99797, 0x7EC3C4, 0x7EB07E, 0xBF74C0, 0x0B5CFE, 0x914E91, 0x488748, 0x8C0000, 0x2828F5};
 
     /**
      * The long names for the voltages
      */
     public static final String[] VOLTAGE_NAMES = new String[]{"Ultra Low Voltage", "Low Voltage", "Medium Voltage", "High Voltage", "Extreme Voltage", "Insane Voltage", "Ludicrous Voltage", "ZPM Voltage", "Ultimate Voltage",
-            "Highly Ultimate Voltage", "Extremely Ultimate Voltage", "Insanely Ultimate Voltage", "Mega Ultimate Voltage", "Extended Mega Ultimate Voltage", "Maximum Voltage"};
+            "Ultra High Voltage", "Ultra Excessive Voltage", "Ultra Immense Voltage", "Ultra Extreme Voltage", "Overpowered Voltage", "Maximum Voltage"};
 
     /**
      * ModID strings, since they are quite common parameters
@@ -113,11 +116,14 @@ public class GTValues {
             MODID_CTM = "ctm",
             MODID_CC = "cubicchunks",
             MODID_AR = "advancedrocketry",
+            MODID_ECORE = "endercore",
             MODID_EIO = "enderio",
             MODID_BC = "buildcraftcore",
             MODID_COFH = "cofhcore",
             MODID_APPENG = "appliedenergistics2",
-            MODID_JEI = "jei";
+            MODID_JEI = "jei",
+            MODID_GROOVYSCRIPT = "groovyscript",
+            MODID_NC = "nuclearcraft";
 
     private static Boolean isClient;
 
@@ -126,9 +132,11 @@ public class GTValues {
         return isClient;
     }
 
-    @Deprecated
-    public static boolean isModLoaded(String modid) {
-        return Loader.isModLoaded(modid);
+    private static Boolean isDeobf;
+
+    public static boolean isDeobfEnvironment() {
+        if (isDeobf == null) isDeobf = FMLLaunchHandler.isDeobfuscatedEnvironment();
+        return isDeobf;
     }
 
     /**
@@ -145,5 +153,10 @@ public class GTValues {
     public static Supplier<Boolean> FOOLS = () -> {
         String[] yearMonthDay = LocalDate.now().toString().split("-");
         return yearMonthDay[1].equals("04") && yearMonthDay[2].equals("01");
+    };
+
+    public static Supplier<Boolean> XMAS = () -> {
+        String[] yearMonthDay = LocalDate.now().toString().split("-");
+        return yearMonthDay[1].equals("12") && (yearMonthDay[2].equals("24") || yearMonthDay[2].equals("25"));
     };
 }

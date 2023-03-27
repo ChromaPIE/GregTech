@@ -6,8 +6,8 @@ import gregtech.api.gui.GuiTextures;
 import gregtech.api.gui.ModularUI;
 import gregtech.api.gui.widgets.ProgressWidget.MoveType;
 import gregtech.api.metatileentity.MetaTileEntity;
-import gregtech.api.metatileentity.MetaTileEntityHolder;
 import gregtech.api.metatileentity.SteamMetaTileEntity;
+import gregtech.api.metatileentity.interfaces.IGregTechTileEntity;
 import gregtech.api.recipes.RecipeMap;
 import gregtech.api.recipes.RecipeMaps;
 import gregtech.client.renderer.texture.Textures;
@@ -16,8 +16,11 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.Blocks;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.EnumFacing;
+import net.minecraft.util.EnumParticleTypes;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.fluids.IFluidTank;
+import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 import net.minecraftforge.items.IItemHandlerModifiable;
 
 public class SteamRockBreaker extends SteamMetaTileEntity {
@@ -34,7 +37,7 @@ public class SteamRockBreaker extends SteamMetaTileEntity {
     }
 
     @Override
-    public MetaTileEntity createMetaTileEntity(MetaTileEntityHolder holder) {
+    public MetaTileEntity createMetaTileEntity(IGregTechTileEntity tileEntity) {
         return new SteamRockBreaker(metaTileEntityId, isHighPressure);
     }
 
@@ -102,6 +105,12 @@ public class SteamRockBreaker extends SteamMetaTileEntity {
         if (data.hasKey("hasValidFluids")) {
             this.hasValidFluids = data.getBoolean("hasValidFluids");
         }
+    }
+
+    @SideOnly(Side.CLIENT)
+    @Override
+    protected void randomDisplayTick(float x, float y, float z, EnumParticleTypes flame, EnumParticleTypes smoke) {
+        getWorld().spawnParticle(EnumParticleTypes.SMOKE_NORMAL, x, y + 0.4F, z, 0, 0, 0);
     }
 
     protected class SteamRockBreakerRecipeLogic extends RecipeLogicSteam {

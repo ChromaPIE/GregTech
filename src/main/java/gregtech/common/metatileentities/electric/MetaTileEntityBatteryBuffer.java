@@ -14,9 +14,11 @@ import gregtech.api.gui.ModularUI;
 import gregtech.api.gui.ModularUI.Builder;
 import gregtech.api.gui.widgets.SlotWidget;
 import gregtech.api.metatileentity.*;
+import gregtech.api.metatileentity.interfaces.IGregTechTileEntity;
 import gregtech.api.util.GTUtility;
 import gregtech.client.renderer.texture.Textures;
 import gregtech.client.utils.PipelineUtil;
+import gregtech.common.ConfigHolder;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
@@ -52,7 +54,7 @@ public class MetaTileEntityBatteryBuffer extends TieredMetaTileEntity implements
     }
 
     @Override
-    public MetaTileEntity createMetaTileEntity(MetaTileEntityHolder holder) {
+    public MetaTileEntity createMetaTileEntity(IGregTechTileEntity tileEntity) {
         return new MetaTileEntityBatteryBuffer(metaTileEntityId, getTier(), inventorySize);
     }
 
@@ -88,7 +90,7 @@ public class MetaTileEntityBatteryBuffer extends TieredMetaTileEntity implements
     @Override
     public void setWorkingEnabled(boolean isActivationAllowed) {
         this.allowEnergyOutput = isActivationAllowed;
-        getHolder().notifyBlockUpdate();
+        notifyBlockUpdate();
     }
 
     @Override
@@ -108,7 +110,8 @@ public class MetaTileEntityBatteryBuffer extends TieredMetaTileEntity implements
             @Override
             public ItemStack insertItem(int slot, @Nonnull ItemStack stack, boolean simulate) {
                 IElectricItem electricItem = stack.getCapability(GregtechCapabilities.CAPABILITY_ELECTRIC_ITEM, null);
-                if ((electricItem != null && getTier() >= electricItem.getTier()) || stack.hasCapability(CapabilityEnergy.ENERGY, null)) {
+                if ((electricItem != null && getTier() >= electricItem.getTier()) ||
+                        (ConfigHolder.compat.energy.nativeEUToFE && stack.hasCapability(CapabilityEnergy.ENERGY, null))) {
                     return super.insertItem(slot, stack, simulate);
                 }
                 return stack;
@@ -161,10 +164,16 @@ public class MetaTileEntityBatteryBuffer extends TieredMetaTileEntity implements
         String tierName = GTValues.VNF[getTier()];
 
         tooltip.add(I18n.format("gregtech.universal.tooltip.item_storage_capacity", inventorySize));
-        tooltip.add(I18n.format("gregtech.universal.tooltip.voltage_in", energyContainer.getInputVoltage(), tierName));
-        tooltip.add(I18n.format("gregtech.universal.tooltip.voltage_out", energyContainer.getOutputVoltage(), tierName));
+        tooltip.add(I18n.format("gregtech.universal.tooltip.voltage_in_out", energyContainer.getInputVoltage(), tierName));
         tooltip.add(I18n.format("gregtech.universal.tooltip.amperage_in_till", energyContainer.getInputAmperage()));
         tooltip.add(I18n.format("gregtech.universal.tooltip.amperage_out_till", energyContainer.getOutputAmperage()));
+    }
+
+    @Override
+    public void addToolUsages(ItemStack stack, @Nullable World world, List<String> tooltip, boolean advanced) {
+        tooltip.add(I18n.format("gregtech.tool_action.screwdriver.access_covers"));
+        tooltip.add(I18n.format("gregtech.tool_action.wrench.set_facing"));
+        super.addToolUsages(stack, world, tooltip, advanced);
     }
 
     @Override

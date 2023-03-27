@@ -2,11 +2,9 @@ package gregtech.common.covers.filter;
 
 import gregtech.api.gui.Widget;
 import gregtech.api.util.IDirtyNotifiable;
-import gregtech.api.util.ItemStackKey;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 
-import java.util.Set;
 import java.util.function.Consumer;
 
 public abstract class ItemFilter {
@@ -28,7 +26,7 @@ public abstract class ItemFilter {
 
     public abstract boolean showGlobalTransferLimitSlider();
 
-    public abstract int getSlotTransferLimit(Object matchSlot, Set<ItemStackKey> matchedStacks, int globalTransferLimit);
+    public abstract int getSlotTransferLimit(Object matchSlot, int globalTransferLimit);
 
     public abstract Object matchItemStack(ItemStack itemStack);
 

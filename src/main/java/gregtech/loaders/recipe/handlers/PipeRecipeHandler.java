@@ -82,11 +82,11 @@ public class PipeRecipeHandler {
                     .duration((int) (material.getMass()))
                     .EUt(6 * getVoltageMultiplier(material))
                     .buildAndRegister();
+        } else {
+            ModHandler.addShapedRecipe(String.format("tiny_%s_pipe", material),
+                    GTUtility.copyAmount(2, pipeStack), " s ", "hXw",
+                    'X', new UnificationEntry(OrePrefix.plate, material));
         }
-
-        ModHandler.addShapedRecipe(String.format("tiny_%s_pipe", material.toString()),
-                GTUtility.copyAmount(8, pipeStack), "XXX", "h w", "XXX",
-                'X', new UnificationEntry(OrePrefix.plate, material));
     }
 
     private static void processPipeSmall(OrePrefix pipePrefix, Material material, IMaterialProperty<?> property) {
@@ -107,11 +107,11 @@ public class PipeRecipeHandler {
                     .duration((int) (material.getMass()))
                     .EUt(6 * getVoltageMultiplier(material))
                     .buildAndRegister();
+        } else {
+            ModHandler.addShapedRecipe(String.format("small_%s_pipe", material),
+                    pipeStack, "wXh",
+                    'X', new UnificationEntry(OrePrefix.plate, material));
         }
-
-        ModHandler.addShapedRecipe(String.format("small_%s_pipe", material.toString()),
-                GTUtility.copyAmount(6, pipeStack), "XwX", "X X", "XhX",
-                'X', new UnificationEntry(OrePrefix.plate, material));
     }
 
     private static void processPipeNormal(OrePrefix pipePrefix, Material material, IMaterialProperty<?> property) {
@@ -132,11 +132,11 @@ public class PipeRecipeHandler {
                     .duration((int) material.getMass() * 3)
                     .EUt(6 * getVoltageMultiplier(material))
                     .buildAndRegister();
+        } else {
+            ModHandler.addShapedRecipe(String.format("medium_%s_pipe", material),
+                    pipeStack, "XXX", "w h",
+                    'X', new UnificationEntry(OrePrefix.plate, material));
         }
-
-        ModHandler.addShapedRecipe(String.format("medium_%s_pipe", material.toString()),
-                GTUtility.copyAmount(2, pipeStack), "XXX", "w h", "XXX",
-                'X', new UnificationEntry(OrePrefix.plate, material));
     }
 
     private static void processPipeLarge(OrePrefix pipePrefix, Material material, IMaterialProperty<?> property) {
@@ -157,11 +157,11 @@ public class PipeRecipeHandler {
                     .duration((int) material.getMass() * 6)
                     .EUt(6 * getVoltageMultiplier(material))
                     .buildAndRegister();
+        } else {
+            ModHandler.addShapedRecipe(String.format("large_%s_pipe", material),
+                    pipeStack, "XXX", "w h", "XXX",
+                    'X', new UnificationEntry(OrePrefix.plate, material));
         }
-
-        ModHandler.addShapedRecipe(String.format("large_%s_pipe", material.toString()),
-                pipeStack, "XhX", "X X", "XwX",
-                'X', new UnificationEntry(OrePrefix.plate, material));
     }
 
     private static void processPipeHuge(OrePrefix pipePrefix, Material material, IMaterialProperty<?> property) {
@@ -182,25 +182,23 @@ public class PipeRecipeHandler {
                     .duration((int) material.getMass() * 24)
                     .EUt(6 * getVoltageMultiplier(material))
                     .buildAndRegister();
-        }
-
-        if (OrePrefix.plateDouble.doGenerateItem(material)) {
-            ModHandler.addShapedRecipe(String.format("huge_%s_pipe", material.toString()),
-                    pipeStack, "XhX", "X X", "XwX",
+        } else if (OrePrefix.plateDouble.doGenerateItem(material)) {
+            ModHandler.addShapedRecipe(String.format("huge_%s_pipe", material),
+                    pipeStack, "XXX", "w h", "XXX",
                     'X', new UnificationEntry(OrePrefix.plateDouble, material));
         }
     }
 
     private static void processPipeQuadruple(OrePrefix pipePrefix, Material material, FluidPipeProperties property) {
-        ItemStack normalPipe = OreDictUnifier.get(OrePrefix.pipeNormalFluid, material);
+        ItemStack smallPipe = OreDictUnifier.get(OrePrefix.pipeSmallFluid, material);
         ItemStack quadPipe = OreDictUnifier.get(pipePrefix, material);
         ModHandler.addShapedRecipe(String.format("quadruple_%s_pipe", material.toString()),
                 quadPipe, "XX", "XX",
-                'X', normalPipe);
+                'X', smallPipe);
 
-        RecipeMaps.ASSEMBLER_RECIPES.recipeBuilder()
-                .inputs(GTUtility.copyAmount(4, normalPipe))
-                .circuitMeta(1)
+        RecipeMaps.PACKER_RECIPES.recipeBuilder()
+                .inputs(GTUtility.copyAmount(4, smallPipe))
+                .circuitMeta(4)
                 .outputs(quadPipe)
                 .duration(30)
                 .EUt(VA[ULV])
@@ -214,9 +212,9 @@ public class PipeRecipeHandler {
                 nonuplePipe, "XXX", "XXX", "XXX",
                 'X', smallPipe);
 
-        RecipeMaps.ASSEMBLER_RECIPES.recipeBuilder()
+        RecipeMaps.PACKER_RECIPES.recipeBuilder()
                 .inputs(GTUtility.copyAmount(9, smallPipe))
-                .circuitMeta(2)
+                .circuitMeta(9)
                 .outputs(nonuplePipe)
                 .duration(40)
                 .EUt(VA[ULV])

@@ -5,25 +5,29 @@ import codechicken.lib.raytracer.CuboidRayTraceResult;
 import codechicken.lib.render.CCRenderState;
 import codechicken.lib.render.pipeline.ColourMultiplier;
 import codechicken.lib.render.pipeline.IVertexOperation;
-import codechicken.lib.vec.Cuboid6;
 import codechicken.lib.vec.Matrix4;
+import gregtech.api.capability.impl.FilteredFluidHandler;
 import gregtech.api.capability.impl.ThermalFluidHandlerItemStack;
+import gregtech.api.fluids.MaterialFluid;
+import gregtech.api.fluids.fluidType.FluidType;
+import gregtech.api.fluids.fluidType.FluidTypes;
 import gregtech.api.gui.ModularUI;
+import gregtech.api.items.toolitem.ToolClasses;
 import gregtech.api.metatileentity.MetaTileEntity;
-import gregtech.api.metatileentity.MetaTileEntityHolder;
+import gregtech.api.metatileentity.interfaces.IGregTechTileEntity;
 import gregtech.api.recipes.ModHandler;
-import gregtech.client.renderer.texture.Textures;
 import gregtech.api.unification.material.Material;
+import gregtech.api.unification.material.properties.FluidPipeProperties;
+import gregtech.api.unification.material.properties.PropertyKey;
 import gregtech.api.util.GTUtility;
-import gregtech.api.util.WatchedFluidTank;
-import gregtech.client.renderer.texture.custom.DrumRenderer;
+import gregtech.client.renderer.texture.Textures;
+import gregtech.client.utils.TooltipHelper;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.network.PacketBuffer;
-import net.minecraft.util.BlockRenderLayer;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.ResourceLocation;
@@ -32,9 +36,11 @@ import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.world.World;
 import net.minecraftforge.common.capabilities.ICapabilityProvider;
 import net.minecraftforge.common.util.Constants;
+import net.minecraftforge.fluids.Fluid;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.FluidTank;
 import net.minecraftforge.fluids.FluidUtil;
+import net.minecraftforge.fluids.capability.CapabilityFluidHandler;
 import net.minecraftforge.fluids.capability.templates.FluidHandlerItemStack;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
@@ -45,25 +51,29 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.List;
 
-import static gregtech.api.capability.GregtechDataCodes.*;
+import static gregtech.api.capability.GregtechDataCodes.UPDATE_AUTO_OUTPUT;
+import static gregtech.api.recipes.ModHandler.isMaterialWood;
 import static gregtech.api.unification.material.info.MaterialFlags.FLAMMABLE;
 
 public class MetaTileEntityDrum extends MetaTileEntity {
 
     private final int tankSize;
     private final Material material;
-    private SyncFluidTank fluidTank;
+    private FilteredFluidHandler fluidTank;
     private boolean isAutoOutput = false;
 
     public MetaTileEntityDrum(ResourceLocation metaTileEntityId, Material material, int tankSize) {
         super(metaTileEntityId);
         this.tankSize = tankSize;
         this.material = material;
+        if (!isMaterialWood(material) && !this.material.hasProperty(PropertyKey.FLUID_PIPE)) {
+            throw new IllegalArgumentException(String.format("Material %s requires FluidPipePropety for Drums", material));
+        }
         initializeInventory();
     }
 
     @Override
-    public MetaTileEntity createMetaTileEntity(MetaTileEntityHolder holder) {
+    public MetaTileEntity createMetaTileEntity(IGregTechTileEntity tileEntity) {
         return new MetaTileEntityDrum(metaTileEntityId, material, tankSize);
     }
 
@@ -88,7 +98,7 @@ public class MetaTileEntityDrum extends MetaTileEntity {
 
     @Override
     public String getHarvestTool() {
-        return material.toString().contains("wood") ? "axe" : "pickaxe";
+        return isMaterialWood(material) ? ToolClasses.AXE : ToolClasses.WRENCH;
     }
 
     @Override
@@ -99,7 +109,33 @@ public class MetaTileEntityDrum extends MetaTileEntity {
     @Override
     protected void initializeInventory() {
         super.initializeInventory();
-        this.fluidTank = new SyncFluidTank(tankSize);
+        this.fluidTank = new FilteredFluidHandler(tankSize)
+                .setFillPredicate(stack -> {
+                    if (stack == null || stack.getFluid() == null) return false;
+
+                    Fluid fluid = stack.getFluid();
+                    if (isMaterialWood(material)) {
+                        boolean meetsGTRequirements = true;
+                        if (fluid instanceof MaterialFluid) {
+                            FluidType fluidType = ((MaterialFluid) fluid).getFluidType();
+                            meetsGTRequirements = fluidType != FluidTypes.ACID && fluidType != FluidTypes.PLASMA;
+                        }
+                        return fluid.getTemperature() <= 340 && !fluid.isGaseous() && meetsGTRequirements;
+                    }
+
+                    FluidPipeProperties pipeProperties = material.getProperty(PropertyKey.FLUID_PIPE);
+                    if (fluid.getTemperature() > pipeProperties.getMaxFluidTemperature()) return false;
+                    // fluids less than 120K are cryogenic
+                    if (fluid.getTemperature() < 120 && !pipeProperties.isCryoProof()) return false;
+                    if (fluid.isGaseous() && !pipeProperties.isGasProof()) return false;
+
+                    if (fluid instanceof MaterialFluid) {
+                        FluidType fluidType = ((MaterialFluid) fluid).getFluidType();
+                        if (fluidType == FluidTypes.ACID && !pipeProperties.isAcidProof()) return false;
+                        if (fluidType == FluidTypes.PLASMA && !pipeProperties.isPlasmaProof()) return false;
+                    }
+                    return true;
+                });
         this.fluidInventory = fluidTank;
     }
 
@@ -109,7 +145,6 @@ public class MetaTileEntityDrum extends MetaTileEntity {
         if (itemStack.hasKey(FluidHandlerItemStack.FLUID_NBT_KEY, Constants.NBT.TAG_COMPOUND)) {
             FluidStack fluidStack = FluidStack.loadFluidStackFromNBT(itemStack.getCompoundTag(FluidHandlerItemStack.FLUID_NBT_KEY));
             fluidTank.setFluid(fluidStack);
-            fluidTank.onContentsChanged();
         }
     }
 
@@ -126,8 +161,17 @@ public class MetaTileEntityDrum extends MetaTileEntity {
 
     @Override
     public ICapabilityProvider initItemStackCapabilities(ItemStack itemStack) {
-        int maxTemperature = (ModHandler.isMaterialWood(material) || material.hasFlag(FLAMMABLE)) ? 325 : Integer.MAX_VALUE;
-        return new ThermalFluidHandlerItemStack(itemStack, tankSize, Integer.MIN_VALUE, maxTemperature);
+        if (isMaterialWood(material) || material.hasFlag(FLAMMABLE)) {
+            return new ThermalFluidHandlerItemStack(itemStack, tankSize, 340, false, false, false, false);
+        }
+
+        FluidPipeProperties pipeProperties = material.getProperty(PropertyKey.FLUID_PIPE);
+        return new ThermalFluidHandlerItemStack(itemStack, tankSize,
+                pipeProperties.getMaxFluidTemperature(),
+                pipeProperties.isGasProof(),
+                pipeProperties.isAcidProof(),
+                pipeProperties.isCryoProof(),
+                pipeProperties.isPlasmaProof());
     }
 
     @Override
@@ -161,19 +205,9 @@ public class MetaTileEntityDrum extends MetaTileEntity {
     @Override
     public void receiveCustomData(int dataId, PacketBuffer buf) {
         super.receiveCustomData(dataId, buf);
-        if (dataId == SYNC_FLUID_CONTENT) {
-            FluidStack fluidStack = null;
-            if (buf.readBoolean()) {
-                try {
-                    NBTTagCompound tagCompound = buf.readCompoundTag();
-                    fluidStack = FluidStack.loadFluidStackFromNBT(tagCompound);
-                } catch (IOException ignored) {
-                }
-            }
-            fluidTank.setFluid(fluidStack);
-        } else if (dataId == UPDATE_AUTO_OUTPUT) {
+        if (dataId == UPDATE_AUTO_OUTPUT) {
             this.isAutoOutput = buf.readBoolean();
-            getHolder().scheduleChunkForRenderUpdate();
+            scheduleRenderUpdate();
         }
     }
 
@@ -189,7 +223,10 @@ public class MetaTileEntityDrum extends MetaTileEntity {
 
     @Override
     public boolean onRightClick(EntityPlayer playerIn, EnumHand hand, EnumFacing facing, CuboidRayTraceResult hitResult) {
-        return getWorld().isRemote || (FluidUtil.interactWithFluidHandler(playerIn, hand, fluidTank) && !playerIn.isSneaking());
+        if (playerIn.getHeldItem(hand).hasCapability(CapabilityFluidHandler.FLUID_HANDLER_ITEM_CAPABILITY, null)) {
+            return getWorld().isRemote || (!playerIn.isSneaking() && FluidUtil.interactWithFluidHandler(playerIn, hand, fluidTank));
+        }
+        return false;
     }
 
     @Override
@@ -209,7 +246,7 @@ public class MetaTileEntityDrum extends MetaTileEntity {
     private void toggleOutput() {
         isAutoOutput = !isAutoOutput;
         if (!getWorld().isRemote) {
-            getHolder().notifyBlockUpdate();
+            notifyBlockUpdate();
             writeCustomData(UPDATE_AUTO_OUTPUT, buf -> buf.writeBoolean(isAutoOutput));
             markDirty();
         }
@@ -218,7 +255,7 @@ public class MetaTileEntityDrum extends MetaTileEntity {
     @Override
     @SideOnly(Side.CLIENT)
     public Pair<TextureAtlasSprite, Integer> getParticleTexture() {
-        if (ModHandler.isMaterialWood(material)) {
+        if(isMaterialWood(material)) {
             return Pair.of(Textures.WOODEN_DRUM.getParticleTexture(), getPaintingColorForRendering());
         } else {
             int color = ColourRGBA.multiply(
@@ -231,7 +268,7 @@ public class MetaTileEntityDrum extends MetaTileEntity {
 
     @Override
     public void renderMetaTileEntity(CCRenderState renderState, Matrix4 translation, IVertexOperation[] pipeline) {
-        if (material.toString().contains("wood")) {
+        if(isMaterialWood(material)) {
             ColourMultiplier multiplier = new ColourMultiplier(GTUtility.convertRGBtoOpaqueRGBA_CL(getPaintingColorForRendering()));
             Textures.WOODEN_DRUM.render(renderState, translation, ArrayUtils.add(pipeline, multiplier), getFrontFacing());
         } else {
@@ -239,6 +276,7 @@ public class MetaTileEntityDrum extends MetaTileEntity {
             Textures.DRUM.render(renderState, translation, ArrayUtils.add(pipeline, multiplier), getFrontFacing());
             Textures.DRUM_OVERLAY.render(renderState, translation, pipeline);
         }
+
         if (isAutoOutput) {
             Textures.STEAM_VENT_OVERLAY.renderSided(EnumFacing.DOWN, renderState, translation, pipeline);
         }
@@ -253,6 +291,24 @@ public class MetaTileEntityDrum extends MetaTileEntity {
     @SideOnly(Side.CLIENT)
     public void addInformation(ItemStack stack, @Nullable World player, List<String> tooltip, boolean advanced) {
         tooltip.add(I18n.format("gregtech.universal.tooltip.fluid_storage_capacity", tankSize));
+        if (TooltipHelper.isShiftDown()) {
+            if (ModHandler.isMaterialWood(material)) {
+                tooltip.add(I18n.format("gregtech.fluid_pipe.max_temperature", 340));
+                tooltip.add(I18n.format("gregtech.fluid_pipe.not_gas_proof"));
+            } else {
+                FluidPipeProperties pipeProperties = material.getProperty(PropertyKey.FLUID_PIPE);
+                tooltip.add(I18n.format("gregtech.fluid_pipe.max_temperature", pipeProperties.getMaxFluidTemperature()));
+                if (pipeProperties.isGasProof()) tooltip.add(I18n.format("gregtech.fluid_pipe.gas_proof"));
+                if (pipeProperties.isAcidProof()) tooltip.add(I18n.format("gregtech.fluid_pipe.acid_proof"));
+                if (pipeProperties.isCryoProof()) tooltip.add(I18n.format("gregtech.fluid_pipe.cryo_proof"));
+                if (pipeProperties.isPlasmaProof()) tooltip.add(I18n.format("gregtech.fluid_pipe.plasma_proof"));
+            }
+            tooltip.add(I18n.format("gregtech.tool_action.screwdriver.access_covers"));
+            tooltip.add(I18n.format("gregtech.tool_action.screwdriver.auto_output_down"));
+            tooltip.add(I18n.format("gregtech.tool_action.crowbar"));
+        } else {
+            tooltip.add(I18n.format("gregtech.tooltip.tool_fluid_hold_shift"));
+        }
 
         NBTTagCompound tagCompound = stack.getTagCompound();
         if (tagCompound != null && tagCompound.hasKey("Fluid", Constants.NBT.TAG_COMPOUND)) {
@@ -260,6 +316,12 @@ public class MetaTileEntityDrum extends MetaTileEntity {
             if (fluidStack == null) return;
             tooltip.add(I18n.format("gregtech.machine.fluid_tank.fluid", fluidStack.amount, I18n.format(fluidStack.getUnlocalizedName())));
         }
+    }
+
+    // Override this so that we can control the "Hold SHIFT" tooltip manually
+    @Override
+    public boolean showToolUsages() {
+        return false;
     }
 
     @Override
@@ -287,40 +349,4 @@ public class MetaTileEntityDrum extends MetaTileEntity {
         return false;
     }
 
-    private class SyncFluidTank extends WatchedFluidTank {
-
-        public SyncFluidTank(int capacity) {
-            super(capacity);
-        }
-
-        @Override
-        public boolean canFillFluidType(FluidStack fluid) {
-            if (material.toString().contains("wood"))
-                return !fluid.getFluid().isGaseous() && fluid.getFluid().getTemperature() <= 325;
-            return true;
-        }
-
-        @Override
-        protected void onFluidChanged(FluidStack newFluidStack, FluidStack oldFluidStack) {
-            if (getWorld() != null && !getWorld().isRemote) {
-                onContentsChangedOnServer(newFluidStack, oldFluidStack);
-            }
-        }
-
-        private void onContentsChangedOnServer(FluidStack newFluid, FluidStack oldFluidStack) {
-
-            if (newFluid != null && newFluid.isFluidEqual(oldFluidStack)) {
-                writeCustomData(SYNC_FLUID_AMOUNT, buf -> buf.writeInt(newFluid.amount));
-            } else {
-                writeCustomData(SYNC_FLUID_CONTENT, buf -> {
-                    buf.writeBoolean(newFluid != null);
-                    if (newFluid != null) {
-                        NBTTagCompound tagCompound = new NBTTagCompound();
-                        newFluid.writeToNBT(tagCompound);
-                        buf.writeCompoundTag(tagCompound);
-                    }
-                });
-            }
-        }
-    }
 }

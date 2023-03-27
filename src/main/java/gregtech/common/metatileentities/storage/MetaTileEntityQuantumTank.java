@@ -7,7 +7,7 @@ import codechicken.lib.render.pipeline.IVertexOperation;
 import codechicken.lib.vec.Matrix4;
 import gregtech.api.capability.GregtechTileCapabilities;
 import gregtech.api.capability.IActiveOutputSide;
-import gregtech.api.capability.impl.FilteredFluidHandler;
+import gregtech.api.capability.impl.FilteredItemHandler;
 import gregtech.api.capability.impl.FluidHandlerProxy;
 import gregtech.api.capability.impl.FluidTankList;
 import gregtech.api.capability.impl.ThermalFluidHandlerItemStack;
@@ -15,22 +15,25 @@ import gregtech.api.cover.ICoverable;
 import gregtech.api.gui.GuiTextures;
 import gregtech.api.gui.ModularUI;
 import gregtech.api.gui.widgets.*;
+import gregtech.api.metatileentity.IFastRenderMetaTileEntity;
 import gregtech.api.metatileentity.ITieredMetaTileEntity;
 import gregtech.api.metatileentity.MetaTileEntity;
-import gregtech.api.metatileentity.MetaTileEntityHolder;
-import gregtech.client.renderer.texture.Textures;
+import gregtech.api.metatileentity.interfaces.IGregTechTileEntity;
+import gregtech.api.util.GTLog;
 import gregtech.api.util.GTUtility;
-import gregtech.api.gui.widgets.PhantomTankWidget;
+import gregtech.client.renderer.texture.Textures;
+import gregtech.client.renderer.texture.custom.QuantumStorageRenderer;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.nbt.NBTTagList;
 import net.minecraft.network.PacketBuffer;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.EnumHand;
-import net.minecraft.util.NonNullList;
 import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.world.World;
@@ -41,43 +44,38 @@ import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.FluidTank;
 import net.minecraftforge.fluids.capability.CapabilityFluidHandler;
 import net.minecraftforge.fluids.capability.IFluidHandler;
+import net.minecraftforge.items.IItemHandlerModifiable;
 import net.minecraftforge.items.ItemStackHandler;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.tuple.Pair;
 
 import javax.annotation.Nullable;
+import java.io.IOException;
 import java.util.List;
 
 import static gregtech.api.capability.GregtechDataCodes.*;
 import static net.minecraftforge.fluids.capability.templates.FluidHandlerItemStack.FLUID_NBT_KEY;
 
-public class MetaTileEntityQuantumTank extends MetaTileEntity implements ITieredMetaTileEntity, IActiveOutputSide {
-
-    // This field (ranging from 1 to 99) is the percentage filled
-    // at which the Partial Void feature will start voiding Fluids.
-    private final int VOID_PERCENT = 95;
+public class MetaTileEntityQuantumTank extends MetaTileEntity implements ITieredMetaTileEntity, IActiveOutputSide, IFastRenderMetaTileEntity {
 
     private final int tier;
     private final int maxFluidCapacity;
-    private final int maxPartialFluidCapacity;
-    private FluidTank fluidTank;
-    private final ItemStackHandler containerInventory;
+    protected FluidTank fluidTank;
     private boolean autoOutputFluids;
     private EnumFacing outputFacing;
     private boolean allowInputFromOutputSide = false;
     protected IFluidHandler outputFluidInventory;
 
-    private boolean isLocked;
-    private boolean isVoiding;
-    private boolean isPartialVoiding;
-    private FluidTank lockedFluid;
+    private FluidStack previousFluid;
+    private boolean locked;
+    private boolean voiding;
+    @Nullable
+    private FluidStack lockedFluid;
 
     public MetaTileEntityQuantumTank(ResourceLocation metaTileEntityId, int tier, int maxFluidCapacity) {
         super(metaTileEntityId);
         this.tier = tier;
         this.maxFluidCapacity = maxFluidCapacity;
-        this.maxPartialFluidCapacity = (int) Math.round(maxFluidCapacity * (VOID_PERCENT / 100.0));
-        this.containerInventory = new ItemStackHandler(2);
         initializeInventory();
     }
 
@@ -89,8 +87,7 @@ public class MetaTileEntityQuantumTank extends MetaTileEntity implements ITiered
     @Override
     protected void initializeInventory() {
         super.initializeInventory();
-        this.lockedFluid = new FluidTank(1);
-        this.fluidTank = new FilteredFluidHandler(maxFluidCapacity).setFillPredicate(fs -> lockedFluid.getFluid() == null || fs.isFluidEqual(lockedFluid.getFluid()));
+        this.fluidTank = new QuantumFluidTank(maxFluidCapacity);
         this.fluidInventory = fluidTank;
         this.importFluids = new FluidTankList(false, fluidTank);
         this.exportFluids = new FluidTankList(false, fluidTank);
@@ -111,23 +108,14 @@ public class MetaTileEntityQuantumTank extends MetaTileEntity implements ITiered
         super.update();
         EnumFacing currentOutputFacing = getOutputFacing();
         if (!getWorld().isRemote) {
-            if (isVoiding) {
-                fluidTank.setFluid(null);
-            } else if (isPartialVoiding && fluidTank.getFluid() != null) {
-                if (fluidTank.getFluidAmount() > maxPartialFluidCapacity) {
-                    fluidTank.setFluid(GTUtility.copyAmount(maxPartialFluidCapacity, fluidTank.getFluid()));
-                }
-            }
-            if (isLocked && lockedFluid.getFluid() == null && fluidTank.getFluid() != null) {
-                this.lockedFluid.setFluid(GTUtility.copyAmount(0, fluidTank.getFluid()));
-            }
-            if (lockedFluid.getFluid() != null && !isLocked) {
-                setLocked(true);
-            }
-            fillContainerFromInternalTank(containerInventory, containerInventory, 0, 1);
-            fillInternalTankFromFluidContainer(containerInventory, containerInventory, 0, 1);
+            fillContainerFromInternalTank();
+            fillInternalTankFromFluidContainer();
             if (isAutoOutputFluids()) {
                 pushFluidsIntoNearbyHandlers(currentOutputFacing);
+            }
+            if (previousFluid == null || !previousFluid.equals(fluidTank.getFluid()) || previousFluid.amount != fluidTank.getFluidAmount()) {
+                previousFluid = fluidTank.getFluid() == null ? null : fluidTank.getFluid().copy();
+                writeCustomData(UPDATE_FLUID, buf -> buf.writeCompoundTag(fluidTank.getFluid() == null ? null : fluidTank.getFluid().writeToNBT(new NBTTagCompound())));
             }
         }
     }
@@ -135,60 +123,84 @@ public class MetaTileEntityQuantumTank extends MetaTileEntity implements ITiered
     @Override
     public NBTTagCompound writeToNBT(NBTTagCompound data) {
         super.writeToNBT(data);
-        data.setTag("ContainerInventory", containerInventory.serializeNBT());
         data.setTag("FluidInventory", fluidTank.writeToNBT(new NBTTagCompound()));
         data.setBoolean("AutoOutputFluids", autoOutputFluids);
         data.setInteger("OutputFacing", getOutputFacing().getIndex());
-        data.setBoolean("IsVoiding", isVoiding);
-        data.setBoolean("IsPartialVoiding", isPartialVoiding);
-        data.setBoolean("IsLocked", isLocked);
-        data.setTag("LockedFluid", lockedFluid.writeToNBT(new NBTTagCompound()));
+        data.setBoolean("IsVoiding", voiding);
+        data.setBoolean("IsLocked", locked);
+        if (locked && lockedFluid != null) {
+            data.setTag("LockedFluid", lockedFluid.writeToNBT(new NBTTagCompound()));
+        }
+        data.setBoolean("AllowInputFromOutputSideF", allowInputFromOutputSide);
         return data;
     }
 
     @Override
     public void readFromNBT(NBTTagCompound data) {
         super.readFromNBT(data);
-        this.containerInventory.deserializeNBT(data.getCompoundTag("ContainerInventory"));
+        if (data.hasKey("ContainerInventory")) {
+            legacyTankItemHandlerNBTReading(this, data.getCompoundTag("ContainerInventory"), 0, 1);
+        }
         this.fluidTank.readFromNBT(data.getCompoundTag("FluidInventory"));
         this.autoOutputFluids = data.getBoolean("AutoOutputFluids");
         this.outputFacing = EnumFacing.VALUES[data.getInteger("OutputFacing")];
-        this.isVoiding = data.getBoolean("IsVoiding");
-        this.isPartialVoiding = data.getBoolean("IsPartialVoiding");
-        this.isLocked = data.getBoolean("IsLocked");
-        this.lockedFluid.readFromNBT(data.getCompoundTag("LockedFluid"));
+        this.voiding = data.getBoolean("IsVoiding") || data.getBoolean("IsPartiallyVoiding"); // legacy save support
+        this.locked = data.getBoolean("IsLocked");
+        this.lockedFluid = this.locked ? FluidStack.loadFluidStackFromNBT(data.getCompoundTag("LockedFluid")) : null;
+        this.allowInputFromOutputSide = data.getBoolean("AllowInputFromOutputSideF");
     }
 
-    @Override
-    public void initFromItemStackData(NBTTagCompound itemStack) {
-        super.initFromItemStackData(itemStack);
-        if (itemStack.hasKey(FLUID_NBT_KEY, Constants.NBT.TAG_COMPOUND)) {
-            fluidTank.setFluid(FluidStack.loadFluidStackFromNBT(itemStack.getCompoundTag(FLUID_NBT_KEY)));
+    public static void legacyTankItemHandlerNBTReading(MetaTileEntity mte, NBTTagCompound nbt, int inputSlot, int outputSlot) {
+        if (mte == null || nbt == null) {
+            return;
+        }
+        NBTTagList items = nbt.getTagList("Items", Constants.NBT.TAG_COMPOUND);
+        if (mte.getExportItems().getSlots() < 1 || mte.getImportItems().getSlots() < 1 || inputSlot < 0 || outputSlot < 0 || inputSlot == outputSlot) {
+            return;
+        }
+        for (int i = 0; i < items.tagCount(); ++i) {
+            NBTTagCompound itemTags = items.getCompoundTagAt(i);
+            int slot = itemTags.getInteger("Slot");
+            if (slot == inputSlot) {
+                mte.getImportItems().setStackInSlot(0, new ItemStack(itemTags));
+            } else if (slot == outputSlot) {
+                mte.getExportItems().setStackInSlot(0, new ItemStack(itemTags));
+            }
         }
     }
 
     @Override
-    public void writeItemStackData(NBTTagCompound itemStack) {
-        super.writeItemStackData(itemStack);
-        FluidStack stack = fluidTank.getFluid();
+    public void initFromItemStackData(NBTTagCompound tag) {
+        super.initFromItemStackData(tag);
+        if (tag.hasKey(FLUID_NBT_KEY, Constants.NBT.TAG_COMPOUND)) {
+            this.fluidTank.setFluid(FluidStack.loadFluidStackFromNBT(tag.getCompoundTag(FLUID_NBT_KEY)));
+        }
+        if (tag.getBoolean("IsVoiding") || tag.getBoolean("IsPartialVoiding")) { // legacy save support
+            setVoiding(true);
+        }
+
+        this.lockedFluid = FluidStack.loadFluidStackFromNBT(tag.getCompoundTag("LockedFluid"));
+    }
+
+    @Override
+    public void writeItemStackData(NBTTagCompound tag) {
+        super.writeItemStackData(tag);
+        FluidStack stack = this.fluidTank.getFluid();
         if (stack != null && stack.amount > 0) {
-            itemStack.setTag(FLUID_NBT_KEY, stack.writeToNBT(new NBTTagCompound()));
+            tag.setTag(FLUID_NBT_KEY, stack.writeToNBT(new NBTTagCompound()));
+        }
+
+        if (this.voiding) {
+            tag.setBoolean("IsVoiding", true);
+        }
+
+        if (this.locked && this.lockedFluid != null) {
+            tag.setTag("LockedFluid", this.lockedFluid.writeToNBT(new NBTTagCompound()));
         }
     }
 
     @Override
-    protected boolean shouldSerializeInventories() {
-        return false;
-    }
-
-    @Override
-    public void clearMachineInventory(NonNullList<ItemStack> itemBuffer) {
-        super.clearMachineInventory(itemBuffer);
-        clearInventory(itemBuffer, containerInventory);
-    }
-
-    @Override
-    public MetaTileEntity createMetaTileEntity(MetaTileEntityHolder holder) {
+    public MetaTileEntity createMetaTileEntity(IGregTechTileEntity tileEntity) {
         return new MetaTileEntityQuantumTank(metaTileEntityId, tier, maxFluidCapacity);
     }
 
@@ -203,9 +215,20 @@ public class MetaTileEntityQuantumTank extends MetaTileEntity implements ITiered
     }
 
     @Override
+    protected IItemHandlerModifiable createImportItemHandler() {
+        return new FilteredItemHandler(1).setFillPredicate(FilteredItemHandler.getCapabilityFilter(CapabilityFluidHandler.FLUID_HANDLER_ITEM_CAPABILITY));
+    }
+
+    @Override
+    protected IItemHandlerModifiable createExportItemHandler() {
+        return new ItemStackHandler(1);
+    }
+
+    @Override
     public void renderMetaTileEntity(CCRenderState renderState, Matrix4 translation, IVertexOperation[] pipeline) {
-        Textures.VOLTAGE_CASINGS[tier].render(renderState, translation, ArrayUtils.add(pipeline,
-                new ColourMultiplier(GTUtility.convertRGBtoOpaqueRGBA_CL(getPaintingColorForRendering()))));
+        Textures.QUANTUM_STORAGE_RENDERER.renderMachine(renderState, translation,
+                ArrayUtils.add(pipeline, new ColourMultiplier(GTUtility.convertRGBtoOpaqueRGBA_CL(getPaintingColorForRendering()))),
+                this.getFrontFacing(), this.tier);
         Textures.QUANTUM_TANK_OVERLAY.renderSided(EnumFacing.UP, renderState, translation, pipeline);
         if (outputFacing != null) {
             Textures.PIPE_OUT_OVERLAY.renderSided(outputFacing, renderState, translation, pipeline);
@@ -213,6 +236,14 @@ public class MetaTileEntityQuantumTank extends MetaTileEntity implements ITiered
                 Textures.FLUID_OUTPUT_OVERLAY.renderSided(outputFacing, renderState, translation, pipeline);
             }
         }
+        QuantumStorageRenderer.renderTankFluid(renderState, translation, pipeline, fluidTank, getWorld(), getPos());
+    }
+
+    @Override
+    public void renderMetaTileEntity(double x, double y, double z, float partialTicks) {
+        if (this.fluidTank.getFluid() == null || this.fluidTank.getFluid().amount == 0)
+            return;
+        QuantumStorageRenderer.renderTankAmount(x, y, z, this.getFrontFacing(), this.getWorld(), this.getPos(), this.fluidTank.getFluid().amount);
     }
 
     @Override
@@ -224,20 +255,45 @@ public class MetaTileEntityQuantumTank extends MetaTileEntity implements ITiered
     public void addInformation(ItemStack stack, @Nullable World player, List<String> tooltip, boolean advanced) {
         super.addInformation(stack, player, tooltip, advanced);
         tooltip.add(I18n.format("gregtech.machine.quantum_tank.tooltip"));
-        tooltip.add(I18n.format("gregtech.machine.quantum_tank.capacity", maxFluidCapacity));
-        NBTTagCompound compound = stack.getTagCompound();
-        if (compound != null && compound.hasKey(FLUID_NBT_KEY, Constants.NBT.TAG_COMPOUND)) {
-            FluidStack fluidStack = FluidStack.loadFluidStackFromNBT(compound.getCompoundTag(FLUID_NBT_KEY));
-            if (fluidStack != null) {
-                tooltip.add(I18n.format("gregtech.machine.quantum_tank.tooltip.name", fluidStack.getLocalizedName()));
-                tooltip.add(I18n.format("gregtech.machine.quantum_tank.tooltip.count", fluidStack.amount));
+        tooltip.add(I18n.format("gregtech.universal.tooltip.fluid_storage_capacity", maxFluidCapacity));
+        NBTTagCompound tag = stack.getTagCompound();
+        if (tag != null) {
+            if (tag.hasKey(FLUID_NBT_KEY, Constants.NBT.TAG_COMPOUND)) {
+                FluidStack fluidStack = FluidStack.loadFluidStackFromNBT(tag.getCompoundTag(FLUID_NBT_KEY));
+                if (fluidStack != null) {
+                    tooltip.add(I18n.format("gregtech.universal.tooltip.fluid_stored", fluidStack.getLocalizedName(), fluidStack.amount));
+                }
+            }
+            if (tag.getBoolean("IsVoiding") || tag.getBoolean("IsPartialVoiding")) { // legacy save support
+                tooltip.add(I18n.format("gregtech.machine.quantum_tank.tooltip.voiding_enabled"));
             }
         }
     }
 
     @Override
+    public void addToolUsages(ItemStack stack, @Nullable World world, List<String> tooltip, boolean advanced) {
+        tooltip.add(I18n.format("gregtech.tool_action.screwdriver.auto_output_covers"));
+        tooltip.add(I18n.format("gregtech.tool_action.wrench.set_facing"));
+        super.addToolUsages(stack, world, tooltip, advanced);
+    }
+
+    @Override
     protected ModularUI createUI(EntityPlayer entityPlayer) {
-        TankWidget tankWidget = new PhantomTankWidget(fluidTank, 69, 43, 18, 18, lockedFluid)
+        TankWidget tankWidget = new PhantomTankWidget(fluidTank, 69, 43, 18, 18,
+                () -> this.lockedFluid,
+                f -> {
+                    if (this.fluidTank.getFluidAmount() != 0) {
+                        return;
+                    }
+                    if (f == null) {
+                        this.setLocked(false);
+                        this.lockedFluid = null;
+                    } else {
+                        this.setLocked(true);
+                        this.lockedFluid = f.copy();
+                        this.lockedFluid.amount = 1;
+                    }
+                })
                 .setAlwaysShowFull(true).setDrawHoveringText(false);
 
         return ModularUI.defaultBuilder()
@@ -247,9 +303,9 @@ public class MetaTileEntityQuantumTank extends MetaTileEntity implements ITiered
                 .dynamicLabel(11, 30, tankWidget::getFormattedFluidAmount, 0xFFFFFF)
                 .dynamicLabel(11, 40, tankWidget::getFluidLocalizedName, 0xFFFFFF)
                 .label(6, 6, getMetaFullName())
-                .widget(new FluidContainerSlotWidget(containerInventory, 0, 90, 17, false)
+                .widget(new FluidContainerSlotWidget(importItems, 0, 90, 17, false)
                         .setBackgroundTexture(GuiTextures.SLOT, GuiTextures.IN_SLOT_OVERLAY))
-                .widget(new SlotWidget(containerInventory, 1, 90, 44, true, false)
+                .widget(new SlotWidget(exportItems, 0, 90, 44, true, false)
                         .setBackgroundTexture(GuiTextures.SLOT, GuiTextures.OUT_SLOT_OVERLAY))
                 .widget(new ToggleButtonWidget(7, 64, 18, 18,
                         GuiTextures.BUTTON_FLUID_OUTPUT, this::isAutoOutputFluids, this::setAutoOutputFluids)
@@ -260,12 +316,8 @@ public class MetaTileEntityQuantumTank extends MetaTileEntity implements ITiered
                         .setTooltipText("gregtech.gui.fluid_lock.tooltip")
                         .shouldUseBaseBackground())
                 .widget(new ToggleButtonWidget(43, 64, 18, 18,
-                        GuiTextures.BUTTON_VOID_PARTIAL, this::isPartialVoid, this::setPartialVoid)
-                        .setTooltipText("gregtech.gui.fluid_voiding_partial.tooltip", VOID_PERCENT)
-                        .shouldUseBaseBackground())
-                .widget(new ToggleButtonWidget(61, 64, 18, 18,
                         GuiTextures.BUTTON_VOID, this::isVoiding, this::setVoiding)
-                        .setTooltipText("gregtech.gui.fluid_voiding_all.tooltip")
+                        .setTooltipText("gregtech.gui.fluid_voiding.tooltip")
                         .shouldUseBaseBackground())
                 .bindPlayerInventory(entityPlayer.inventory)
                 .build(getHolder(), entityPlayer);
@@ -277,7 +329,7 @@ public class MetaTileEntityQuantumTank extends MetaTileEntity implements ITiered
 
     @Override
     public void setFrontFacing(EnumFacing frontFacing) {
-        super.setFrontFacing(EnumFacing.UP);
+        super.setFrontFacing(frontFacing);
         if (this.outputFacing == null) {
             //set initial output facing as opposite to front
             setOutputFacing(frontFacing.getOpposite());
@@ -289,6 +341,7 @@ public class MetaTileEntityQuantumTank extends MetaTileEntity implements ITiered
         return false;
     }
 
+    @Override
     public boolean isAutoOutputFluids() {
         return autoOutputFluids;
     }
@@ -308,10 +361,17 @@ public class MetaTileEntityQuantumTank extends MetaTileEntity implements ITiered
         super.receiveCustomData(dataId, buf);
         if (dataId == UPDATE_OUTPUT_FACING) {
             this.outputFacing = EnumFacing.VALUES[buf.readByte()];
-            getHolder().scheduleChunkForRenderUpdate();
+            scheduleRenderUpdate();
         } else if (dataId == UPDATE_AUTO_OUTPUT_FLUIDS) {
             this.autoOutputFluids = buf.readBoolean();
-            getHolder().scheduleChunkForRenderUpdate();
+            scheduleRenderUpdate();
+        } else if (dataId == UPDATE_FLUID) {
+            try {
+                this.fluidTank.setFluid(FluidStack.loadFluidStackFromNBT(buf.readCompoundTag()));
+            } catch (IOException ignored) {
+                GTLog.logger.warn("Failed to load fluid from NBT in a quantum tank at " + this.getPos() + " on a routine fluid update");
+            }
+            scheduleRenderUpdate();
         }
     }
 
@@ -325,7 +385,8 @@ public class MetaTileEntityQuantumTank extends MetaTileEntity implements ITiered
         super.writeInitialSyncData(buf);
         buf.writeByte(getOutputFacing().getIndex());
         buf.writeBoolean(autoOutputFluids);
-        buf.writeBoolean(isLocked);
+        buf.writeBoolean(locked);
+        buf.writeCompoundTag(fluidTank.getFluid() == null ? null : fluidTank.getFluid().writeToNBT(new NBTTagCompound()));
     }
 
     @Override
@@ -333,13 +394,18 @@ public class MetaTileEntityQuantumTank extends MetaTileEntity implements ITiered
         super.receiveInitialSyncData(buf);
         this.outputFacing = EnumFacing.VALUES[buf.readByte()];
         this.autoOutputFluids = buf.readBoolean();
-        this.isLocked = buf.readBoolean();
+        this.locked = buf.readBoolean();
+        try {
+            this.fluidTank.setFluid(FluidStack.loadFluidStackFromNBT(buf.readCompoundTag()));
+        } catch (IOException e) {
+            GTLog.logger.warn("Failed to load fluid from NBT in a quantum tank at " + this.getPos() + " on initial server/client sync");
+        }
     }
 
     public void setOutputFacing(EnumFacing outputFacing) {
         this.outputFacing = outputFacing;
         if (!getWorld().isRemote) {
-            getHolder().notifyBlockUpdate();
+            notifyBlockUpdate();
             writeCustomData(UPDATE_OUTPUT_FACING, buf -> buf.writeByte(outputFacing.getIndex()));
             markDirty();
         }
@@ -352,8 +418,7 @@ public class MetaTileEntityQuantumTank extends MetaTileEntity implements ITiered
                 return GregtechTileCapabilities.CAPABILITY_ACTIVE_OUTPUT_SIDE.cast(this);
             }
             return null;
-        }
-        else if (capability == CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY) {
+        } else if (capability == CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY) {
             IFluidHandler fluidHandler = (side == getOutputFacing() && !isAllowInputFromOutputSideFluids()) ? outputFluidInventory : fluidInventory;
             if (fluidHandler.getTankProperties().length > 0) {
                 return CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY.cast(fluidHandler);
@@ -366,7 +431,7 @@ public class MetaTileEntityQuantumTank extends MetaTileEntity implements ITiered
 
     @Override
     public ICapabilityProvider initItemStackCapabilities(ItemStack itemStack) {
-        return new ThermalFluidHandlerItemStack(itemStack, maxFluidCapacity, Integer.MIN_VALUE, Integer.MAX_VALUE);
+        return new ThermalFluidHandlerItemStack(itemStack, maxFluidCapacity, Integer.MAX_VALUE, true, true, true, true);
     }
 
     @Override
@@ -402,6 +467,7 @@ public class MetaTileEntityQuantumTank extends MetaTileEntity implements ITiered
     }
 
     public void setAllowInputFromOutputSide(boolean allowInputFromOutputSide) {
+        if (this.allowInputFromOutputSide == allowInputFromOutputSide) return;
         this.allowInputFromOutputSide = allowInputFromOutputSide;
         if (!getWorld().isRemote) {
             markDirty();
@@ -409,6 +475,7 @@ public class MetaTileEntityQuantumTank extends MetaTileEntity implements ITiered
     }
 
     public void setAutoOutputFluids(boolean autoOutputFluids) {
+        if (this.autoOutputFluids == autoOutputFluids) return;
         this.autoOutputFluids = autoOutputFluids;
         if (!getWorld().isRemote) {
             writeCustomData(UPDATE_AUTO_OUTPUT_FLUIDS, buf -> buf.writeBoolean(autoOutputFluids));
@@ -417,47 +484,68 @@ public class MetaTileEntityQuantumTank extends MetaTileEntity implements ITiered
     }
 
     private boolean isLocked() {
-        return isLocked;
+        return this.locked;
     }
 
     private void setLocked(boolean locked) {
-        this.isLocked = locked;
-        if (locked && fluidTank.getFluid() != null) {
-            this.lockedFluid.setFluid(GTUtility.copyAmount(1, fluidTank.getFluid()));
-        }
-        if (!locked && lockedFluid.getFluid() != null) {
-            this.lockedFluid.setFluid(null);
-        }
+        if (this.locked == locked) return;
+        this.locked = locked;
         if (!getWorld().isRemote) {
             markDirty();
         }
+        if (locked && fluidTank.getFluid() != null) {
+            this.lockedFluid = fluidTank.getFluid().copy();
+            this.lockedFluid.amount = 1;
+            return;
+        }
+        this.lockedFluid = null;
     }
 
     private boolean isVoiding() {
-        return isVoiding;
+        return voiding;
     }
 
-    private void setVoiding(boolean isVoiding) {
-        this.isVoiding = isVoiding;
-        if (isVoiding && isPartialVoiding) {
-            this.isPartialVoiding = false;
-        }
+    private void setVoiding(boolean isPartialVoid) {
+        this.voiding = isPartialVoid;
         if (!getWorld().isRemote) {
             markDirty();
         }
     }
 
-    private boolean isPartialVoid() {
-        return isPartialVoiding;
+    @Override
+    public boolean needsSneakToRotate() {
+        return true;
     }
 
-    private void setPartialVoid(boolean isPartialVoid) {
-        this.isPartialVoiding = isPartialVoid;
-        if (isPartialVoid && isVoiding) {
-            this.isVoiding = false;
+    private class QuantumFluidTank extends FluidTank {
+
+        public QuantumFluidTank(int capacity) {
+            super(capacity);
         }
-        if (!getWorld().isRemote) {
-            markDirty();
+
+        @Override
+        public int fillInternal(FluidStack resource, boolean doFill) {
+            int accepted = super.fillInternal(resource, doFill);
+            if (doFill && locked && lockedFluid == null) {
+                lockedFluid = resource.copy();
+                lockedFluid.amount = 1;
+            }
+            return voiding ? resource.amount : accepted;
         }
+
+        @Override
+        public boolean canFillFluidType(FluidStack fluid) {
+            return !locked || lockedFluid == null || fluid.isFluidEqual(lockedFluid);
+        }
+    }
+
+    @Override
+    public AxisAlignedBB getRenderBoundingBox() {
+        return new AxisAlignedBB(getPos());
+    }
+
+    @Override
+    public boolean isOpaqueCube() {
+        return false;
     }
 }

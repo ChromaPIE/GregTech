@@ -10,11 +10,13 @@ import gregtech.api.gui.ModularUI;
 import gregtech.api.gui.ModularUI.Builder;
 import gregtech.api.gui.widgets.SlotWidget;
 import gregtech.api.metatileentity.MetaTileEntity;
-import gregtech.api.metatileentity.MetaTileEntityHolder;
 import gregtech.api.metatileentity.TieredMetaTileEntity;
-import gregtech.client.renderer.texture.Textures;
+import gregtech.api.metatileentity.interfaces.IGregTechTileEntity;
 import gregtech.api.util.BlockUtility;
+import gregtech.api.util.GTTransferUtils;
 import gregtech.api.util.GregFakePlayer;
+import gregtech.client.renderer.texture.Textures;
+import gregtech.client.utils.RenderUtil;
 import net.minecraft.block.Block;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.state.IBlockState;
@@ -33,7 +35,6 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
 import net.minecraftforge.items.IItemHandlerModifiable;
-import net.minecraftforge.items.ItemHandlerHelper;
 import net.minecraftforge.items.ItemStackHandler;
 
 import javax.annotation.Nullable;
@@ -54,7 +55,7 @@ public class MetaTileEntityBlockBreaker extends TieredMetaTileEntity {
     }
 
     @Override
-    public MetaTileEntity createMetaTileEntity(MetaTileEntityHolder holder) {
+    public MetaTileEntity createMetaTileEntity(IGregTechTileEntity tileEntity) {
         return new MetaTileEntityBlockBreaker(metaTileEntityId, getTier());
     }
 
@@ -62,7 +63,7 @@ public class MetaTileEntityBlockBreaker extends TieredMetaTileEntity {
     public void renderMetaTileEntity(CCRenderState renderState, Matrix4 translation, IVertexOperation[] pipeline) {
         super.renderMetaTileEntity(renderState, translation, pipeline);
         Textures.ROCK_BREAKER_OVERLAY.renderOrientedState(renderState, translation, pipeline, getFrontFacing(), false, false);
-        Textures.PIPE_OUT_OVERLAY.renderSided(getOutputFacing(), renderState, translation, pipeline);
+        Textures.PIPE_OUT_OVERLAY.renderSided(getOutputFacing(), renderState, RenderUtil.adjustTrans(translation, getOutputFacing(), 2), pipeline);
     }
 
     @Override
@@ -109,10 +110,10 @@ public class MetaTileEntityBlockBreaker extends TieredMetaTileEntity {
     private void addToInventoryOrDropItems(List<ItemStack> drops) {
         EnumFacing outputFacing = getOutputFacing();
         double itemSpawnX = getPos().getX() + 0.5 + outputFacing.getXOffset();
-        double itemSpawnY = getPos().getX() + 0.5 + outputFacing.getYOffset();
-        double itemSpawnZ = getPos().getX() + 0.5 + outputFacing.getZOffset();
+        double itemSpawnY = getPos().getY() + 0.5 + outputFacing.getYOffset();
+        double itemSpawnZ = getPos().getZ() + 0.5 + outputFacing.getZOffset();
         for (ItemStack itemStack : drops) {
-            ItemStack remainStack = ItemHandlerHelper.insertItemStacked(exportItems, itemStack, false);
+            ItemStack remainStack = GTTransferUtils.insertItem(exportItems, itemStack, false);
             if (!remainStack.isEmpty()) {
                 EntityItem entityitem = new EntityItem(getWorld(), itemSpawnX, itemSpawnY, itemSpawnZ, remainStack);
                 entityitem.setDefaultPickupDelay();
@@ -139,8 +140,7 @@ public class MetaTileEntityBlockBreaker extends TieredMetaTileEntity {
     public boolean onWrenchClick(EntityPlayer playerIn, EnumHand hand, EnumFacing facing, CuboidRayTraceResult hitResult) {
         if (!playerIn.isSneaking()) {
             EnumFacing currentOutputSide = getOutputFacing();
-            if (currentOutputSide == facing ||
-                    getFrontFacing() == facing) return false;
+            if (currentOutputSide == facing || getFrontFacing() == facing) return false;
             setOutputFacing(facing);
             return true;
         }
@@ -181,7 +181,7 @@ public class MetaTileEntityBlockBreaker extends TieredMetaTileEntity {
         super.receiveCustomData(dataId, buf);
         if (dataId == UPDATE_OUTPUT_FACING) {
             this.outputFacing = EnumFacing.VALUES[buf.readByte()];
-            getHolder().scheduleChunkForRenderUpdate();
+            scheduleRenderUpdate();
         }
     }
 
@@ -199,7 +199,7 @@ public class MetaTileEntityBlockBreaker extends TieredMetaTileEntity {
     public void setOutputFacing(EnumFacing outputFacing) {
         this.outputFacing = outputFacing;
         if (!getWorld().isRemote) {
-            getHolder().notifyBlockUpdate();
+            notifyBlockUpdate();
             writeCustomData(UPDATE_OUTPUT_FACING, buf -> buf.writeByte(outputFacing.getIndex()));
             markDirty();
         }
@@ -257,11 +257,31 @@ public class MetaTileEntityBlockBreaker extends TieredMetaTileEntity {
     }
 
     @Override
+    public boolean getIsWeatherOrTerrainResistant() {
+        return true;
+    }
+
+    @Override
     public void addInformation(ItemStack stack, @Nullable World player, List<String> tooltip, boolean advanced) {
         tooltip.add(I18n.format("gregtech.machine.block_breaker.tooltip"));
-        tooltip.add(I18n.format("gregtech.machine.block_breaker.redstone"));
+        tooltip.add(I18n.format("gregtech.universal.tooltip.uses_per_op", getEnergyPerBlockBreak()));
+        tooltip.add(I18n.format("gregtech.universal.tooltip.voltage_in", energyContainer.getInputVoltage(), GTValues.VNF[getTier()]));
+        tooltip.add(I18n.format("gregtech.universal.tooltip.energy_storage_capacity", energyContainer.getEnergyCapacity()));
         tooltip.add(I18n.format("gregtech.universal.tooltip.item_storage_capacity", getInventorySize()));
         tooltip.add(I18n.format("gregtech.machine.block_breaker.speed_bonus", (int) (getEfficiencyMultiplier() * 100)));
-        tooltip.add(I18n.format("gregtech.machine.block_breaker.consumption", getEnergyPerBlockBreak()));
+        tooltip.add(I18n.format("gregtech.universal.tooltip.requires_redstone"));
+        super.addInformation(stack, player, tooltip, advanced);
+    }
+
+    @Override
+    public boolean needsSneakToRotate() {
+        return true;
+    }
+
+    @Override
+    public void addToolUsages(ItemStack stack, @Nullable World world, List<String> tooltip, boolean advanced) {
+        tooltip.add(I18n.format("gregtech.tool_action.screwdriver.access_covers"));
+        tooltip.add(I18n.format("gregtech.tool_action.wrench.set_facing"));
+        super.addToolUsages(stack, world, tooltip, advanced);
     }
 }

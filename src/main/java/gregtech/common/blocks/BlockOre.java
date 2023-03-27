@@ -1,42 +1,40 @@
 package gregtech.common.blocks;
 
-import gregtech.api.GTValues;
 import gregtech.api.GregTechAPI;
+import gregtech.api.items.toolitem.ToolClasses;
 import gregtech.api.unification.material.Material;
-import gregtech.api.unification.material.properties.DustProperty;
+import gregtech.api.unification.material.info.MaterialFlags;
 import gregtech.api.unification.material.properties.PropertyKey;
 import gregtech.api.unification.ore.StoneType;
+import gregtech.api.util.GTUtility;
 import gregtech.api.util.IBlockOre;
-import gregtech.client.model.IModelSupplier;
-import gregtech.client.model.SimpleStateMapper;
+import gregtech.client.model.OreBakedModel;
 import gregtech.client.utils.BloomEffectUtil;
 import gregtech.common.blocks.properties.PropertyStoneType;
 import net.minecraft.block.Block;
 import net.minecraft.block.SoundType;
 import net.minecraft.block.state.BlockStateContainer;
 import net.minecraft.block.state.IBlockState;
-import net.minecraft.client.renderer.block.model.ModelResourceLocation;
 import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.entity.Entity;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.BlockRenderLayer;
+import net.minecraft.util.EnumFacing;
 import net.minecraft.util.NonNullList;
-import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.IBlockAccess;
 import net.minecraft.world.World;
-import net.minecraftforge.client.event.TextureStitchEvent;
 import net.minecraftforge.client.model.ModelLoader;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
-public class BlockOre extends Block implements IBlockOre, IModelSupplier {
-
-    public static final ModelResourceLocation MODEL_LOCATION = new ModelResourceLocation(new ResourceLocation(GTValues.MODID, "ore_block"), "normal");
+public class BlockOre extends Block implements IBlockOre {
 
     public final PropertyStoneType STONE_TYPE;
     public final Material material;
@@ -47,7 +45,7 @@ public class BlockOre extends Block implements IBlockOre, IModelSupplier {
         setSoundType(SoundType.STONE);
         setHardness(3.0f);
         setResistance(5.0f);
-        this.material = material;
+        this.material = Objects.requireNonNull(material, "Material in BlockOre can not be null!");
         STONE_TYPE = PropertyStoneType.create("stone_type", allowedValues);
         initBlockState();
     }
@@ -57,7 +55,7 @@ public class BlockOre extends Block implements IBlockOre, IModelSupplier {
     @Override
     public net.minecraft.block.material.Material getMaterial(@Nonnull IBlockState state) {
         String harvestTool = getHarvestTool(state);
-        if (harvestTool != null && harvestTool.equals("shovel")) {
+        if (harvestTool != null && harvestTool.equals(ToolClasses.SHOVEL)) {
             return net.minecraft.block.material.Material.GROUND;
         }
         return net.minecraft.block.material.Material.ROCK;
@@ -96,18 +94,8 @@ public class BlockOre extends Block implements IBlockOre, IModelSupplier {
 
     @Override
     public int getHarvestLevel(IBlockState state) {
-        StoneType stoneType = state.getValue(STONE_TYPE);
-        if (material != null) {
-            DustProperty matProp = material.getProperty(PropertyKey.DUST);
-            if (matProp != null) {
-                int toolQuality = matProp.getHarvestLevel();
-                DustProperty stoneProp = stoneType.stoneMaterial.getProperty(PropertyKey.DUST);
-                if (stoneProp != null) {
-                    return Math.max(stoneProp.getHarvestLevel(), toolQuality > 1 ? toolQuality - 1 : toolQuality);
-                }
-            }
-        }
-        return 1;
+        // this is save because ore blocks and stone types only generate for materials with dust property
+        return Math.max(state.getValue(STONE_TYPE).stoneMaterial.getBlockHarvestLevel(), material.getBlockHarvestLevel());
     }
 
     @Nonnull
@@ -125,8 +113,8 @@ public class BlockOre extends Block implements IBlockOre, IModelSupplier {
         return STONE_TYPE.getAllowedValues().indexOf(state.getValue(STONE_TYPE));
     }
 
-    public ItemStack getItem(IBlockState blockState) {
-        return new ItemStack(this, 1, getMetaFromState(blockState));
+    public static ItemStack getItem(IBlockState blockState) {
+        return GTUtility.toItem(blockState);
     }
 
     @Override
@@ -161,6 +149,15 @@ public class BlockOre extends Block implements IBlockOre, IModelSupplier {
     }
 
     @Override
+    public boolean isFireSource(@Nonnull World world, @Nonnull BlockPos pos, @Nonnull EnumFacing side) {
+        if (side != EnumFacing.UP) return false;
+
+        // if the stone type of the ore block is flammable, it will burn forever like Netherrack
+        StoneType stoneType = world.getBlockState(pos).getValue(STONE_TYPE);
+        return stoneType.stoneMaterial.hasFlag(MaterialFlags.FLAMMABLE);
+    }
+
+    @Override
     public void getSubBlocks(@Nonnull CreativeTabs tab, @Nonnull NonNullList<ItemStack> list) {
         if (tab == CreativeTabs.SEARCH || tab == GregTechAPI.TAB_GREGTECH_ORES) {
             blockState.getValidStates().stream()
@@ -183,17 +180,16 @@ public class BlockOre extends Block implements IBlockOre, IModelSupplier {
         return this.getDefaultState().withProperty(this.STONE_TYPE, stoneType);
     }
 
-    @Override
-    @SideOnly(Side.CLIENT)
-    public void onTextureStitch(TextureStitchEvent.Pre event) {
-    }
-
-    @Override
     @SideOnly(Side.CLIENT)
     public void onModelRegister() {
-        ModelLoader.setCustomStateMapper(this, new SimpleStateMapper(MODEL_LOCATION));
+        ModelLoader.setCustomStateMapper(this, b -> b.getBlockState().getValidStates().stream()
+                .collect(Collectors.toMap(
+                        s -> s,
+                        s -> OreBakedModel.registerOreEntry(s.getValue(STONE_TYPE), this.material)
+                )));
         for (IBlockState state : this.getBlockState().getValidStates()) {
-            ModelLoader.setCustomModelResourceLocation(Item.getItemFromBlock(this), this.getMetaFromState(state), MODEL_LOCATION);
+            ModelLoader.setCustomModelResourceLocation(Item.getItemFromBlock(this), this.getMetaFromState(state),
+                    OreBakedModel.registerOreEntry(state.getValue(STONE_TYPE), this.material));
         }
     }
 }

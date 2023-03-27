@@ -4,6 +4,7 @@ import crafttweaker.annotations.ZenRegister;
 import crafttweaker.api.item.IItemStack;
 import crafttweaker.api.liquid.ILiquidStack;
 import crafttweaker.api.minecraft.CraftTweakerMC;
+import gregtech.api.recipes.GTRecipeHandler;
 import gregtech.api.recipes.Recipe;
 import gregtech.api.recipes.RecipeMap;
 import gregtech.api.util.GTLog;
@@ -22,6 +23,8 @@ import java.util.stream.Collectors;
 @ZenRegister
 @SuppressWarnings("unused")
 public class CTRecipeUtils {
+
+    // TODO YEET
 
     @ZenMethod("removeRecipeByOutput")
     public static void removeRecipeByOutput(RecipeMap<?> recipeMap, IItemStack[] outputs, ILiquidStack[] fluidOutputs, boolean useAmounts) {
@@ -75,5 +78,10 @@ public class CTRecipeUtils {
         for (Recipe recipe : recipesToRemove) {
             recipeMap.removeRecipe(recipe);
         }
+    }
+
+    @ZenMethod("clear")
+    public static void removeAll(RecipeMap<?> recipeMap) {
+        GTRecipeHandler.removeAllRecipes(recipeMap);
     }
 }

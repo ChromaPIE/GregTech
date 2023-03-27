@@ -8,9 +8,9 @@ import gregtech.api.util.GTLog;
 import gregtech.common.ConfigHolder;
 import gregtech.common.items.MetaItems;
 import gregtech.common.terminal.app.VirtualTankApp;
-import gregtech.common.terminal.app.capeselector.CapeSelectorApp;
 import gregtech.common.terminal.app.appstore.AppStoreApp;
 import gregtech.common.terminal.app.batterymanager.BatteryManagerApp;
+import gregtech.common.terminal.app.capeselector.CapeSelectorApp;
 import gregtech.common.terminal.app.console.ConsoleApp;
 import gregtech.common.terminal.app.game.maze.MazeApp;
 import gregtech.common.terminal.app.game.minesweeper.MinesweeperApp;
@@ -25,6 +25,7 @@ import gregtech.common.terminal.app.multiblockhelper.MultiBlockPreviewARApp;
 import gregtech.common.terminal.app.prospector.ProspectorApp;
 import gregtech.common.terminal.app.recipechart.RecipeChartApp;
 import gregtech.common.terminal.app.settings.SettingsApp;
+import gregtech.common.terminal.app.teleport.TeleportApp;
 import gregtech.common.terminal.app.worldprospector.WorldProspectorARApp;
 import gregtech.common.terminal.hardware.BatteryHardware;
 import gregtech.common.terminal.hardware.DeviceHardware;
@@ -73,6 +74,11 @@ public class TerminalRegistry {
         AppRegistryBuilder.create(new GuideEditorApp()).defaultApp().build();
         AppRegistryBuilder.create(new SettingsApp()).defaultApp().build();
 
+        AppRegistryBuilder.create(new TeleportApp())
+                .battery(GTValues.ZPM, 10000)
+                .device(DeviceHardware.DEVICE.FIELD_GENERATOR_UV)
+                .build();
+
         AppRegistryBuilder.create(new PongApp())
                 .battery(GTValues.LV, 75)
                 .build();
@@ -93,7 +99,7 @@ public class TerminalRegistry {
                 .upgrade(1, MetaItems.SENSOR_HV.getStackForm(1))
                 .upgrade(2, MetaItems.SENSOR_EV.getStackForm(1))
                 .upgrade(3, MetaItems.SENSOR_IV.getStackForm(1))
-                .upgrade(4, MetaItems.SENSOR_LUV.getStackForm(1))
+                .upgrade(4, MetaItems.SENSOR_LuV.getStackForm(1))
                 .device(0, DeviceHardware.DEVICE.PROSPECTOR_LV)
                 .device(1, DeviceHardware.DEVICE.PROSPECTOR_LV)
                 .device(2, DeviceHardware.DEVICE.PROSPECTOR_LV)
@@ -111,7 +117,7 @@ public class TerminalRegistry {
                 .upgrade(1, MetaItems.SENSOR_HV.getStackForm(3))
                 .upgrade(2, MetaItems.SENSOR_EV.getStackForm(1))
                 .upgrade(3, MetaItems.SENSOR_IV.getStackForm(1))
-                .upgrade(4, MetaItems.SENSOR_LUV.getStackForm(1))
+                .upgrade(4, MetaItems.SENSOR_LuV.getStackForm(1))
                 .device(DeviceHardware.DEVICE.PROSPECTOR_HV)
                 .build();
         AppRegistryBuilder.create(new MultiBlockPreviewARApp())

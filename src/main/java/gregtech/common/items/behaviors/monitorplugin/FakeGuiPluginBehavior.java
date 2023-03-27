@@ -1,6 +1,5 @@
 package gregtech.common.items.behaviors.monitorplugin;
 
-import gregtech.api.capability.GregtechCapabilities;
 import gregtech.api.capability.GregtechDataCodes;
 import gregtech.api.gui.GuiTextures;
 import gregtech.api.gui.IUIHolder;
@@ -10,8 +9,10 @@ import gregtech.api.gui.impl.FakeModularGui;
 import gregtech.api.gui.widgets.*;
 import gregtech.api.items.behavior.MonitorPluginBaseBehavior;
 import gregtech.api.items.behavior.ProxyHolderPluginBehavior;
+import gregtech.api.items.toolitem.ToolClasses;
+import gregtech.api.items.toolitem.ToolHelper;
 import gregtech.api.metatileentity.MetaTileEntity;
-import gregtech.api.metatileentity.MetaTileEntityHolder;
+import gregtech.api.metatileentity.interfaces.IGregTechTileEntity;
 import gregtech.api.metatileentity.multiblock.IMultiblockPart;
 import gregtech.api.metatileentity.multiblock.MultiblockControllerBase;
 import gregtech.api.pattern.PatternMatchContext;
@@ -67,8 +68,8 @@ public class FakeGuiPluginBehavior extends ProxyHolderPluginBehavior {
         if (target instanceof MultiblockControllerBase && partIndex > 0) {
             if (partPos != null) {
                 TileEntity entity = this.screen.getWorld().getTileEntity(partPos);
-                if (entity instanceof MetaTileEntityHolder) {
-                    return ((MetaTileEntityHolder) entity).getMetaTileEntity();
+                if (entity instanceof IGregTechTileEntity) {
+                    return ((IGregTechTileEntity) entity).getMetaTileEntity();
                 } else {
                     partPos = null;
                     return null;
@@ -163,7 +164,7 @@ public class FakeGuiPluginBehavior extends ProxyHolderPluginBehavior {
     }
 
     @Override
-    public void onHolderChanged(MetaTileEntityHolder lastHolder) {
+    public void onHolderChanged(IGregTechTileEntity lastHolder) {
         if (holder == null) {
             if (this.screen.getWorld() != null && this.screen.getWorld().isRemote) {
                 fakeModularGui = null;
@@ -218,7 +219,7 @@ public class FakeGuiPluginBehavior extends ProxyHolderPluginBehavior {
     @Override
     public boolean onClickLogic(EntityPlayer playerIn, EnumHand hand, EnumFacing facing, boolean isRight, double x, double y) {
         if (this.screen.getWorld().isRemote) return true;
-        if (fakeModularUIContainer != null && fakeModularUIContainer.modularUI != null && !playerIn.getHeldItemMainhand().hasCapability(GregtechCapabilities.CAPABILITY_SCREWDRIVER, null)) {
+        if (fakeModularUIContainer != null && fakeModularUIContainer.modularUI != null && !ToolHelper.isTool(playerIn.getHeldItemMainhand(), ToolClasses.SCREWDRIVER)) {
             int width = fakeModularUIContainer.modularUI.getWidth();
             int height = fakeModularUIContainer.modularUI.getHeight();
             float halfW = width / 2f;

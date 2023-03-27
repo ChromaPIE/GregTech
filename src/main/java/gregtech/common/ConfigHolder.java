@@ -47,8 +47,8 @@ public class ConfigHolder {
                 "If true, progress will reset.", "If false, progress will decrease to zero with 2x speed", "Default: false"})
         public boolean recipeProgressLowEnergy = false;
 
-        @Config.Comment({"Whether to require a Wrench to break machines.", "Default: false"})
-        public boolean requireWrenchForMachines = false;
+        @Config.Comment({"Whether to require a Wrench, Wirecutter, or other GregTech tools to break machines, casings, wires, and more.", "Default: false"})
+        public boolean requireGTToolsForBlocks = false;
 
         @Config.Comment({"Whether to enable the Maintenance Hatch, required for Multiblocks.", "Default: true"})
         public boolean enableMaintenance = true;
@@ -58,6 +58,12 @@ public class ConfigHolder {
 
         @Config.Comment({"Whether to enable World Accelerators, which accelerate ticks for surrounding Tile Entities, Crops, etc.", "Default: true"})
         public boolean enableWorldAccelerators = true;
+
+        @Config.Comment({"List of TileEntities that the World Accelerator should not accelerate.",
+                "GregTech TileEntities are always blocked.",
+                "Entries must be in a fully qualified format. For example: appeng.tile.networking.TileController",
+                "Default: none"})
+        public String[] worldAcceleratorBlacklist = new String[0];
 
         @Config.Comment({"Whether to use GT6-style pipe and cable connections, meaning they will not auto-connect " +
                 "unless placed directly onto another pipe or cable.", "Default: true"})
@@ -74,8 +80,12 @@ public class ConfigHolder {
         @Config.Comment({"Steam to EU multiplier for Steam Multiblocks.", "1.0 means 1L Steam -> 1 EU. 0.5 means 2L Steam -> 1 EU.", "Default: 0.5"})
         public double multiblockSteamToEU = 0.5;
 
-        @Config.Comment({"Whether machines should explode when overloaded with power.", "Default: true"})
-        public boolean doExplosions = true;
+        @Config.Comment({"Whether machines or boilers damage the terrain when they explode.",
+                "Note machines and boilers always explode when overloaded with power or met with special conditions, regardless of this config.", "Default: true"})
+        public boolean doesExplosionDamagesTerrain = true;
+
+        @Config.Comment({"Whether machines explode in rainy weather or when placed next to certain terrain, such as fire or lava", "Default: false"})
+        public boolean doTerrainExplosion = false;
 
         @Config.Comment({"Energy use multiplier for electric items.", "Default: 100"})
         public int energyUsageMultiplier = 100;
@@ -95,6 +105,17 @@ public class ConfigHolder {
                 "Add the unlocalized Recipe Map name to blacklist the machine.",
                 "Default: All machines allowed"})
         public String[] processingArrayBlacklist = new String[0];
+
+        @Config.Comment({"Whether to enable the cleanroom, required for various recipes.", "Default: true"})
+        public boolean enableCleanroom = true;
+
+        @Config.Comment({"Whether multiblocks should ignore all cleanroom requirements.",
+                "This does nothing if B:enableCleanroom is false.",
+                "Default: false"})
+        public boolean cleanMultiblocks = false;
+
+        @Config.Comment({"Block to replace mined ores with in the miner and multiblock miner.", "Default: minecraft:cobblestone"})
+        public String replaceMinedBlocksWith = "minecraft:cobblestone";
     }
 
     public static class WorldGenOptions {
@@ -148,9 +169,13 @@ public class ConfigHolder {
         @Config.Comment({"Whether to make Redstone related recipes harder.", "Default: false"})
         public boolean hardRedstoneRecipes = false;
 
-        @Config.Comment({"Recipes for items like Iron Doors, Trapdoors, Buckets, Cauldrons, Hoppers, " +
-                "and Iron Bars require Iron Plates, Rods, and more.", "Default: true"})
+        @Config.Comment({"Recipes for Buckets, Cauldrons, Hoppers, and Iron Bars" +
+                " require Iron Plates, Rods, and more.", "Default: true"})
         public boolean hardIronRecipes = true;
+
+        @Config.Comment({"Recipes for items like Iron Doors, Trapdoors, Anvil" +
+                " require Iron Plates, Rods, and more.", "Default: false"})
+        public boolean hardAdvancedIronRecipes = false;
 
         @Config.Comment({"Whether to make miscellaneous recipes harder.", "Default: false"})
         public boolean hardMiscRecipes = false;
@@ -185,9 +210,6 @@ public class ConfigHolder {
 
         @Config.Comment({"Whether to make the recipe for the EBF Controller harder.", "Default: false"})
         public boolean harderEBFControllerRecipe = false;
-
-        @Config.Comment({"Whether Wrenches should require Plates instead of Ingots to craft.", "Default: false"})
-        public boolean plateWrenches = false;
     }
 
     public static class CompatibilityOptions {
@@ -277,12 +299,11 @@ public class ConfigHolder {
         @Config.SlidingOption
         public double resolution = 2;
 
-        @Config.Comment({"Whether or not to enable Emissive Textures for GregTech Machines.", "Default: true"})
+        @Config.Comment({"Whether or not to enable Emissive Textures for GregTech Machines and multiblock parts.", "Default: true"})
         public boolean machinesEmissiveTextures = true;
 
-        @Config.Comment({"Whether or not to enable Emissive Textures for GregTech Casings " +
-                "when the multiblock is working (EBF coils, Fusion Casings, etc.).", "Default: false"})
-        public boolean casingsActiveEmissiveTextures = false;
+        @Config.Comment({"Whether or not to enable Emissive Textures for Electric Blast Furnace Coils when the multiblock is working.", "Default: false"})
+        public boolean coilsActiveEmissiveTextures = true;
 
         @Config.Comment({"Whether or not sounds should be played when using tools outside of crafting.", "Default: true"})
         public boolean toolUseSounds = true;
@@ -299,11 +320,29 @@ public class ConfigHolder {
 
         @Config.Comment({"The default color to overlay onto machines.", "16777215 (0xFFFFFF in decimal) is no coloring (like GTCE).",
                 "13819135 (0xD2DCFF in decimal) is the classic blue from GT5 (default)."})
+        @Config.RangeInt(min = 0, max = 0xFFFFFF)
         public int defaultPaintingColor = 0xD2DCFF;
 
         @Config.Comment({"The default color to overlay onto Machine (and other) UIs.", "16777215 (0xFFFFFF) is no coloring (like GTCE).",
                 "13819135 (0xD2DCFF in decimal) is the classic blue from GT5 (default)."})
+        @Config.RangeInt(min = 0, max = 0xFFFFFF)
         public int defaultUIColor = 0xD2DCFF;
+
+        // requires mc restart, color is set upon jei plugin registration
+        @Config.Comment({"The color to use as a background for the Multiblock Preview JEI Page.",
+                "Default: 13027014 (0xC6C6C6), which is JEI's background color."})
+        @Config.RangeInt(min = 0, max = 0xFFFFFF)
+        @Config.RequiresMcRestart
+        public int multiblockPreviewColor = 0xC6C6C6;
+
+        // does not require mc restart, drawn dynamically
+        @Config.Comment({"The color to use for the text in the Multiblock Preview JEI Page.",
+                "Default: 3355443 (0x333333), which is minecraft's dark gray color."})
+        @Config.RangeInt(min = 0, max = 0xFFFFFF)
+        public int multiblockPreviewFontColor = 0x333333;
+
+        @Config.Comment("Prevent tooltips from blinking for better visibility")
+        public boolean preventBlinkingTooltips = false;
 
         public static class GuiConfig {
             @Config.Comment({"The scrolling speed of widgets", "Default: 13"})
@@ -334,6 +373,13 @@ public class ConfigHolder {
             @Config.Comment("Bloom config options for the fusion reactor.")
             @Config.Name("Fusion Reactor")
             public FusionBloom fusionBloom = new FusionBloom();
+
+            @Config.Comment("Particle config option for the Assembly Line")
+            public boolean assemblyLineParticles = false;
+
+            @Config.Comment("Bloom config options for the heat effect (cable burning).")
+            @Config.Name("Heat Effect")
+            public HeatEffectBloom heatEffectBloom = new HeatEffectBloom();
 
             @Config.Comment({"Whether to use shader programs.", "Default: true"})
             public boolean useShader = true;
@@ -403,13 +449,38 @@ public class ConfigHolder {
         public double baseBrightness = 0;
     }
 
+    public static class HeatEffectBloom {
+        @Config.Comment({"Whether to use shader programs.", "Default: true"})
+        public boolean useShader = true;
+
+        @Config.Comment({"Bloom Strength", "OUTPUT = BACKGROUND + BLOOM * {strength} * (base + LT + (1 - BACKGROUND_BRIGHTNESS)*(HT-LT)))", "Default: 2"})
+        @Config.RangeDouble(min = 0)
+        public double strength = 1.1;
+
+        @Config.Comment({"Bloom Algorithm", "0 - Simple Gaussian Blur Bloom (Fast)", "1 - Unity Bloom", "2 - Unreal Bloom", "Default: 2"})
+        @Config.RangeInt(min = 0, max = 2)
+        @Config.SlidingOption
+        public int bloomStyle = 2;
+
+        @Config.Comment({"The brightness after bloom should not exceed this value. It can be used to limit the brightness of highlights " +
+                "(e.g., daytime).", "OUTPUT = BACKGROUND + BLOOM * strength * (base + LT + (1 - BACKGROUND_BRIGHTNESS)*({HT}-LT)))", "This value should be greater than lowBrightnessThreshold.", "Default: 0.5"})
+        @Config.RangeDouble(min = 0)
+        public double highBrightnessThreshold = 1.4;
+
+        @Config.Comment({"The brightness after bloom should not smaller than this value. It can be used to limit the brightness of dusky parts " +
+                "(e.g., night/caves).", "OUTPUT = BACKGROUND + BLOOM * strength * (base + {LT} + (1 - BACKGROUND_BRIGHTNESS)*(HT-{LT})))", "This value should be smaller than highBrightnessThreshold.", "Default: 0.2"})
+        @Config.RangeDouble(min = 0)
+        public double lowBrightnessThreshold = 0.6;
+
+        @Config.Comment({"The base brightness of the bloom.", "It is similar to strength", "This value should be smaller than highBrightnessThreshold.", "OUTPUT = BACKGROUND + BLOOM * strength * ({base} + LT + (1 - BACKGROUND_BRIGHTNESS)*(HT-LT)))", "Default: 0.1"})
+        @Config.RangeDouble(min = 0)
+        public double baseBrightness = 0;
+    }
+
     public static class ToolOptions {
 
         @Config.Name("NanoSaber Options")
         public NanoSaber nanoSaber = new NanoSaber();
-
-        @Config.Comment({"Should EV and IV Drills be enabled, which may cause lag when used on low-end devices?", "Default: true"})
-        public boolean enableHighTierDrills = true;
 
         @Config.Comment("NightVision Goggles Voltage Tier. Default: 1 (LV)")
         @Config.RangeInt(min = 0, max = 14)
@@ -439,6 +510,11 @@ public class ConfigHolder {
         @Config.Comment({"Advanced Electric Jetpack Voltage Tier.", "Default: 3 (HV)"})
         @Config.RangeInt(min = 0, max = 14)
         public int voltageTierAdvImpeller = 3;
+
+        @Config.Comment({"Random chance for electric tools to take actual damage", "Default: 10%"})
+        @Config.RangeInt(min = 0, max = 100)
+        @Config.SlidingOption
+        public int rngDamageElectricTools = 10;
 
         @Config.Comment("Armor HUD Location")
         public ArmorHud armorHud = new ArmorHud();

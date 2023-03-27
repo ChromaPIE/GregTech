@@ -2,10 +2,12 @@ package gregtech.api.capability.impl;
 
 import gregtech.api.GTValues;
 import gregtech.api.metatileentity.multiblock.RecipeMapPrimitiveMultiblockController;
-import gregtech.api.recipes.Recipe;
 import gregtech.api.recipes.RecipeMap;
+import gregtech.api.recipes.recipeproperties.IRecipePropertyStorage;
 
 import javax.annotation.Nonnull;
+
+import static gregtech.api.recipes.logic.OverclockingLogic.standardOverclockingLogic;
 
 /**
  * Recipe Logic for a Multiblock that does not require power.
@@ -42,18 +44,20 @@ public class PrimitiveRecipeLogic extends AbstractRecipeLogic {
     }
 
     @Override
-    protected int[] runOverclockingLogic(@Nonnull Recipe recipe, boolean negativeEU, int maxOverclocks) {
-        return standardOverclockingLogic(1,
+    protected int[] runOverclockingLogic(@Nonnull IRecipePropertyStorage propertyStorage, int recipeEUt, long maxVoltage, int recipeDuration, int amountOC) {
+        return standardOverclockingLogic(
+                1,
                 getMaxVoltage(),
-                recipe.getDuration(),
+                recipeDuration,
+                amountOC,
                 getOverclockingDurationDivisor(),
-                getOverclockingVoltageMultiplier(),
-                maxOverclocks
+                getOverclockingVoltageMultiplier()
+
         );
     }
 
     @Override
-    public long getOverclockVoltage() {
+    public long getMaximumOverclockVoltage() {
         return GTValues.V[GTValues.LV];
     }
 

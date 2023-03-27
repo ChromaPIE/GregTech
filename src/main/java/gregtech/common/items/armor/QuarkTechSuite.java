@@ -5,7 +5,7 @@ import gregtech.api.capability.IElectricItem;
 import gregtech.api.items.armor.ArmorLogicSuite;
 import gregtech.api.items.armor.ArmorUtils;
 import gregtech.api.util.GTUtility;
-import gregtech.api.util.input.EnumKey;
+import gregtech.api.util.input.KeyBind;
 import gregtech.common.items.MetaItems;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.I18n;
@@ -35,13 +35,21 @@ import java.util.List;
 import java.util.Map;
 
 public class QuarkTechSuite extends ArmorLogicSuite implements IStepAssist {
+
     protected static final Map<Potion, Integer> potionRemovalCost = new IdentityHashMap<>();
     private float charge = 0.0F;
+
+    @SideOnly(Side.CLIENT)
+    protected ArmorUtils.ModularHUD HUD;
 
     public QuarkTechSuite(EntityEquipmentSlot slot, int energyPerUse, long capacity, int tier) {
         super(energyPerUse, capacity, tier, slot);
         potionRemovalCost.put(MobEffects.POISON, 10000);
         potionRemovalCost.put(MobEffects.WITHER, 25000);
+        if (ArmorUtils.SIDE.isClient() && this.shouldDrawHUD()) {
+            //noinspection NewExpressionSideOnly
+            HUD = new ArmorUtils.ModularHUD();
+        }
     }
 
     @Override
@@ -106,7 +114,7 @@ public class QuarkTechSuite extends ArmorLogicSuite implements IStepAssist {
             }
 
             boolean nightvision = data.getBoolean("Nightvision");
-            if (toggleTimer == 0 && ArmorUtils.isKeyDown(player, EnumKey.MODE_SWITCH)) {
+            if (toggleTimer == 0 && KeyBind.ARMOR_MODE_SWITCH.isKeyDown(player)) {
                 toggleTimer = 5;
                 if (!nightvision && item.getCharge() >= 4) {
                     nightvision = true;
@@ -141,7 +149,7 @@ public class QuarkTechSuite extends ArmorLogicSuite implements IStepAssist {
             if (player.isBurning())
                 player.extinguish();
         } else if (SLOT == EntityEquipmentSlot.LEGS) {
-            if (item.canUse(energyPerUse / 100) && (player.onGround || player.isInWater()) && ArmorUtils.isKeyDown(player, EnumKey.FORWARD) && (player.isSprinting())) {
+            if (item.canUse(energyPerUse / 100) && (player.onGround || player.isInWater()) && KeyBind.VANILLA_FORWARD.isKeyDown(player) && (player.isSprinting())) {
                 byte consumerTicks = data.getByte("consumerTicks");
                 ++consumerTicks;
                 if (consumerTicks >= 10) {
@@ -153,12 +161,12 @@ public class QuarkTechSuite extends ArmorLogicSuite implements IStepAssist {
                 float speed = 0.25F;
                 if (player.isInWater()) {
                     speed = 0.1F;
-                    if (ArmorUtils.isKeyDown(player, EnumKey.JUMP)) {
+                    if (KeyBind.VANILLA_JUMP.isKeyDown(player)) {
                         player.motionY += 0.1D;
                     }
                 }
                 player.moveRelative(0.0F, 0.0F, 1.0F, speed);
-            } else if (item.canUse(energyPerUse / 100) && player.isInWater() && (ArmorUtils.isKeyDown(player, EnumKey.CROUCH) || ArmorUtils.isKeyDown(player, EnumKey.JUMP))) {
+            } else if (item.canUse(energyPerUse / 100) && player.isInWater() && KeyBind.VANILLA_SNEAK.isKeyDown(player) || KeyBind.VANILLA_JUMP.isKeyDown(player)) {
                 byte consumerTicks = data.getByte("consumerTicks");
                 ++consumerTicks;
                 if (consumerTicks >= 10) {
@@ -168,15 +176,15 @@ public class QuarkTechSuite extends ArmorLogicSuite implements IStepAssist {
                 }
                 data.setByte("consumerTicks", consumerTicks);
                 double acceleration = 0.085D;
-                if (ArmorUtils.isKeyDown(player, EnumKey.CROUCH))
+                if (KeyBind.VANILLA_SNEAK.isKeyDown(player))
                     player.motionY -= acceleration;
-                if (ArmorUtils.isKeyDown(player, EnumKey.JUMP))
+                if (KeyBind.VANILLA_JUMP.isKeyDown(player))
                     player.motionY += acceleration;
             }
         } else if (SLOT == EntityEquipmentSlot.FEET) {
             if (!world.isRemote) {
                 boolean onGround = !data.hasKey("onGround") || data.getBoolean("onGround");
-                if (onGround && !player.onGround && ArmorUtils.isKeyDown(player, EnumKey.JUMP)) {
+                if (onGround && !player.onGround && KeyBind.VANILLA_JUMP.isKeyDown(player)) {
                     item.discharge(energyPerUse / 100, item.getTier(), true, false, false);
                     ret = true;
                 }
@@ -190,7 +198,7 @@ public class QuarkTechSuite extends ArmorLogicSuite implements IStepAssist {
                 }
 
                 if (player.motionY >= 0.0D && this.charge > 0.0F && !player.isInWater()) {
-                    if (ArmorUtils.isKeyDown(player, EnumKey.JUMP)) {
+                    if (KeyBind.VANILLA_JUMP.isKeyDown(player)) {
                         if (this.charge == 1.0F) {
                             player.motionX *= 3.6D;
                             player.motionZ *= 3.6D;
@@ -211,7 +219,7 @@ public class QuarkTechSuite extends ArmorLogicSuite implements IStepAssist {
         }
     }
 
-    public void disableNightVision(@Nonnull World world, EntityPlayer player, boolean sendMsg) {
+    public static void disableNightVision(@Nonnull World world, EntityPlayer player, boolean sendMsg) {
         if (!world.isRemote) {
             player.removePotionEffect(MobEffects.NIGHT_VISION);
             if (sendMsg) player.sendStatusMessage(new TextComponentTranslation("metaarmor.qts.nightvision.disabled"), true);
@@ -271,14 +279,15 @@ public class QuarkTechSuite extends ArmorLogicSuite implements IStepAssist {
         return SLOT == EntityEquipmentSlot.CHEST ? 1.2D : 1.0D;
     }
 
-    @SideOnly(Side.CLIENT)
-    public boolean isNeedDrawHUD() {
-        return true;
+    @Override
+    public float getHeatResistance() {
+        return 0.5f;
     }
 
+    @SideOnly(Side.CLIENT)
     @Override
     public void drawHUD(ItemStack item) {
-        super.addCapacityHUD(item);
+        addCapacityHUD(item, this.HUD);
         this.HUD.draw();
         this.HUD.reset();
     }
@@ -294,7 +303,9 @@ public class QuarkTechSuite extends ArmorLogicSuite implements IStepAssist {
             } else {
                 lines.add(I18n.format("metaarmor.message.nightvision.disabled"));
             }
-            lines.add(I18n.format("metaarmor.tooltip.poitons"));
+            lines.add(I18n.format("metaarmor.tooltip.potions"));
+            lines.add(I18n.format("metaarmor.tooltip.breath"));
+            lines.add(I18n.format("metaarmor.tooltip.autoeat"));
         } else if (SLOT == EntityEquipmentSlot.CHEST) {
             lines.add(I18n.format("metaarmor.tooltip.burning"));
         } else if (SLOT == EntityEquipmentSlot.LEGS) {
@@ -302,6 +313,7 @@ public class QuarkTechSuite extends ArmorLogicSuite implements IStepAssist {
         } else if (SLOT == EntityEquipmentSlot.FEET) {
             lines.add(I18n.format("metaarmor.tooltip.stepassist"));
             lines.add(I18n.format("metaarmor.tooltip.falldamage"));
+            lines.add(I18n.format("metaarmor.tooltip.jump"));
         }
     }
 }

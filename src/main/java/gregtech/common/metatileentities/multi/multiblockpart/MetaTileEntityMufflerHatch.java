@@ -10,18 +10,21 @@ import gregtech.api.gui.ModularUI;
 import gregtech.api.gui.widgets.SlotWidget;
 import gregtech.api.metatileentity.ITieredMetaTileEntity;
 import gregtech.api.metatileentity.MetaTileEntity;
-import gregtech.api.metatileentity.MetaTileEntityHolder;
+import gregtech.api.metatileentity.interfaces.IGregTechTileEntity;
 import gregtech.api.metatileentity.multiblock.IMultiblockAbilityPart;
 import gregtech.api.metatileentity.multiblock.MultiblockAbility;
 import gregtech.api.metatileentity.multiblock.MultiblockWithDisplayBase;
+import gregtech.api.util.GTTransferUtils;
 import gregtech.api.util.GTUtility;
 import gregtech.client.renderer.texture.Textures;
+import gregtech.client.utils.TooltipHelper;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.EnumFacing;
+import net.minecraft.util.NonNullList;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
@@ -49,7 +52,7 @@ public class MetaTileEntityMufflerHatch extends MetaTileEntityMultiblockPart imp
     }
 
     @Override
-    public MetaTileEntity createMetaTileEntity(MetaTileEntityHolder holder) {
+    public MetaTileEntity createMetaTileEntity(IGregTechTileEntity tileEntity) {
         return new MetaTileEntityMufflerHatch(metaTileEntityId, getTier());
     }
 
@@ -67,6 +70,11 @@ public class MetaTileEntityMufflerHatch extends MetaTileEntityMultiblockPart imp
             pollutionParticles();
     }
 
+    @Override
+    public void clearMachineInventory(NonNullList<ItemStack> itemBuffer) {
+        clearInventory(itemBuffer, inventory);
+    }
+
     public void recoverItemsTable(List<ItemStack> recoveryItems) {
         int numRolls = Math.min(recoveryItems.size(), inventory.getSlots());
         List<ItemStack> items = new ArrayList<>();
@@ -74,7 +82,7 @@ public class MetaTileEntityMufflerHatch extends MetaTileEntityMultiblockPart imp
             if (calculateChance())
                 GTUtility.addStackToItemStackList(recoveryItems.get(slot), items);
         });
-        addItemsToItemHandler(inventory, false, items);
+        GTTransferUtils.addItemsToItemHandler(inventory, false, items);
     }
 
     private boolean calculateChance() {
@@ -92,7 +100,16 @@ public class MetaTileEntityMufflerHatch extends MetaTileEntityMultiblockPart imp
     private boolean checkFrontFaceFree() {
         BlockPos frontPos = getPos().offset(getFrontFacing());
         IBlockState blockState = getWorld().getBlockState(frontPos);
-        return blockState.getBlock().isAir(blockState, getWorld(), frontPos);
+        MultiblockWithDisplayBase controller = (MultiblockWithDisplayBase) getController();
+
+        // break a snow layer if it exists, and if this machine is running
+        if (controller != null && controller.isActive()) {
+            if (GTUtility.tryBreakSnowLayer(getWorld(), frontPos, blockState, true)) {
+                return true;
+            }
+            return blockState.getBlock().isAir(blockState, getWorld(), frontPos);
+        }
+        return blockState.getBlock().isAir(blockState, getWorld(), frontPos) || GTUtility.isBlockSnowLayer(blockState);
     }
 
     @SideOnly(Side.CLIENT)
@@ -133,9 +150,17 @@ public class MetaTileEntityMufflerHatch extends MetaTileEntityMultiblockPart imp
     @Override
     public void addInformation(ItemStack stack, @Nullable World player, List<String> tooltip, boolean advanced) {
         super.addInformation(stack, player, tooltip, advanced);
-        tooltip.add(I18n.format("gregtech.machine.muffler_hatch.tooltip"));
+        tooltip.add(I18n.format("gregtech.machine.muffler_hatch.tooltip1"));
         tooltip.add(I18n.format("gregtech.muffler.recovery_tooltip", recoveryChance));
         tooltip.add(I18n.format("gregtech.universal.enabled"));
+        tooltip.add(TooltipHelper.BLINKING_RED + I18n.format("gregtech.machine.muffler_hatch.tooltip2"));
+    }
+
+    @Override
+    public void addToolUsages(ItemStack stack, @Nullable World world, List<String> tooltip, boolean advanced) {
+        tooltip.add(I18n.format("gregtech.tool_action.screwdriver.access_covers"));
+        tooltip.add(I18n.format("gregtech.tool_action.wrench.set_facing"));
+        super.addToolUsages(stack, world, tooltip, advanced);
     }
 
     @Override

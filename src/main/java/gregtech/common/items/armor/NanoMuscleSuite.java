@@ -5,7 +5,7 @@ import gregtech.api.capability.IElectricItem;
 import gregtech.api.items.armor.ArmorLogicSuite;
 import gregtech.api.items.armor.ArmorUtils;
 import gregtech.api.util.GTUtility;
-import gregtech.api.util.input.EnumKey;
+import gregtech.api.util.input.KeyBind;
 import gregtech.common.items.MetaItems;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.I18n;
@@ -29,8 +29,15 @@ import java.util.List;
 
 public class NanoMuscleSuite extends ArmorLogicSuite implements IStepAssist {
 
+    @SideOnly(Side.CLIENT)
+    protected ArmorUtils.ModularHUD HUD;
+
     public NanoMuscleSuite(EntityEquipmentSlot slot, int energyPerUse, long maxCapacity, int tier) {
         super(energyPerUse, maxCapacity, tier, slot);
+        if (ArmorUtils.SIDE.isClient() && this.shouldDrawHUD()) {
+            //noinspection NewExpressionSideOnly
+            HUD = new ArmorUtils.ModularHUD();
+        }
     }
 
     @Override
@@ -43,7 +50,7 @@ public class NanoMuscleSuite extends ArmorLogicSuite implements IStepAssist {
         byte toggleTimer = nbtData.getByte("toggleTimer");
         if (SLOT == EntityEquipmentSlot.HEAD) {
             boolean nightvision = nbtData.getBoolean("Nightvision");
-            if (toggleTimer == 0 && ArmorUtils.isKeyDown(player, EnumKey.MODE_SWITCH)) {
+            if (toggleTimer == 0 && KeyBind.ARMOR_MODE_SWITCH.isKeyDown(player)) {
                 toggleTimer = 5;
                 if (!nightvision && item.getCharge() >= 4) {
                     nightvision = true;
@@ -79,7 +86,7 @@ public class NanoMuscleSuite extends ArmorLogicSuite implements IStepAssist {
         player.inventoryContainer.detectAndSendChanges();
     }
 
-    public void disableNightVision(@Nonnull World world, EntityPlayer player, boolean sendMsg) {
+    public static void disableNightVision(@Nonnull World world, EntityPlayer player, boolean sendMsg) {
         if (!world.isRemote) {
             player.removePotionEffect(MobEffects.NIGHT_VISION);
             if (sendMsg) player.sendStatusMessage(new TextComponentTranslation("metaarmor.nms.nightvision.disabled"), true);
@@ -132,14 +139,15 @@ public class NanoMuscleSuite extends ArmorLogicSuite implements IStepAssist {
         return 1.0D;
     }
 
-    @SideOnly(Side.CLIENT)
-    public boolean isNeedDrawHUD() {
-        return true;
+    @Override
+    public float getHeatResistance() {
+        return 0.75f;
     }
 
+    @SideOnly(Side.CLIENT)
     @Override
     public void drawHUD(ItemStack item) {
-        super.addCapacityHUD(item);
+        addCapacityHUD(item, this.HUD);
         this.HUD.draw();
         this.HUD.reset();
     }

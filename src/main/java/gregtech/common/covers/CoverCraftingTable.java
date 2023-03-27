@@ -17,10 +17,9 @@ import gregtech.common.inventory.handlers.SingleItemStackHandler;
 import gregtech.common.inventory.handlers.ToolItemStackHandler;
 import gregtech.common.inventory.itemsource.ItemSources;
 import gregtech.common.inventory.itemsource.sources.InventoryItemSource;
-import gregtech.common.metatileentities.storage.CraftingRecipeMemory;
 import gregtech.common.metatileentities.storage.CraftingRecipeLogic;
+import gregtech.common.metatileentities.storage.CraftingRecipeMemory;
 import gregtech.common.metatileentities.storage.MetaTileEntityWorkbench;
-import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.ItemStack;
@@ -76,16 +75,11 @@ public class CoverCraftingTable extends CoverBehavior implements CoverWithUI, IT
     }
 
     @Override
-    public EnumActionResult onRightClick(EntityPlayer playerIn, EnumHand hand, CuboidRayTraceResult hitResult) {
+    public EnumActionResult onScrewdriverClick(EntityPlayer playerIn, EnumHand hand, CuboidRayTraceResult hitResult) {
         if (!playerIn.world.isRemote) {
             this.openUI((EntityPlayerMP) playerIn);
         }
         return EnumActionResult.SUCCESS;
-    }
-
-    @Override
-    public EnumActionResult onScrewdriverClick(EntityPlayer playerIn, EnumHand hand, CuboidRayTraceResult hitResult) {
-        return EnumActionResult.FAIL;
     }
 
     @Override
@@ -126,7 +120,7 @@ public class CoverCraftingTable extends CoverBehavior implements CoverWithUI, IT
     public ModularUI createUI(EntityPlayer player) {
         ModularUI.Builder builder = ModularUI.builder(GuiTextures.BACKGROUND, 176, 221)
                 .bindPlayerInventory(player.inventory, 139);
-        builder.label(5, 5, I18n.format("metaitem.cover.crafting.name"));
+        builder.label(5, 5, "metaitem.cover.crafting.name");
 
         builder.widget(MetaTileEntityWorkbench.createWorkbenchTab(recipeLogic, craftingGrid, recipeMemory, toolInventory, internalInventory));
 
@@ -134,13 +128,15 @@ public class CoverCraftingTable extends CoverBehavior implements CoverWithUI, IT
     }
 
     @Override
-    public void writeToNBT(NBTTagCompound tagCompound) {
+    public NBTTagCompound writeToNBT(NBTTagCompound tagCompound) {
         super.writeToNBT(tagCompound);
         tagCompound.setTag("CraftingGridInventory", craftingGrid.serializeNBT());
         tagCompound.setTag("ToolInventory", toolInventory.serializeNBT());
         tagCompound.setTag("InternalInventory", internalInventory.serializeNBT());
         tagCompound.setInteger("ItemsCrafted", recipeLogic == null ? itemsCrafted : recipeLogic.getItemsCraftedAmount());
         tagCompound.setTag("RecipeMemory", recipeMemory.serializeNBT());
+
+        return tagCompound;
     }
 
     @Override

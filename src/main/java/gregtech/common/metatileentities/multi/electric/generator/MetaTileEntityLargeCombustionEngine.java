@@ -1,16 +1,19 @@
 package gregtech.common.metatileentities.multi.electric.generator;
 
 import gregtech.api.GTValues;
+import gregtech.api.capability.GregtechCapabilities;
+import gregtech.api.capability.IEnergyContainer;
 import gregtech.api.capability.IMultipleTankHandler;
 import gregtech.api.capability.impl.MultiblockFuelRecipeLogic;
 import gregtech.api.metatileentity.MetaTileEntity;
-import gregtech.api.metatileentity.MetaTileEntityHolder;
+import gregtech.api.metatileentity.interfaces.IGregTechTileEntity;
 import gregtech.api.metatileentity.multiblock.FuelMultiblockController;
 import gregtech.api.metatileentity.multiblock.IMultiblockPart;
 import gregtech.api.metatileentity.multiblock.MultiblockAbility;
 import gregtech.api.metatileentity.multiblock.RecipeMapMultiblockController;
 import gregtech.api.pattern.BlockPattern;
 import gregtech.api.pattern.FactoryBlockPattern;
+import gregtech.api.pattern.PatternMatchContext;
 import gregtech.api.recipes.RecipeMaps;
 import gregtech.api.unification.material.Materials;
 import gregtech.client.renderer.ICubeRenderer;
@@ -31,7 +34,6 @@ import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
 import net.minecraftforge.fluids.FluidStack;
-import net.minecraftforge.fluids.IFluidTank;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -41,18 +43,18 @@ public class MetaTileEntityLargeCombustionEngine extends FuelMultiblockControlle
 
     private final int tier;
     private final boolean isExtreme;
+    private boolean boostAllowed;
 
     public MetaTileEntityLargeCombustionEngine(ResourceLocation metaTileEntityId, int tier) {
         super(metaTileEntityId, RecipeMaps.COMBUSTION_GENERATOR_FUELS, tier);
         this.recipeMapWorkable = new LargeCombustionEngineWorkableHandler(this, tier > GTValues.EV);
-        this.recipeMapWorkable.enableOverclockVoltage();
-        this.recipeMapWorkable.setOverclockTier(tier);
+        this.recipeMapWorkable.setMaximumOverclockVoltage(GTValues.V[tier]);
         this.tier = tier;
         this.isExtreme = tier > GTValues.EV;
     }
 
     @Override
-    public MetaTileEntity createMetaTileEntity(MetaTileEntityHolder holder) {
+    public MetaTileEntity createMetaTileEntity(IGregTechTileEntity tileEntity) {
         return new MetaTileEntityLargeCombustionEngine(metaTileEntityId, tier);
     }
 
@@ -66,23 +68,28 @@ public class MetaTileEntityLargeCombustionEngine extends FuelMultiblockControlle
                 FluidStack liquidOxygenStack = getInputFluidInventory().drain(Materials.LiquidOxygen.getFluid(Integer.MAX_VALUE), false);
                 int lubricantAmount = lubricantStack == null ? 0 : lubricantStack.amount;
                 textList.add(new TextComponentTranslation("gregtech.multiblock.large_combustion_engine.lubricant_amount", lubricantAmount));
-                if (!isExtreme) {
-                    if (((LargeCombustionEngineWorkableHandler) recipeMapWorkable).isOxygenBoosted) {
-                        int oxygenAmount = oxygenStack == null ? 0 : oxygenStack.amount;
-                        textList.add(new TextComponentTranslation("gregtech.multiblock.large_combustion_engine.oxygen_amount", oxygenAmount));
-                        textList.add(new TextComponentTranslation("gregtech.multiblock.large_combustion_engine.oxygen_boosted"));
-                    } else {
-                        textList.add(new TextComponentTranslation("gregtech.multiblock.large_combustion_engine.supply_oxygen_to_boost"));
+                if (boostAllowed) {
+                    if (!isExtreme) {
+                        if (((LargeCombustionEngineWorkableHandler) recipeMapWorkable).isOxygenBoosted) {
+                            int oxygenAmount = oxygenStack == null ? 0 : oxygenStack.amount;
+                            textList.add(new TextComponentTranslation("gregtech.multiblock.large_combustion_engine.oxygen_amount", oxygenAmount));
+                            textList.add(new TextComponentTranslation("gregtech.multiblock.large_combustion_engine.oxygen_boosted"));
+                        } else {
+                            textList.add(new TextComponentTranslation("gregtech.multiblock.large_combustion_engine.supply_oxygen_to_boost"));
+                        }
+                    }
+                    else {
+                        if (((LargeCombustionEngineWorkableHandler) recipeMapWorkable).isOxygenBoosted) {
+                            int liquidOxygenAmount = liquidOxygenStack == null ? 0 : liquidOxygenStack.amount;
+                            textList.add(new TextComponentTranslation("gregtech.multiblock.large_combustion_engine.liquid_oxygen_amount", liquidOxygenAmount));
+                            textList.add(new TextComponentTranslation("gregtech.multiblock.large_combustion_engine.liquid_oxygen_boosted"));
+                        } else {
+                            textList.add(new TextComponentTranslation("gregtech.multiblock.large_combustion_engine.supply_liquid_oxygen_to_boost"));
+                        }
                     }
                 }
                 else {
-                    if (((LargeCombustionEngineWorkableHandler) recipeMapWorkable).isOxygenBoosted) {
-                        int liquidOxygenAmount = liquidOxygenStack == null ? 0 : liquidOxygenStack.amount;
-                        textList.add(new TextComponentTranslation("gregtech.multiblock.large_combustion_engine.liquid_oxygen_amount", liquidOxygenAmount));
-                        textList.add(new TextComponentTranslation("gregtech.multiblock.large_combustion_engine.liquid_oxygen_boosted"));
-                    } else {
-                        textList.add(new TextComponentTranslation("gregtech.multiblock.large_combustion_engine.supply_liquid_oxygen_to_boost"));
-                    }
+                    textList.add(new TextComponentTranslation("gregtech.multiblock.large_combustion_engine.boost_disallowed"));
                 }
             }
 
@@ -94,8 +101,8 @@ public class MetaTileEntityLargeCombustionEngine extends FuelMultiblockControlle
     @Override
     public void addInformation(ItemStack stack, @Nullable World player, List<String> tooltip, boolean advanced) {
         super.addInformation(stack, player, tooltip, advanced);
-        tooltip.add(I18n.format("gregtech.machine.large_combustion_engine.tooltip.1", GTValues.V[tier]));
-        tooltip.add(I18n.format("gregtech.machine.large_combustion_engine.tooltip.2"));
+        tooltip.add(I18n.format("gregtech.universal.tooltip.base_production_eut", GTValues.V[tier]));
+        tooltip.add(I18n.format("gregtech.universal.tooltip.uses_per_hour_lubricant", 1000));
         if (isExtreme) {
             tooltip.add(I18n.format("gregtech.machine.large_combustion_engine.tooltip.boost_extreme", GTValues.V[tier] * 4));
         } else {
@@ -113,7 +120,13 @@ public class MetaTileEntityLargeCombustionEngine extends FuelMultiblockControlle
                 .where('X', states(getCasingState()))
                 .where('G', states(getGearboxState()))
                 .where('C', states(getCasingState()).setMinGlobalLimited(3).or(autoAbilities(false, true, true, true, true, true, true)))
-                .where('D', abilities(MultiblockAbility.OUTPUT_ENERGY))
+                .where('D', metaTileEntities(MultiblockAbility.REGISTRY.get(MultiblockAbility.OUTPUT_ENERGY).stream()
+                        .filter(mte -> {
+                            IEnergyContainer container = mte.getCapability(GregtechCapabilities.CAPABILITY_ENERGY_CONTAINER, null);
+                            return container != null && container.getOutputVoltage() * container.getOutputAmperage() >= GTValues.V[tier];
+                        })
+                        .toArray(MetaTileEntity[]::new))
+                        .addTooltip("gregtech.multiblock.pattern.error.limited.1", GTValues.VN[tier]))
                 .where('A', states(getIntakeState()).addTooltips("gregtech.multiblock.pattern.clear_amount_1"))
                 .where('Y', selfPredicate())
                 .build();
@@ -152,7 +165,14 @@ public class MetaTileEntityLargeCombustionEngine extends FuelMultiblockControlle
 
     @Override
     public boolean isStructureObstructed() {
-        return checkIntakesObstructed();
+        return super.isStructureObstructed() || checkIntakesObstructed();
+    }
+
+    @Override
+    protected void formStructure(PatternMatchContext context) {
+        super.formStructure(context);
+        IEnergyContainer energyContainer = getEnergyContainer();
+        this.boostAllowed = energyContainer != null && energyContainer.getOutputVoltage() >= GTValues.V[this.tier + 1];
     }
 
     private boolean checkIntakesObstructed() {
@@ -178,10 +198,15 @@ public class MetaTileEntityLargeCombustionEngine extends FuelMultiblockControlle
         return false;
     }
 
+    public boolean isBoostAllowed() {
+        return boostAllowed;
+    }
+
     private static class LargeCombustionEngineWorkableHandler extends MultiblockFuelRecipeLogic {
 
         private boolean isOxygenBoosted = false;
 
+        private final MetaTileEntityLargeCombustionEngine combustionEngine;
         private final boolean isExtreme;
         private final int tier;
 
@@ -191,6 +216,7 @@ public class MetaTileEntityLargeCombustionEngine extends FuelMultiblockControlle
 
         public LargeCombustionEngineWorkableHandler(RecipeMapMultiblockController tileEntity, boolean isExtreme) {
             super(tileEntity);
+            this.combustionEngine = (MetaTileEntityLargeCombustionEngine) tileEntity;
             this.isExtreme = isExtreme;
             this.tier = isExtreme ? GTValues.IV : GTValues.EV;
         }
@@ -201,7 +227,7 @@ public class MetaTileEntityLargeCombustionEngine extends FuelMultiblockControlle
 
                 //drain lubricant and invalidate if it fails
                 if (totalContinuousRunningTime == 1 || totalContinuousRunningTime % 72 == 0) {
-                    IMultipleTankHandler inputTank = ((RecipeMapMultiblockController) metaTileEntity).getInputFluidInventory();
+                    IMultipleTankHandler inputTank = combustionEngine.getInputFluidInventory();
                     if (LUBRICANT_STACK.isFluidStackIdentical(inputTank.drain(LUBRICANT_STACK, false))) {
                         inputTank.drain(LUBRICANT_STACK, true);
                     } else {
@@ -210,9 +236,9 @@ public class MetaTileEntityLargeCombustionEngine extends FuelMultiblockControlle
                     }
                 }
 
-                //drain oxygen if present to boost production
-                if (totalContinuousRunningTime == 1 || totalContinuousRunningTime % 20 == 0) {
-                    IMultipleTankHandler inputTank = ((RecipeMapMultiblockController) metaTileEntity).getInputFluidInventory();
+                //drain oxygen if present to boost production, and if the dynamo hatch supports it
+                if (combustionEngine.isBoostAllowed() && (totalContinuousRunningTime == 1 || totalContinuousRunningTime % 20 == 0)) {
+                    IMultipleTankHandler inputTank = combustionEngine.getInputFluidInventory();
                     FluidStack boosterStack = isExtreme ? LIQUID_OXYGEN_STACK : OXYGEN_STACK;
                     if (boosterStack.isFluidStackIdentical(inputTank.drain(boosterStack, false))) {
                         isOxygenBoosted = true;

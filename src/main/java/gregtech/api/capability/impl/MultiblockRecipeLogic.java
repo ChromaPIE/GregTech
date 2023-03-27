@@ -1,23 +1,23 @@
 package gregtech.api.capability.impl;
 
-import gregtech.api.capability.IEnergyContainer;
-import gregtech.api.capability.IMaintenanceHatch;
-import gregtech.api.capability.IMultiblockController;
-import gregtech.api.capability.IMultipleTankHandler;
-import gregtech.api.capability.IMultipleRecipeMaps;
+import gregtech.api.capability.*;
 import gregtech.api.metatileentity.multiblock.MultiblockAbility;
 import gregtech.api.metatileentity.multiblock.MultiblockWithDisplayBase;
 import gregtech.api.metatileentity.multiblock.RecipeMapMultiblockController;
-import gregtech.api.recipes.MatchingMode;
 import gregtech.api.recipes.Recipe;
 import gregtech.api.recipes.RecipeMap;
+import gregtech.api.recipes.recipeproperties.IRecipePropertyStorage;
 import gregtech.common.ConfigHolder;
 import net.minecraft.util.Tuple;
 import net.minecraftforge.items.IItemHandlerModifiable;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
+
+import static gregtech.api.recipes.logic.OverclockingLogic.standardOverclockingLogic;
 
 public class MultiblockRecipeLogic extends AbstractRecipeLogic {
 
@@ -44,7 +44,7 @@ public class MultiblockRecipeLogic extends AbstractRecipeLogic {
 
     @Override
     protected boolean canProgressRecipe() {
-        return !((IMultiblockController) metaTileEntity).isStructureObstructed();
+        return super.canProgressRecipe() && !((IMultiblockController) metaTileEntity).isStructureObstructed();
     }
 
     /**
@@ -105,6 +105,41 @@ public class MultiblockRecipeLogic extends AbstractRecipeLogic {
     }
 
     @Override
+    protected boolean canWorkWithInputs() {
+        MultiblockWithDisplayBase controller = (MultiblockWithDisplayBase) metaTileEntity;
+        if (controller instanceof RecipeMapMultiblockController) {
+            RecipeMapMultiblockController distinctController = (RecipeMapMultiblockController) controller;
+
+            if (distinctController.canBeDistinct() && distinctController.isDistinct()) {
+                boolean canWork = false;
+                if (invalidatedInputList.isEmpty()) {
+                    return true;
+                }
+                if (!metaTileEntity.getNotifiedFluidInputList().isEmpty()) {
+                    canWork = true;
+                    invalidatedInputList.clear();
+                    metaTileEntity.getNotifiedFluidInputList().clear();
+                    metaTileEntity.getNotifiedItemInputList().clear();
+                } else {
+                    Iterator<IItemHandlerModifiable> iterator = metaTileEntity.getNotifiedItemInputList().iterator();
+                    while (iterator.hasNext()) {
+                        IItemHandlerModifiable bus = iterator.next();
+                        if (invalidatedInputList.remove(bus)) {
+                            canWork = true;
+                        }
+                        iterator.remove();
+                    }
+                }
+                if (!invalidatedInputList.containsAll(getInputBuses())) {
+                    canWork = true;
+                }
+                return canWork;
+            }
+        }
+        return super.canWorkWithInputs();
+    }
+
+    @Override
     protected void trySearchNewRecipe() {
         // do not run recipes when there are more than 5 maintenance problems
         // Maintenance can apply to all multiblocks, so cast to a base multiblock class
@@ -140,24 +175,12 @@ public class MultiblockRecipeLogic extends AbstractRecipeLogic {
         List<IItemHandlerModifiable> importInventory = getInputBuses();
         IMultipleTankHandler importFluids = getInputTank();
 
-        //if fluids changed, iterate all input busses again
-        if (metaTileEntity.getNotifiedFluidInputList().size() > 0) {
-            for (IItemHandlerModifiable ihm : importInventory) {
-                if (!metaTileEntity.getNotifiedItemInputList().contains(ihm)) {
-                    metaTileEntity.getNotifiedItemInputList().add(ihm);
-                }
-            }
-            metaTileEntity.getNotifiedFluidInputList().clear();
-        }
-
         // Our caching implementation
         // This guarantees that if we get a recipe cache hit, our efficiency is no different from other machines
         if (checkPreviousRecipeDistinct(importInventory.get(lastRecipeIndex)) && checkRecipe(previousRecipe)) {
             currentRecipe = previousRecipe;
             currentDistinctInputBus = importInventory.get(lastRecipeIndex);
-            if(prepareRecipeDistinct(currentRecipe)) {
-                metaTileEntity.getNotifiedItemInputList().remove(importInventory.get(lastRecipeIndex));
-
+            if (prepareRecipeDistinct(currentRecipe)) {
                 // No need to cache the previous recipe here, as it is not null and matched by the current recipe,
                 // so it will always be the same
                 return;
@@ -168,30 +191,26 @@ public class MultiblockRecipeLogic extends AbstractRecipeLogic {
         // each bus individually instead of the combined inventory all at once.
         for (int i = 0; i < importInventory.size(); i++) {
             IItemHandlerModifiable bus = importInventory.get(i);
-            // Skip this bus if no recipe was found last time and the inventory did not change
-            if (invalidatedInputList.contains(bus) && !metaTileEntity.getNotifiedItemInputList().contains(bus)) {
+            // Skip this bus if no recipe was found last time
+            if (invalidatedInputList.contains(bus)) {
                 continue;
-            } else {
-                invalidatedInputList.remove(bus);
             }
             // Look for a new recipe after a cache miss
-            currentRecipe = findRecipe(maxVoltage, bus, importFluids, MatchingMode.DEFAULT);
+            currentRecipe = findRecipe(maxVoltage, bus, importFluids);
             // Cache the current recipe, if one is found
             if (currentRecipe != null && checkRecipe(currentRecipe)) {
                 this.previousRecipe = currentRecipe;
                 currentDistinctInputBus = bus;
-                if(prepareRecipeDistinct(currentRecipe)) {
+                if (prepareRecipeDistinct(currentRecipe)) {
                     lastRecipeIndex = i;
-                    metaTileEntity.getNotifiedItemInputList().remove(bus);
                     return;
                 }
-            } else {
+            }
+            if (currentRecipe == null) {
+                //no valid recipe found, invalidate this bus
                 invalidatedInputList.add(bus);
             }
         }
-
-        //If no matching recipes are found, clear the notified inputs so that we know when new items are given
-        metaTileEntity.getNotifiedItemInputList().clear();
     }
 
     @Override
@@ -211,7 +230,7 @@ public class MultiblockRecipeLogic extends AbstractRecipeLogic {
 
     protected boolean prepareRecipeDistinct(Recipe recipe) {
 
-        recipe = recipe.trimRecipeOutputs(recipe, getRecipeMap(), metaTileEntity.getItemOutputLimit(), metaTileEntity.getFluidOutputLimit());
+        recipe = Recipe.trimRecipeOutputs(recipe, getRecipeMap(), metaTileEntity.getItemOutputLimit(), metaTileEntity.getFluidOutputLimit());
 
         recipe = findParallelRecipe(
                 this,
@@ -220,7 +239,7 @@ public class MultiblockRecipeLogic extends AbstractRecipeLogic {
                 getInputTank(),
                 getOutputInventory(),
                 getOutputTank(),
-                getMaxVoltage(),
+                getMaxParallelVoltage(),
                 getParallelLimit());
 
         if (recipe != null && setupAndConsumeRecipeInputs(recipe, currentDistinctInputBus)) {
@@ -232,17 +251,31 @@ public class MultiblockRecipeLogic extends AbstractRecipeLogic {
     }
 
     @Override
-    protected int[] runOverclockingLogic(@Nonnull Recipe recipe, boolean negativeEU, int maxOverclocks) {
+    protected int[] runOverclockingLogic(@Nonnull IRecipePropertyStorage propertyStorage, int recipeEUt, long maxVoltage, int recipeDuration, int amountOC) {
         // apply maintenance penalties
         Tuple<Integer, Double> maintenanceValues = getMaintenanceValues();
 
         int[] overclock = null;
         if (maintenanceValues.getSecond() != 1.0)
-            overclock = overclockRecipe(recipe.getRecipePropertyStorage(), recipe.getEUt(), negativeEU, getMaxVoltage(),
-                    (int) Math.round(recipe.getDuration() * maintenanceValues.getSecond()), maxOverclocks);
+
+            overclock = standardOverclockingLogic(
+                    Math.abs(recipeEUt),
+                    maxVoltage,
+                    (int) Math.round(recipeDuration * maintenanceValues.getSecond()),
+                    amountOC,
+                    getOverclockingDurationDivisor(),
+                    getOverclockingVoltageMultiplier()
+            );
 
         if (overclock == null)
-            overclock = overclockRecipe(recipe.getRecipePropertyStorage(), recipe.getEUt(), negativeEU, getMaxVoltage(), recipe.getDuration(), maxOverclocks);
+            overclock = standardOverclockingLogic(
+                    Math.abs(recipeEUt),
+                    maxVoltage,
+                    recipeDuration,
+                    amountOC,
+                    getOverclockingDurationDivisor(),
+                    getOverclockingVoltageMultiplier()
+            );
 
         if (maintenanceValues.getFirst() > 0)
             overclock[1] = (int) (overclock[1] * (1 + 0.1 * maintenanceValues.getFirst()));
@@ -251,7 +284,7 @@ public class MultiblockRecipeLogic extends AbstractRecipeLogic {
     }
 
     @Override
-    public long getOverclockVoltage() {
+    public long getMaximumOverclockVoltage() {
         return getMaxVoltage();
     }
 
@@ -267,7 +300,7 @@ public class MultiblockRecipeLogic extends AbstractRecipeLogic {
     }
 
     @Override
-    protected boolean checkRecipe(Recipe recipe) {
+    public boolean checkRecipe(@Nonnull Recipe recipe) {
         RecipeMapMultiblockController controller = (RecipeMapMultiblockController) metaTileEntity;
         if (controller.checkRecipe(recipe, false)) {
             controller.checkRecipe(recipe, true);
@@ -328,6 +361,7 @@ public class MultiblockRecipeLogic extends AbstractRecipeLogic {
         return Math.max(getEnergyContainer().getInputVoltage(), getEnergyContainer().getOutputVoltage());
     }
 
+    @Nullable
     @Override
     public RecipeMap<?> getRecipeMap() {
         // if the multiblock has more than one RecipeMap, return the currently selected one
