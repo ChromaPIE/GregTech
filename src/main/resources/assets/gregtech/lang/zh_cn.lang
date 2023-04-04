@@ -94,6 +94,8 @@ gregtech.top.unit.items=物品
 gregtech.top.unit.fluid_milibuckets=L
 gregtech.top.unit.fluid_buckets=kL
 
+gregtech.top.block_drops=掉落物
+
 gregtech.multiblock.title=多方块结构
 gregtech.multiblock.primitive_blast_furnace.bronze.description=土高炉是一种在游戏前期用来生产钢的多方块结构。尽管它不是很快，却能为你的发展提供钢材。
 gregtech.multiblock.coke_oven.description=焦炉是一种多方块结构，用于在早期生产焦炭和杂酚油，无需燃料即可工作，内部至多可容纳 32 桶杂酚油。其存储可通过焦炉仓进行访问。
