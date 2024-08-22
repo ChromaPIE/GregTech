@@ -1,26 +1,23 @@
 package gregtech.common.metatileentities.electric;
 
-import codechicken.lib.render.CCRenderState;
-import codechicken.lib.render.pipeline.IVertexOperation;
-import codechicken.lib.vec.Matrix4;
 import gregtech.api.GTValues;
 import gregtech.api.gui.GuiTextures;
 import gregtech.api.gui.ModularUI;
 import gregtech.api.gui.widgets.SlotWidget;
+import gregtech.api.items.itemhandlers.GTItemStackHandler;
 import gregtech.api.metatileentity.MetaTileEntity;
 import gregtech.api.metatileentity.TieredMetaTileEntity;
-import gregtech.api.util.GTTransferUtils;
 import gregtech.api.metatileentity.interfaces.IGregTechTileEntity;
-import gregtech.client.renderer.texture.Textures;
 import gregtech.api.unification.OreDictUnifier;
-import gregtech.common.ConfigHolder;
+import gregtech.api.util.GTTransferUtils;
+import gregtech.client.renderer.texture.Textures;
+
 import net.minecraft.block.BlockLiquid;
 import net.minecraft.block.material.Material;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumFacing;
-import net.minecraft.util.NonNullList;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
@@ -29,10 +26,13 @@ import net.minecraft.world.storage.loot.LootContext;
 import net.minecraft.world.storage.loot.LootTable;
 import net.minecraft.world.storage.loot.LootTableList;
 import net.minecraftforge.items.IItemHandlerModifiable;
-import net.minecraftforge.items.ItemStackHandler;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
+import codechicken.lib.render.CCRenderState;
+import codechicken.lib.render.pipeline.IVertexOperation;
+import codechicken.lib.vec.Matrix4;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
 import java.util.List;
 
 public class MetaTileEntityFisher extends TieredMetaTileEntity {
@@ -82,7 +82,8 @@ public class MetaTileEntityFisher extends TieredMetaTileEntity {
     public void update() {
         super.update();
         ItemStack baitStack = importItems.getStackInSlot(0);
-        if (!getWorld().isRemote && energyContainer.getEnergyStored() >= energyAmountPerFish && getOffsetTimer() % fishingTicks == 0L && !baitStack.isEmpty()) {
+        if (!getWorld().isRemote && energyContainer.getEnergyStored() >= energyAmountPerFish &&
+                getOffsetTimer() % fishingTicks == 0L && !baitStack.isEmpty()) {
             WorldServer world = (WorldServer) this.getWorld();
             int waterCount = 0;
             int edgeSize = (int) Math.sqrt(WATER_CHECK_SIZE);
@@ -97,8 +98,8 @@ public class MetaTileEntityFisher extends TieredMetaTileEntity {
             }
             if (waterCount == WATER_CHECK_SIZE) {
                 LootTable table = world.getLootTableManager().getLootTableFromLocation(LootTableList.GAMEPLAY_FISHING);
-                NonNullList<ItemStack> itemStacks = NonNullList.create();
-                itemStacks.addAll(table.generateLootForPools(world.rand, new LootContext.Builder(world).build()));
+                List<ItemStack> itemStacks = table.generateLootForPools(world.rand,
+                        new LootContext.Builder(world).build());
                 if (GTTransferUtils.addItemsToItemHandler(exportItems, true, itemStacks)) {
                     GTTransferUtils.addItemsToItemHandler(exportItems, false, itemStacks);
                     energyContainer.removeEnergy(energyAmountPerFish);
@@ -113,11 +114,12 @@ public class MetaTileEntityFisher extends TieredMetaTileEntity {
 
     @Override
     protected IItemHandlerModifiable createImportItemHandler() {
-        return new ItemStackHandler(1) {
-            @Nonnull
+        return new GTItemStackHandler(this, 1) {
+
+            @NotNull
             @Override
-            public ItemStack insertItem(int slot, @Nonnull ItemStack stack, boolean simulate) {
-                if (OreDictUnifier.getOreDictionaryNames(stack).contains("string")) {
+            public ItemStack insertItem(int slot, @NotNull ItemStack stack, boolean simulate) {
+                if (OreDictUnifier.hasOreDictionary(stack, "string")) {
                     return super.insertItem(slot, stack, simulate);
                 }
                 return stack;
@@ -127,7 +129,7 @@ public class MetaTileEntityFisher extends TieredMetaTileEntity {
 
     @Override
     protected IItemHandlerModifiable createExportItemHandler() {
-        return new ItemStackHandler(inventorySize);
+        return new GTItemStackHandler(this, inventorySize);
     }
 
     @Override
@@ -142,9 +144,12 @@ public class MetaTileEntityFisher extends TieredMetaTileEntity {
     public void addInformation(ItemStack stack, @Nullable World player, List<String> tooltip, boolean advanced) {
         tooltip.add(I18n.format("gregtech.machine.fisher.tooltip"));
         tooltip.add(I18n.format("gregtech.machine.fisher.speed", fishingTicks));
-        tooltip.add(I18n.format("gregtech.machine.fisher.requirement", (int) Math.sqrt(WATER_CHECK_SIZE), (int) Math.sqrt(WATER_CHECK_SIZE)));
-        tooltip.add(I18n.format("gregtech.universal.tooltip.voltage_in", energyContainer.getInputVoltage(), GTValues.VNF[getTier()]));
-        tooltip.add(I18n.format("gregtech.universal.tooltip.energy_storage_capacity", energyContainer.getEnergyCapacity()));
+        tooltip.add(I18n.format("gregtech.machine.fisher.requirement", (int) Math.sqrt(WATER_CHECK_SIZE),
+                (int) Math.sqrt(WATER_CHECK_SIZE)));
+        tooltip.add(I18n.format("gregtech.universal.tooltip.voltage_in", energyContainer.getInputVoltage(),
+                GTValues.VNF[getTier()]));
+        tooltip.add(
+                I18n.format("gregtech.universal.tooltip.energy_storage_capacity", energyContainer.getEnergyCapacity()));
         super.addInformation(stack, player, tooltip, advanced);
     }
 

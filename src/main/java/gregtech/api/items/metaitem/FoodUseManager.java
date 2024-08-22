@@ -3,6 +3,7 @@ package gregtech.api.items.metaitem;
 import gregtech.api.items.metaitem.stats.IFoodBehavior;
 import gregtech.api.items.metaitem.stats.IItemBehaviour;
 import gregtech.api.items.metaitem.stats.IItemUseManager;
+
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.EnumAction;
 import net.minecraft.item.ItemStack;
@@ -22,8 +23,7 @@ public class FoodUseManager implements IItemBehaviour, IItemUseManager {
     }
 
     @Override
-    public void onItemUseStart(ItemStack stack, EntityPlayer player) {
-    }
+    public void onItemUseStart(ItemStack stack, EntityPlayer player) {}
 
     @Override
     public boolean canStartUsing(ItemStack stack, EntityPlayer player) {
@@ -41,16 +41,14 @@ public class FoodUseManager implements IItemBehaviour, IItemUseManager {
     }
 
     @Override
-    public void onItemUsingTick(ItemStack stack, EntityPlayer player, int count) {
-    }
+    public void onItemUsingTick(ItemStack stack, EntityPlayer player, int count) {}
 
     @Override
-    public void onPlayerStoppedItemUsing(ItemStack stack, EntityPlayer player, int timeLeft) {
-    }
+    public void onPlayerStoppedItemUsing(ItemStack stack, EntityPlayer player, int timeLeft) {}
 
     @Override
     public ItemStack onItemUseFinish(ItemStack stack, EntityPlayer player) {
-        stack.shrink(1);
+        if (!player.isCreative()) stack.shrink(1);
         player.getFoodStats().addStats(foodStats.getFoodLevel(stack, player), foodStats.getSaturation(stack, player));
         return foodStats.onFoodEaten(stack, player);
     }

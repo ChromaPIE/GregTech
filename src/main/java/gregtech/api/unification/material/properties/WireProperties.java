@@ -7,7 +7,7 @@ import java.util.Objects;
 
 import static gregtech.api.unification.material.info.MaterialFlags.GENERATE_FOIL;
 
-public class WireProperties implements IMaterialProperty<WireProperties> {
+public class WireProperties implements IMaterialProperty {
 
     private int voltage;
     private int amperage;
@@ -23,7 +23,8 @@ public class WireProperties implements IMaterialProperty<WireProperties> {
         this(voltage, baseAmperage, lossPerBlock, isSuperCon, 0);
     }
 
-    public WireProperties(int voltage, int baseAmperage, int lossPerBlock, boolean isSuperCon, int criticalTemperature) {
+    public WireProperties(int voltage, int baseAmperage, int lossPerBlock, boolean isSuperCon,
+                          int criticalTemperature) {
         this.voltage = voltage;
         this.amperage = baseAmperage;
         this.lossPerBlock = isSuperCon ? 0 : lossPerBlock;
@@ -111,11 +112,12 @@ public class WireProperties implements IMaterialProperty<WireProperties> {
     }
 
     /**
-     * Retrieves the critical temperature of the superconductor (the temperature at which the superconductive phase transition happens)
+     * Retrieves the critical temperature of the superconductor (the temperature at which the superconductive phase
+     * transition happens)
      *
      * @return Critical temperature of the material
      */
-    public int getSuperconductorCriticalTemperature(){
+    public int getSuperconductorCriticalTemperature() {
         return superconductorCriticalTemperature;
     }
 
@@ -124,7 +126,7 @@ public class WireProperties implements IMaterialProperty<WireProperties> {
      *
      * @param criticalTemperature The new critical temperature
      */
-    public void setSuperconductorCriticalTemperature(int criticalTemperature){
+    public void setSuperconductorCriticalTemperature(int criticalTemperature) {
         this.superconductorCriticalTemperature = this.isSuperconductor ? criticalTemperature : 0;
     }
 

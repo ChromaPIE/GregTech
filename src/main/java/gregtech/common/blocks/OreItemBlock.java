@@ -1,13 +1,12 @@
 package gregtech.common.blocks;
 
-import gregtech.api.GregTechAPI;
 import gregtech.api.unification.ore.StoneType;
+
 import net.minecraft.block.state.IBlockState;
-import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.item.ItemBlock;
 import net.minecraft.item.ItemStack;
 
-import javax.annotation.Nonnull;
+import org.jetbrains.annotations.NotNull;
 
 public class OreItemBlock extends ItemBlock {
 
@@ -24,19 +23,13 @@ public class OreItemBlock extends ItemBlock {
         return damage;
     }
 
-    @Nonnull
-    @Override
-    public CreativeTabs[] getCreativeTabs() {
-        return new CreativeTabs[]{CreativeTabs.SEARCH, GregTechAPI.TAB_GREGTECH_ORES};
-    }
-
     protected IBlockState getBlockState(ItemStack stack) {
         return oreBlock.getStateFromMeta(getMetadata(stack.getItemDamage()));
     }
 
-    @Nonnull
+    @NotNull
     @Override
-    public String getItemStackDisplayName(@Nonnull ItemStack stack) {
+    public String getItemStackDisplayName(@NotNull ItemStack stack) {
         IBlockState blockState = getBlockState(stack);
         StoneType stoneType = blockState.getValue(oreBlock.STONE_TYPE);
         return stoneType.processingPrefix.getLocalNameForItem(oreBlock.material);

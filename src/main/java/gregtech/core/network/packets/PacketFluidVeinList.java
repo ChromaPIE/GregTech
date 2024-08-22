@@ -3,7 +3,7 @@ package gregtech.core.network.packets;
 import gregtech.api.network.IClientExecutor;
 import gregtech.api.network.IPacket;
 import gregtech.api.worldgen.bedrockFluids.BedrockFluidVeinHandler;
-import lombok.NoArgsConstructor;
+
 import net.minecraft.client.network.NetHandlerPlayClient;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.network.PacketBuffer;
@@ -14,10 +14,12 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 import java.util.HashMap;
 import java.util.Map;
 
-@NoArgsConstructor
 public class PacketFluidVeinList implements IPacket, IClientExecutor {
 
     private Map<BedrockFluidVeinHandler.FluidVeinWorldEntry, Integer> map;
+
+    @SuppressWarnings("unused")
+    public PacketFluidVeinList() {}
 
     public PacketFluidVeinList(HashMap<BedrockFluidVeinHandler.FluidVeinWorldEntry, Integer> map) {
         this.map = map;
@@ -41,7 +43,8 @@ public class PacketFluidVeinList implements IPacket, IClientExecutor {
             NBTTagCompound tag = ByteBufUtils.readTag(buf);
             if (tag == null || tag.isEmpty()) continue;
 
-            BedrockFluidVeinHandler.FluidVeinWorldEntry entry = BedrockFluidVeinHandler.FluidVeinWorldEntry.readFromNBT(tag);
+            BedrockFluidVeinHandler.FluidVeinWorldEntry entry = BedrockFluidVeinHandler.FluidVeinWorldEntry
+                    .readFromNBT(tag);
             this.map.put(entry, tag.getInteger("weight"));
         }
     }

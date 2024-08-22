@@ -2,6 +2,7 @@ package gregtech.api.unification.material;
 
 import gregtech.api.unification.material.info.MaterialFlag;
 import gregtech.api.unification.material.materials.*;
+import gregtech.api.unification.ore.OrePrefix;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -16,14 +17,14 @@ import static gregtech.api.unification.material.info.MaterialFlags.*;
  * All Material Builders should follow this general formatting:
  * <p>
  * material = new MaterialBuilder(id, name)
- * .ingot().fluid().ore()                <--- types
- * .color().iconSet()                    <--- appearance
- * .flags()                              <--- special generation
- * .element() / .components()            <--- composition
- * .toolStats()                          <---
- * .oreByProducts()                         | additional properties
- * ...                                   <---
- * .blastTemp()                          <--- blast temperature
+ * .ingot().fluid().ore() <--- types
+ * .color().iconSet() <--- appearance
+ * .flags() <--- special generation
+ * .element() / .components() <--- composition
+ * .toolStats() <---
+ * .oreByProducts() | additional properties
+ * ... <---
+ * .blastTemp() <--- blast temperature
  * .build();
  * <p>
  * Use defaults to your advantage! Some defaults:
@@ -91,14 +92,14 @@ public class Materials {
          * - Gregicality: 3000-19999
          * - Gregification: 20000-20999
          * - HtmlTech: 21000-21499
-         * - GregTech Food Option: 21500-21999
-         * - PCM's Ore Addon: 22000-23599
+         * - GregTech Food Option: 21500-22499
+         * - FREE RANGE 22500-23599
          * - MechTech: 23600-23999
          * - FREE RANGE 24000-31999
          * - Reserved for CraftTweaker: 32000-32767
          */
 
-        CHEMICAL_DYES = new Material[]{
+        CHEMICAL_DYES = new Material[] {
                 Materials.DyeWhite, Materials.DyeOrange,
                 Materials.DyeMagenta, Materials.DyeLightBlue,
                 Materials.DyeYellow, Materials.DyeLime,
@@ -108,6 +109,8 @@ public class Materials {
                 Materials.DyeBrown, Materials.DyeGreen,
                 Materials.DyeRed, Materials.DyeBlack
         };
+
+        OrePrefix.init();
     }
 
     public static final List<MaterialFlag> STD_METAL = new ArrayList<>();
@@ -124,7 +127,7 @@ public class Materials {
         EXT2_METAL.addAll(Arrays.asList(GENERATE_LONG_ROD, GENERATE_BOLT_SCREW));
     }
 
-    public static final MarkerMaterial NULL = new MarkerMaterial("null");
+    public static final MarkerMaterial NULL = MarkerMaterial.create("null");
 
     /**
      * Direct Elements
@@ -209,6 +212,7 @@ public class Materials {
     public static Material Phosphorus;
     public static Material Polonium;
     public static Material Platinum;
+    public static Material Plutonium;
     public static Material Plutonium239;
     public static Material Plutonium241;
     public static Material Potassium;
@@ -244,6 +248,7 @@ public class Materials {
     public static Material Titanium;
     public static Material Tritium;
     public static Material Tungsten;
+    public static Material Uranium;
     public static Material Uranium238;
     public static Material Uranium235;
     public static Material Vanadium;
@@ -287,7 +292,6 @@ public class Materials {
     public static Material Chromite;
     public static Material Cinnabar;
     public static Material Water;
-    public static Material LiquidOxygen;
     public static Material Coal;
     public static Material Cobaltite;
     public static Material Cooperite;
@@ -307,7 +311,6 @@ public class Materials {
     public static Material Invar;
     public static Material Kanthal;
     public static Material Lazurite;
-    public static Material LiquidHelium;
     public static Material Magnalium;
     public static Material Magnesite;
     public static Material Magnetite;
@@ -338,7 +341,6 @@ public class Materials {
     public static Material AluminiumSulfite;
     public static Material Tantalite;
     public static Material Coke;
-
 
     public static Material SolderingAlloy;
     public static Material Spessartine;
@@ -466,6 +468,15 @@ public class Materials {
     public static Material EnrichedNaquadahSulfate;
     public static Material NaquadriaSulfate;
     public static Material Pyrochlore;
+    public static Material RTMAlloy;
+    public static Material IlmeniteSlag;
+    public static Material Zircon;
+    public static Material Zirconia;
+    public static Material ZirconiumTetrachloride;
+    public static Material Hafnia;
+    public static Material HafniumTetrachloride;
+    public static Material Zircaloy4;
+    public static Material Inconel718;
 
     /**
      * Organic chemistry
@@ -547,6 +558,8 @@ public class Materials {
     public static Material RhodiumPlatedPalladium;
     public static Material Butyraldehyde;
     public static Material PolyvinylButyral;
+    public static Material Biphenyl;
+    public static Material PolychlorinatedBiphenyl;
 
     /**
      * Not possible to determine exact Components
@@ -678,6 +691,12 @@ public class Materials {
     public static Material NaquadriaWaste;
     public static Material Lapotron;
     public static Material UUMatter;
+    public static Material PCBCoolant;
+    public static Material BauxiteSlurry;
+    public static Material CrackedBauxiteSlurry;
+    public static Material BauxiteSludge;
+    public static Material DecalcifiedBauxiteSludge;
+    public static Material BauxiteSlag;
 
     /**
      * Second Degree Compounds

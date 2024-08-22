@@ -1,20 +1,22 @@
 package gregtech.api.gui.widgets;
 
-import com.google.common.collect.Lists;
 import gregtech.api.gui.GuiTextures;
 import gregtech.api.gui.IRenderContext;
 import gregtech.api.gui.Widget;
 import gregtech.api.gui.ingredient.IGhostIngredientTarget;
 import gregtech.api.gui.ingredient.IIngredientSlot;
 import gregtech.api.gui.resources.IGuiTexture;
-import gregtech.api.util.*;
+import gregtech.api.util.GTLog;
+import gregtech.api.util.LocalizationUtils;
+import gregtech.api.util.Position;
+import gregtech.api.util.Size;
+import gregtech.api.util.TextFormattingUtil;
 import gregtech.client.utils.RenderUtil;
 import gregtech.client.utils.TooltipHelper;
-import mezz.jei.api.gui.IGhostIngredientHandler.Target;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.renderer.GlStateManager;
-import net.minecraft.client.resources.I18n;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.network.PacketBuffer;
@@ -24,15 +26,19 @@ import net.minecraftforge.fluids.FluidTank;
 import net.minecraftforge.fluids.capability.CapabilityFluidHandler;
 import net.minecraftforge.fluids.capability.IFluidHandlerItem;
 
-import javax.annotation.Nonnull;
+import com.google.common.collect.Lists;
+import mezz.jei.api.gui.IGhostIngredientHandler.Target;
+import org.jetbrains.annotations.NotNull;
+
 import java.awt.*;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+
+import static gregtech.api.util.GTUtility.getFluidFromContainer;
 
 public class PhantomFluidWidget extends Widget implements IIngredientSlot, IGhostIngredientTarget {
 
@@ -46,7 +52,8 @@ public class PhantomFluidWidget extends Widget implements IIngredientSlot, IGhos
     private boolean showTip;
     protected FluidStack lastFluidStack;
 
-    public PhantomFluidWidget(int xPosition, int yPosition, int width, int height, Supplier<FluidStack> fluidStackSupplier, Consumer<FluidStack> fluidStackUpdater) {
+    public PhantomFluidWidget(int xPosition, int yPosition, int width, int height,
+                              Supplier<FluidStack> fluidStackSupplier, Consumer<FluidStack> fluidStackUpdater) {
         super(new Position(xPosition, yPosition), new Size(width, height));
         this.fluidStackSupplier = fluidStackSupplier;
         this.fluidStackUpdater = fluidStackUpdater;
@@ -57,16 +64,6 @@ public class PhantomFluidWidget extends Widget implements IIngredientSlot, IGhos
         this.fluidTank = fluidTank;
         this.fluidStackSupplier = fluidTank::getFluid;
         this.fluidStackUpdater = fluidTank::setFluid;
-    }
-
-    private static FluidStack drainFrom(Object ingredient) {
-        if (ingredient instanceof ItemStack) {
-            ItemStack itemStack = (ItemStack) ingredient;
-            IFluidHandlerItem fluidHandler = itemStack.getCapability(CapabilityFluidHandler.FLUID_HANDLER_ITEM_CAPABILITY, null);
-            if (fluidHandler != null)
-                return fluidHandler.drain(Integer.MAX_VALUE, false);
-        }
-        return null;
     }
 
     public PhantomFluidWidget showTip(boolean showTip) {
@@ -93,25 +90,26 @@ public class PhantomFluidWidget extends Widget implements IIngredientSlot, IGhos
 
     @Override
     public List<Target<?>> getPhantomTargets(Object ingredient) {
-        if (!(ingredient instanceof FluidStack) && drainFrom(ingredient) == null) {
+        if (!(ingredient instanceof FluidStack) && getFluidFromContainer(ingredient) == null) {
             return Collections.emptyList();
         }
 
         Rectangle rectangle = toRectangleBox();
         return Lists.newArrayList(new Target<Object>() {
-            @Nonnull
+
+            @NotNull
             @Override
             public Rectangle getArea() {
                 return rectangle;
             }
 
             @Override
-            public void accept(@Nonnull Object ingredient) {
+            public void accept(@NotNull Object ingredient) {
                 FluidStack ingredientStack;
                 if (ingredient instanceof FluidStack)
                     ingredientStack = (FluidStack) ingredient;
                 else
-                    ingredientStack = drainFrom(ingredient);
+                    ingredientStack = getFluidFromContainer(ingredient);
 
                 if (ingredientStack != null) {
                     NBTTagCompound tagCompound = ingredientStack.writeToNBT(new NBTTagCompound());
@@ -190,7 +188,8 @@ public class PhantomFluidWidget extends Widget implements IIngredientSlot, IGhos
             ItemStack itemStack = gui.entityPlayer.inventory.getItemStack().copy();
             if (!itemStack.isEmpty()) {
                 itemStack.setCount(1);
-                IFluidHandlerItem fluidHandler = itemStack.getCapability(CapabilityFluidHandler.FLUID_HANDLER_ITEM_CAPABILITY, null);
+                IFluidHandlerItem fluidHandler = itemStack
+                        .getCapability(CapabilityFluidHandler.FLUID_HANDLER_ITEM_CAPABILITY, null);
                 if (fluidHandler != null) {
                     FluidStack resultFluid = fluidHandler.drain(Integer.MAX_VALUE, false);
                     fluidStackUpdater.accept(resultFluid);
@@ -281,13 +280,16 @@ public class PhantomFluidWidget extends Widget implements IIngredientSlot, IGhos
         }
         if (lastFluidStack != null) {
             GlStateManager.disableBlend();
-            RenderUtil.drawFluidForGui(lastFluidStack, lastFluidStack.amount, pos.x + 1, pos.y + 1, size.width - 1, size.height - 1);
+            RenderUtil.drawFluidForGui(lastFluidStack, lastFluidStack.amount, pos.x + 1, pos.y + 1, size.width - 1,
+                    size.height - 1);
             if (showTip) {
                 GlStateManager.pushMatrix();
                 GlStateManager.scale(0.5, 0.5, 1);
                 String s = TextFormattingUtil.formatLongToCompactString(lastFluidStack.amount, 4) + "L";
                 FontRenderer fontRenderer = Minecraft.getMinecraft().fontRenderer;
-                fontRenderer.drawStringWithShadow(s, (pos.x + (size.width / 3F)) * 2 - fontRenderer.getStringWidth(s) + 21, (pos.y + (size.height / 3F) + 6) * 2, 0xFFFFFF);
+                fontRenderer.drawStringWithShadow(s,
+                        (pos.x + (size.width / 3F)) * 2 - fontRenderer.getStringWidth(s) + 21,
+                        (pos.y + (size.height / 3F) + 6) * 2, 0xFFFFFF);
                 GlStateManager.popMatrix();
             }
             GlStateManager.enableBlend();
@@ -303,7 +305,8 @@ public class PhantomFluidWidget extends Widget implements IIngredientSlot, IGhos
                 hoverStringList.add(fluidName);
                 if (showTip) {
                     hoverStringList.add(lastFluidStack.amount + " L");
-                    hoverStringList.addAll(Arrays.asList(GTUtility.getForwardNewLineRegex().split(I18n.format("cover.fluid_filter.config_amount"))));
+                    Collections.addAll(hoverStringList,
+                            LocalizationUtils.formatLines("cover.fluid_filter.config_amount"));
                 }
                 drawHoveringText(ItemStack.EMPTY, hoverStringList, -1, mouseX, mouseY);
             }

@@ -6,14 +6,13 @@ import gregtech.api.recipes.RecipeMap;
 import gregtech.api.recipes.recipeproperties.FusionEUToStartProperty;
 import gregtech.api.util.EnumValidationResult;
 import gregtech.api.util.GTLog;
-import org.apache.commons.lang3.builder.ToStringBuilder;
 
-import javax.annotation.Nonnull;
+import org.apache.commons.lang3.builder.ToStringBuilder;
+import org.jetbrains.annotations.NotNull;
 
 public class FusionRecipeBuilder extends RecipeBuilder<FusionRecipeBuilder> {
 
-    public FusionRecipeBuilder() {
-    }
+    public FusionRecipeBuilder() {}
 
     public FusionRecipeBuilder(Recipe recipe, RecipeMap<FusionRecipeBuilder> recipeMap) {
         super(recipe, recipeMap);
@@ -29,7 +28,7 @@ public class FusionRecipeBuilder extends RecipeBuilder<FusionRecipeBuilder> {
     }
 
     @Override
-    public boolean applyProperty(@Nonnull String key, Object value) {
+    public boolean applyProperty(@NotNull String key, Object value) {
         if (key.equals(FusionEUToStartProperty.KEY)) {
             this.EUToStart(((Number) value).longValue());
             return true;
@@ -39,7 +38,7 @@ public class FusionRecipeBuilder extends RecipeBuilder<FusionRecipeBuilder> {
 
     public FusionRecipeBuilder EUToStart(long EUToStart) {
         if (EUToStart <= 0) {
-            GTLog.logger.error("EU to start cannot be less than or equal to 0", new IllegalArgumentException());
+            GTLog.logger.error("EU to start cannot be less than or equal to 0", new Throwable());
             recipeStatus = EnumValidationResult.INVALID;
         }
         this.applyProperty(FusionEUToStartProperty.getInstance(), EUToStart);

@@ -1,14 +1,5 @@
 package gregtech.api.worldgen.generator;
 
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
-import gnu.trove.iterator.TLongIterator;
-import gnu.trove.list.TLongList;
-import gnu.trove.list.array.TLongArrayList;
-import gnu.trove.map.TLongObjectMap;
-import gnu.trove.map.hash.TLongObjectHashMap;
-import gnu.trove.set.TLongSet;
-import gnu.trove.set.hash.TLongHashSet;
 import gregtech.api.util.GTUtility;
 import gregtech.api.util.XSTR;
 import gregtech.api.worldgen.config.OreDepositDefinition;
@@ -19,6 +10,7 @@ import gregtech.api.worldgen.populator.VeinBufferPopulator;
 import gregtech.api.worldgen.populator.VeinChunkPopulator;
 import gregtech.api.worldgen.shape.IBlockGeneratorAccess;
 import gregtech.common.ConfigHolder;
+
 import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.util.math.BlockPos;
@@ -26,6 +18,11 @@ import net.minecraft.util.math.BlockPos.MutableBlockPos;
 import net.minecraft.world.World;
 import net.minecraft.world.biome.Biome;
 import net.minecraft.world.chunk.Chunk;
+
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import it.unimi.dsi.fastutil.longs.*;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import org.apache.commons.lang3.tuple.MutablePair;
 
 import java.util.*;
@@ -36,7 +33,8 @@ public class CachedGridEntry implements GridEntryInfo, IBlockGeneratorAccess, IB
 
     private static final Map<World, Cache<Long, CachedGridEntry>> gridEntryCache = new WeakHashMap<>();
 
-    public static CachedGridEntry getOrCreateEntry(World world, int gridX, int gridZ, int primerChunkX, int primerChunkZ) {
+    public static CachedGridEntry getOrCreateEntry(World world, int gridX, int gridZ, int primerChunkX,
+                                                   int primerChunkZ) {
         Cache<Long, CachedGridEntry> currentValue = gridEntryCache.get(world);
         if (currentValue == null) {
             currentValue = createGridCache();
@@ -58,9 +56,10 @@ public class CachedGridEntry implements GridEntryInfo, IBlockGeneratorAccess, IB
                 .build();
     }
 
-    private final TLongObjectMap<ChunkDataEntry> dataByChunkPos = new TLongObjectHashMap<>();
-    private static final Comparator<OreDepositDefinition> COMPARATOR = Comparator.comparing(OreDepositDefinition::getPriority).reversed();
-    private static final BlockPos[] CHUNK_CORNER_SPOTS = new BlockPos[]{
+    private final Long2ObjectMap<ChunkDataEntry> dataByChunkPos = new Long2ObjectOpenHashMap<>();
+    private static final Comparator<OreDepositDefinition> COMPARATOR = Comparator
+            .comparing(OreDepositDefinition::getPriority).reversed();
+    private static final BlockPos[] CHUNK_CORNER_SPOTS = {
             new BlockPos(0, 0, 0),
             new BlockPos(15, 0, 0),
             new BlockPos(0, 0, 15),
@@ -86,9 +85,11 @@ public class CachedGridEntry implements GridEntryInfo, IBlockGeneratorAccess, IB
 
         int gridSizeX = WorldGeneratorImpl.GRID_SIZE_X * 16;
         int gridSizeZ = WorldGeneratorImpl.GRID_SIZE_Z * 16;
-        BlockPos blockPos = new BlockPos(gridX * gridSizeX + gridSizeX / 2, world.getActualHeight(), gridZ * gridSizeZ + gridSizeZ / 2);
+        BlockPos blockPos = new BlockPos(gridX * gridSizeX + gridSizeX / 2, world.getActualHeight(),
+                gridZ * gridSizeZ + gridSizeZ / 2);
         Biome currentBiome = world.getBiomeProvider().getBiome(blockPos);
-        this.cachedDepositMap = new ArrayList<>(WorldGenRegistry.INSTANCE.getCachedBiomeVeins(world.provider, currentBiome));
+        this.cachedDepositMap = new ArrayList<>(
+                WorldGenRegistry.INSTANCE.getCachedBiomeVeins(world.provider, currentBiome));
 
         this.worldSeaLevel = world.getSeaLevel();
         this.masterEntry = searchMasterOrNull(world);
@@ -99,7 +100,7 @@ public class CachedGridEntry implements GridEntryInfo, IBlockGeneratorAccess, IB
             int masterHeight = world.getHeight(heightSpot).getY();
             int masterBottomHeight = world.getTopSolidOrLiquidBlock(heightSpot).getY();
             this.masterEntry = primerChunk.getCapability(GTWorldGenCapability.CAPABILITY, null);
-            if(this.masterEntry == null) {
+            if (this.masterEntry == null) {
                 this.masterEntry = new GTWorldGenCapability();
             }
             this.masterEntry.setMaxHeight(masterHeight, masterBottomHeight);
@@ -191,11 +192,11 @@ public class CachedGridEntry implements GridEntryInfo, IBlockGeneratorAccess, IB
         long chunkId = (long) chunkX << 32 | chunkZ & 0xFFFFFFFFL;
         ChunkDataEntry chunkDataEntry = dataByChunkPos.get(chunkId);
         if (chunkDataEntry != null) {
-            TLongSet longSet = chunkDataEntry.generatedBlocksSet.get(definition);
-            ArrayList<IBlockState> blockStates = new ArrayList<>();
-            TLongIterator iterator = longSet.iterator();
+            LongSet longSet = chunkDataEntry.generatedBlocksSet.get(definition);
+            List<IBlockState> blockStates = new ArrayList<>();
+            LongIterator iterator = longSet.iterator();
             while (iterator.hasNext())
-                blockStates.add(Block.getStateById((int) iterator.next()));
+                blockStates.add(Block.getStateById((int) iterator.nextLong()));
             return blockStates;
         }
         return Collections.emptyList();
@@ -206,18 +207,21 @@ public class CachedGridEntry implements GridEntryInfo, IBlockGeneratorAccess, IB
     }
 
     public void triggerVeinsGeneration() {
-        this.veinGeneratedMap = new HashMap<>();
+        this.veinGeneratedMap = new Object2ObjectOpenHashMap<>();
         if (!cachedDepositMap.isEmpty()) {
             int currentCycle = 0;
-            int maxCycles = ConfigHolder.worldgen.minVeinsInSection + (ConfigHolder.worldgen.additionalVeinsInSection == 0 ? 0 : gridRandom.nextInt(ConfigHolder.worldgen.additionalVeinsInSection + 1));
-            ArrayList<OreDepositDefinition> veins = new ArrayList<>();
+            int maxCycles = ConfigHolder.worldgen.minVeinsInSection +
+                    (ConfigHolder.worldgen.additionalVeinsInSection == 0 ? 0 :
+                            gridRandom.nextInt(ConfigHolder.worldgen.additionalVeinsInSection + 1));
+            List<OreDepositDefinition> veins = new ArrayList<>();
             while (currentCycle < cachedDepositMap.size() && currentCycle < maxCycles) {
-                //instead of removing already generated veins, we swap last element with one we selected
-                int randomEntryIndex = GTUtility.getRandomItem(gridRandom, cachedDepositMap, cachedDepositMap.size() - currentCycle);
+                // instead of removing already generated veins, we swap last element with one we selected
+                int randomEntryIndex = GTUtility.getRandomItem(gridRandom, cachedDepositMap,
+                        cachedDepositMap.size() - currentCycle);
                 OreDepositDefinition randomEntry = cachedDepositMap.get(randomEntryIndex).getValue();
                 Collections.swap(cachedDepositMap, randomEntryIndex, cachedDepositMap.size() - 1 - currentCycle);
-                //need to put into list first to apply priority properly, so
-                //red granite vein will be properly filled with ores from other veins
+                // need to put into list first to apply priority properly, so
+                // red granite vein will be properly filled with ores from other veins
                 veins.add(randomEntry);
                 if (!randomEntry.isVein())
                     maxCycles++;
@@ -234,7 +238,8 @@ public class CachedGridEntry implements GridEntryInfo, IBlockGeneratorAccess, IB
         this.currentOreVein = definition;
 
         int topHeightOffset = currentOreVein.getShapeGenerator().getMaxSize().getY() / 2 + 4;
-        int maximumHeight = Math.min(masterEntry.getMaxBottomHeight(), currentOreVein.getHeightLimit()[1] - topHeightOffset);
+        int maximumHeight = Math.min(masterEntry.getMaxBottomHeight(),
+                currentOreVein.getHeightLimit()[1] - topHeightOffset);
         int minimumHeight = Math.max(3, currentOreVein.getHeightLimit()[0]);
         if (minimumHeight >= maximumHeight) {
             return;
@@ -253,13 +258,15 @@ public class CachedGridEntry implements GridEntryInfo, IBlockGeneratorAccess, IB
 
     private int calculateVeinCenterX() {
         int gridSizeX = WorldGeneratorImpl.GRID_SIZE_X * 16;
-        int offset = (ConfigHolder.worldgen.generateVeinsInCenterOfChunk && currentOreVein.isVein()) ? gridSizeX / 2 : gridRandom.nextInt(gridSizeX);
+        int offset = (ConfigHolder.worldgen.generateVeinsInCenterOfChunk && currentOreVein.isVein()) ? gridSizeX / 2 :
+                gridRandom.nextInt(gridSizeX);
         return gridX * gridSizeX + offset;
     }
 
     private int calculateVeinCenterZ() {
         int gridSizeZ = WorldGeneratorImpl.GRID_SIZE_Z * 16;
-        int offset = (ConfigHolder.worldgen.generateVeinsInCenterOfChunk && currentOreVein.isVein()) ? gridSizeZ / 2 : gridRandom.nextInt(gridSizeZ);
+        int offset = (ConfigHolder.worldgen.generateVeinsInCenterOfChunk && currentOreVein.isVein()) ? gridSizeZ / 2 :
+                gridRandom.nextInt(gridSizeZ);
         return gridZ * gridSizeZ + offset;
     }
 
@@ -270,11 +277,11 @@ public class CachedGridEntry implements GridEntryInfo, IBlockGeneratorAccess, IB
         int globalBlockX = veinCenterX + x;
         int globalBlockY = veinCenterY + y;
         int globalBlockZ = veinCenterZ + z;
-        //we should do all random-related things here, otherwise it gets corrupted by current chunk information
+        // we should do all random-related things here, otherwise it gets corrupted by current chunk information
         float randomDensityValue = gridRandom.nextFloat();
 
         if (withRandom && currentOreVein.getDensity() < randomDensityValue)
-            return false; //only place blocks in positions matching density
+            return false; // only place blocks in positions matching density
         setBlock(globalBlockX, globalBlockY, globalBlockZ, currentOreVein, 0);
         return true;
     }
@@ -306,11 +313,10 @@ public class CachedGridEntry implements GridEntryInfo, IBlockGeneratorAccess, IB
         }
     }
 
-
     public static class ChunkDataEntry {
 
-        private final Map<OreDepositDefinition, MutablePair<TLongList, Integer>> oreBlocks = new HashMap<>();
-        private final Map<OreDepositDefinition, TLongSet> generatedBlocksSet = new HashMap<>();
+        private final Map<OreDepositDefinition, MutablePair<LongList, Integer>> oreBlocks = new Object2ObjectOpenHashMap<>();
+        private final Map<OreDepositDefinition, LongSet> generatedBlocksSet = new Object2ObjectOpenHashMap<>();
         private final List<OreDepositDefinition> generatedOres = new ArrayList<>();
         private final int chunkX;
         private final int chunkZ;
@@ -325,10 +331,10 @@ public class CachedGridEntry implements GridEntryInfo, IBlockGeneratorAccess, IB
         public void setBlock(int x, int y, int z, OreDepositDefinition definition, int index) {
             int xzValue = (x & 0xFF) | ((z & 0xFF) << 8) | ((y & 0xFF) << 16);
             long blockIndex = (long) xzValue << 32 | index & 0xFFFFFFFFL;
-            MutablePair<TLongList, Integer> pair = oreBlocks.get(definition);
-            TLongList longList;
+            MutablePair<LongList, Integer> pair = oreBlocks.get(definition);
+            LongList longList;
             if (pair == null) {
-                longList = new TLongArrayList();
+                longList = new LongArrayList();
                 oreBlocks.put(definition, MutablePair.of(longList, y));
             } else {
                 longList = pair.getLeft();
@@ -342,12 +348,14 @@ public class CachedGridEntry implements GridEntryInfo, IBlockGeneratorAccess, IB
         public boolean populateChunk(World world) {
             MutableBlockPos blockPos = new MutableBlockPos();
             boolean generatedAnything = false;
-            for (Map.Entry<OreDepositDefinition, MutablePair<TLongList, Integer>> entry : oreBlocks.entrySet()) {
+            for (Map.Entry<OreDepositDefinition, MutablePair<LongList, Integer>> entry : oreBlocks.entrySet()) {
                 OreDepositDefinition definition = entry.getKey();
-                TLongList blockIndexList = entry.getValue().getLeft();
+                LongList blockIndexList = entry.getValue().getLeft();
                 int lowestY = entry.getValue().getRight();
-                TLongSet generatedBlocks = new TLongHashSet();
+                LongSet generatedBlocks = new LongOpenHashSet();
                 boolean generatedOreVein = false;
+                // enhanced for loops cause boxing and unboxing with FastUtil collections
+                // noinspection ForLoopReplaceableByForEach
                 for (int i = 0; i < blockIndexList.size(); i++) {
                     long blockIndex = blockIndexList.get(i);
                     int xyzValue = (int) (blockIndex >> 32);
@@ -359,16 +367,17 @@ public class CachedGridEntry implements GridEntryInfo, IBlockGeneratorAccess, IB
                     IBlockState currentState = world.getBlockState(blockPos);
                     IBlockState newState;
                     if (index == 0) {
-                        //it's primary ore block
+                        // it's primary ore block
                         if (!definition.getGenerationPredicate().test(currentState, world, blockPos))
-                            continue; //do not generate if predicate didn't match
-                        newState = definition.getBlockFiller().apply(currentState, world, blockPos, blockX, blockY, blockZ, definition.getDensity(), gridRandom, blockY - lowestY);
+                            continue; // do not generate if predicate didn't match
+                        newState = definition.getBlockFiller().apply(currentState, world, blockPos, blockX, blockY,
+                                blockZ, definition.getDensity(), gridRandom, blockY - lowestY);
                     } else {
-                        //it's populator-generated block with index
+                        // it's populator-generated block with index
                         VeinBufferPopulator populator = (VeinBufferPopulator) definition.getVeinPopulator();
                         newState = populator.getBlockByIndex(world, blockPos, index - 1);
                     }
-                    //set flags as 16 to avoid observer updates loading neighbour chunks
+                    // set flags as 16 to avoid observer updates loading neighbour chunks
                     world.setBlockState(blockPos, newState, 16);
                     generatedBlocks.add(Block.getStateId(newState));
                     generatedOreVein = true;

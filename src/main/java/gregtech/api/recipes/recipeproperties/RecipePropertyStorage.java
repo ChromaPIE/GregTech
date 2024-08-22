@@ -1,6 +1,7 @@
 package gregtech.api.recipes.recipeproperties;
 
 import gregtech.api.util.GTLog;
+
 import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap;
 
 import java.util.HashSet;
@@ -44,16 +45,15 @@ public class RecipePropertyStorage implements IRecipePropertyStorage {
 
         try {
             recipeProperty.castValue(value);
-        } catch (ClassCastException ex) {
-            GTLog.logger.warn("Provided incorrect value for RecipeProperty with key {}", key);
-            GTLog.logger.warn("Full exception:", ex);
+        } catch (ClassCastException e) {
+            GTLog.logger.warn("Provided incorrect value for RecipeProperty with key {}", key, e);
             success = false;
         }
 
         if (success) {
             recipeProperties.put(recipeProperty, value);
         } else {
-            GTLog.logger.warn(STACKTRACE, new IllegalArgumentException());
+            GTLog.logger.warn("RecipePropertyStorage error found", new Throwable());
         }
 
         return success;
@@ -89,11 +89,6 @@ public class RecipePropertyStorage implements IRecipePropertyStorage {
         Object value = recipeProperties.get(recipeProperty);
 
         if (value == null) {
-            if (defaultValue == null) {
-                return null;
-            }
-            GTLog.logger.warn("There is no property with key {}", recipeProperty.getKey());
-            GTLog.logger.warn(STACKTRACE, new IllegalArgumentException());
             return defaultValue;
         }
 
@@ -114,6 +109,11 @@ public class RecipePropertyStorage implements IRecipePropertyStorage {
     }
 
     @Override
+    public Set<RecipeProperty<?>> getPropertyTypes() {
+        return recipeProperties.keySet();
+    }
+
+    @Override
     public Object getRawRecipePropertyValue(String key) {
         RecipeProperty<?> recipeProperty = getRecipePropertyValue(key);
         if (recipeProperty != null) {
@@ -129,10 +129,6 @@ public class RecipePropertyStorage implements IRecipePropertyStorage {
                 return recipeProperty;
         }
 
-        GTLog.logger.warn("There is no property with key {}", key);
-        GTLog.logger.warn(STACKTRACE, new IllegalArgumentException());
-
         return null;
     }
-
 }

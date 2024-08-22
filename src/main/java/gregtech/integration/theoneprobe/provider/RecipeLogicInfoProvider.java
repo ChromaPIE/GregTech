@@ -7,16 +7,21 @@ import gregtech.api.capability.impl.PrimitiveRecipeLogic;
 import gregtech.api.metatileentity.MetaTileEntity;
 import gregtech.api.metatileentity.SteamMetaTileEntity;
 import gregtech.api.metatileentity.interfaces.IGregTechTileEntity;
+import gregtech.api.metatileentity.multiblock.RecipeMapSteamMultiblockController;
+import gregtech.api.unification.material.Materials;
 import gregtech.api.util.GTUtility;
-import mcjty.theoneprobe.api.IProbeHitData;
-import mcjty.theoneprobe.api.IProbeInfo;
-import mcjty.theoneprobe.api.TextStyleClass;
+import gregtech.api.util.TextFormattingUtil;
+import gregtech.common.metatileentities.multi.MetaTileEntityLargeBoiler;
+
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraftforge.common.capabilities.Capability;
 
-import javax.annotation.Nonnull;
+import mcjty.theoneprobe.api.IProbeHitData;
+import mcjty.theoneprobe.api.IProbeInfo;
+import mcjty.theoneprobe.api.TextStyleClass;
+import org.jetbrains.annotations.NotNull;
 
 public class RecipeLogicInfoProvider extends CapabilityInfoProvider<AbstractRecipeLogic> {
 
@@ -25,38 +30,47 @@ public class RecipeLogicInfoProvider extends CapabilityInfoProvider<AbstractReci
         return GTValues.MODID + ":recipe_logic_provider";
     }
 
-    @Nonnull
+    @NotNull
     @Override
     protected Capability<AbstractRecipeLogic> getCapability() {
         return GregtechTileCapabilities.CAPABILITY_RECIPE_LOGIC;
     }
 
     @Override
-    protected void addProbeInfo(@Nonnull AbstractRecipeLogic capability, @Nonnull IProbeInfo probeInfo, @Nonnull EntityPlayer player, @Nonnull TileEntity tileEntity, @Nonnull IProbeHitData data) {
+    protected void addProbeInfo(@NotNull AbstractRecipeLogic capability, @NotNull IProbeInfo probeInfo,
+                                @NotNull EntityPlayer player, @NotNull TileEntity tileEntity,
+                                @NotNull IProbeHitData data) {
         // do not show energy usage on machines that do not use energy
         if (capability.isWorking()) {
             if (capability instanceof PrimitiveRecipeLogic) {
                 return; // do not show info for primitive machines, as they are supposed to appear powerless
             }
-            int EUt = capability.getRecipeEUt();
-            int absEUt = Math.abs(EUt);
+            long eut = capability.getInfoProviderEUt();
             String text = null;
 
             if (tileEntity instanceof IGregTechTileEntity) {
                 IGregTechTileEntity gtTileEntity = (IGregTechTileEntity) tileEntity;
                 MetaTileEntity mte = gtTileEntity.getMetaTileEntity();
-                if (mte instanceof SteamMetaTileEntity) {
-                    text = TextFormatting.RED.toString() + absEUt + TextStyleClass.INFO + " L/t " + "{*material.steam*}";
+                if (mte instanceof SteamMetaTileEntity || mte instanceof MetaTileEntityLargeBoiler ||
+                        mte instanceof RecipeMapSteamMultiblockController) {
+                    text = TextFormatting.AQUA + TextFormattingUtil.formatNumbers(eut) +
+                            TextStyleClass.INFO + " L/t {*" +
+                            Materials.Steam.getUnlocalizedName() + "*}";
                 }
             }
             if (text == null) {
-                // Default behavior, if this TE is not a steam machine (or somehow not instanceof IGregTechTileEntity...)
-                text = TextFormatting.RED.toString() + absEUt + TextStyleClass.INFO + " EU/t" + TextFormatting.GREEN + " (" + GTValues.VNF[GTUtility.getTierByVoltage(absEUt)] + TextFormatting.GREEN + ")";
+                // Default behavior, if this TE is not a steam machine (or somehow not instanceof
+                // IGregTechTileEntity...)
+                text = TextFormatting.RED + TextFormattingUtil.formatNumbers(eut) + TextStyleClass.INFO +
+                        " EU/t" + TextFormatting.GREEN +
+                        " (" + GTValues.VNF[GTUtility.getTierByVoltage(eut)] + TextFormatting.GREEN + ")";
             }
 
-            if (EUt > 0) {
+            if (eut == 0) return; // do not display 0 eut
+
+            if (capability.consumesEnergy()) {
                 probeInfo.text(TextStyleClass.INFO + "{*gregtech.top.energy_consumption*} " + text);
-            } else if (EUt < 0) {
+            } else {
                 probeInfo.text(TextStyleClass.INFO + "{*gregtech.top.energy_production*} " + text);
             }
         }

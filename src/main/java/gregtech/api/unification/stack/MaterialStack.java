@@ -1,8 +1,10 @@
 package gregtech.api.unification.stack;
 
-import crafttweaker.annotations.ZenRegister;
 import gregtech.api.unification.material.Material;
 import gregtech.api.util.SmallDigits;
+
+import crafttweaker.annotations.ZenRegister;
+import org.jetbrains.annotations.NotNull;
 import stanhebben.zenscript.annotations.ZenClass;
 import stanhebben.zenscript.annotations.ZenMethod;
 import stanhebben.zenscript.annotations.ZenProperty;
@@ -48,21 +50,29 @@ public class MaterialStack {
         return material.hashCode();
     }
 
-    @Override
-    @ZenMethod
-    public String toString() {
-        String string = "";
-        if (material.getChemicalFormula().isEmpty()) {
-            string += "?";
+    @ZenMethod("toString")
+    @NotNull
+    public String toFormatted() {
+        final String chemicalFormula = material.getChemicalFormula();
+
+        StringBuilder builder = new StringBuilder(chemicalFormula.length());
+        if (chemicalFormula.isEmpty()) {
+            builder.append('?');
         } else if (material.getMaterialComponents().size() > 1) {
-            string += '(' + material.getChemicalFormula() + ')';
+            builder.append('(');
+            builder.append(chemicalFormula);
+            builder.append(')');
         } else {
-            string += material.getChemicalFormula();
+            builder.append(chemicalFormula);
         }
         if (amount > 1) {
-            string += SmallDigits.toSmallDownNumbers(Long.toString(amount));
+            builder.append(SmallDigits.toSmallDownNumbers(String.valueOf(amount)));
         }
-        return string;
+        return builder.toString();
     }
 
+    @Override
+    public String toString() {
+        return "MaterialStack{material=" + material + ", amount=" + amount + '}';
+    }
 }

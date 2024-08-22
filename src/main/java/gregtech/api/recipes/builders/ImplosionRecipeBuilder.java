@@ -7,20 +7,18 @@ import gregtech.api.recipes.ingredients.GTRecipeItemInput;
 import gregtech.api.recipes.recipeproperties.ImplosionExplosiveProperty;
 import gregtech.api.util.EnumValidationResult;
 import gregtech.api.util.GTLog;
-import gregtech.api.util.GTUtility;
 import gregtech.api.util.ValidationResult;
+
 import net.minecraft.init.Blocks;
 import net.minecraft.item.ItemStack;
-import org.apache.commons.lang3.builder.ToStringBuilder;
-import stanhebben.zenscript.annotations.ZenMethod;
 
-import javax.annotation.Nonnull;
+import org.apache.commons.lang3.builder.ToStringBuilder;
+import org.jetbrains.annotations.NotNull;
+import stanhebben.zenscript.annotations.ZenMethod;
 
 public class ImplosionRecipeBuilder extends RecipeBuilder<ImplosionRecipeBuilder> {
 
-    public ImplosionRecipeBuilder() {
-
-    }
+    public ImplosionRecipeBuilder() {}
 
     public ImplosionRecipeBuilder(Recipe recipe, RecipeMap<ImplosionRecipeBuilder> recipeMap) {
         super(recipe, recipeMap);
@@ -36,7 +34,7 @@ public class ImplosionRecipeBuilder extends RecipeBuilder<ImplosionRecipeBuilder
     }
 
     @Override
-    public boolean applyProperty(@Nonnull String key, Object value) {
+    public boolean applyProperty(@NotNull String key, Object value) {
         if (key.equals(ImplosionExplosiveProperty.KEY)) {
             if (value instanceof ItemStack) {
                 this.applyProperty(ImplosionExplosiveProperty.getInstance(), value);
@@ -50,8 +48,8 @@ public class ImplosionRecipeBuilder extends RecipeBuilder<ImplosionRecipeBuilder
 
     @ZenMethod
     public ImplosionRecipeBuilder explosivesAmount(int explosivesAmount) {
-        if (!GTUtility.isBetweenInclusive(1, 64, explosivesAmount)) {
-            GTLog.logger.error("Amount of explosives should be from 1 to 64 inclusive", new IllegalArgumentException());
+        if (1 > explosivesAmount || explosivesAmount > 64) {
+            GTLog.logger.error("Amount of explosives should be from 1 to 64 inclusive", new Throwable());
             recipeStatus = EnumValidationResult.INVALID;
         }
         this.applyProperty(ImplosionExplosiveProperty.getInstance(), new ItemStack(Blocks.TNT, explosivesAmount));
@@ -60,8 +58,8 @@ public class ImplosionRecipeBuilder extends RecipeBuilder<ImplosionRecipeBuilder
 
     @ZenMethod
     public ImplosionRecipeBuilder explosivesType(ItemStack explosivesType) {
-        if (!GTUtility.isBetweenInclusive(1, 64, explosivesType.getCount())) {
-            GTLog.logger.error("Amount of explosives should be from 1 to 64 inclusive", new IllegalArgumentException());
+        if (1 > explosivesType.getCount() || explosivesType.getCount() > 64) {
+            GTLog.logger.error("Amount of explosives should be from 1 to 64 inclusive", new Throwable());
             recipeStatus = EnumValidationResult.INVALID;
         }
         this.applyProperty(ImplosionExplosiveProperty.getInstance(), explosivesType);
@@ -72,13 +70,14 @@ public class ImplosionRecipeBuilder extends RecipeBuilder<ImplosionRecipeBuilder
         if (this.recipePropertyStorage == null) {
             return ItemStack.EMPTY;
         }
-        return this.recipePropertyStorage.getRecipePropertyValue(ImplosionExplosiveProperty.getInstance(), ItemStack.EMPTY);
+        return this.recipePropertyStorage.getRecipePropertyValue(ImplosionExplosiveProperty.getInstance(),
+                ItemStack.EMPTY);
     }
 
     public ValidationResult<Recipe> build() {
         ItemStack explosivesType = getExplosivesType();
         if (!explosivesType.isEmpty()) {
-            this.inputs.add(GTRecipeItemInput.getOrCreate(explosivesType));
+            this.inputs.add(new GTRecipeItemInput(explosivesType));
         } else {
             this.recipePropertyStorageErrored = true;
         }

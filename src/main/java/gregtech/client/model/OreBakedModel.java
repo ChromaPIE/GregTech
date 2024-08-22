@@ -6,7 +6,8 @@ import gregtech.api.unification.material.info.MaterialIconSet;
 import gregtech.api.unification.material.info.MaterialIconType;
 import gregtech.api.unification.material.properties.PropertyKey;
 import gregtech.api.unification.ore.StoneType;
-import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import gregtech.api.util.GTUtility;
+
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.block.model.*;
@@ -19,7 +20,10 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.relauncher.Side;
 
-import javax.annotation.Nullable;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -79,24 +83,27 @@ public class OreBakedModel implements IBakedModel {
         return false;
     }
 
+    @NotNull
     @Override
     public TextureAtlasSprite getParticleTexture() {
         return getBaseModel().getParticleTexture();
     }
 
+    @NotNull
     @Override
     public ItemOverrideList getOverrides() {
         return ItemOverrideList.NONE;
     }
 
     @SuppressWarnings("deprecation")
+    @NotNull
     @Override
     public ItemCameraTransforms getItemCameraTransforms() {
         return getBaseModel().getItemCameraTransforms();
     }
 
     @Override
-    public boolean isAmbientOcclusion(IBlockState state) {
+    public boolean isAmbientOcclusion(@NotNull IBlockState state) {
         return getBaseModel().isAmbientOcclusion(state);
     }
 
@@ -112,7 +119,8 @@ public class OreBakedModel implements IBakedModel {
         Map<ResourceLocation, IBakedModel> overlayCache = new Object2ObjectOpenHashMap<>();
 
         for (Map.Entry<Entry, ModelResourceLocation> e : ENTRIES.entrySet()) {
-            IBakedModel overlay = overlayCache.computeIfAbsent(MaterialIconType.ore.getBlockTexturePath(e.getKey().iconSet),
+            IBakedModel overlay = overlayCache.computeIfAbsent(
+                    MaterialIconType.ore.getBlockTexturePath(e.getKey().iconSet),
                     tex -> new ModelFactory(ModelFactory.ModelTemplate.ORE_OVERLAY)
                             .addSprite("texture", tex)
                             .bake());
@@ -139,7 +147,7 @@ public class OreBakedModel implements IBakedModel {
         }
 
         public ModelResourceLocation getModelId() {
-            return new ModelResourceLocation(new ResourceLocation(GTValues.MODID,
+            return new ModelResourceLocation(GTUtility.gregtechId(
                     "ore_" + this.stoneType.name + "_" + this.iconSet.name + (this.emissive ? "_emissive" : "")), "");
         }
 

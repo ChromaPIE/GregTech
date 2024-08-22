@@ -5,12 +5,12 @@ import gregtech.api.gui.IRenderContext;
 import gregtech.api.gui.Widget;
 import gregtech.api.gui.resources.SizedTextureArea;
 import gregtech.api.gui.resources.TextureArea;
-import gregtech.api.util.GTUtility;
+import gregtech.api.util.LocalizationUtils;
 import gregtech.api.util.Position;
 import gregtech.api.util.Size;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
-import net.minecraft.client.resources.I18n;
 import net.minecraft.item.ItemStack;
 import net.minecraft.network.PacketBuffer;
 import net.minecraftforge.fml.relauncher.Side;
@@ -35,8 +35,8 @@ public class IncrementButtonWidget extends Widget {
     protected boolean isMouseHovered;
     protected float textScale = 1;
 
-
-    public IncrementButtonWidget(int x, int y, int width, int height, int increment, int incrementShift, int incrementCtrl, int incrementShiftCtrl, IntConsumer updater) {
+    public IncrementButtonWidget(int x, int y, int width, int height, int increment, int incrementShift,
+                                 int incrementCtrl, int incrementShiftCtrl, IntConsumer updater) {
         super(x, y, width, height);
         this.increment = increment;
         this.incrementShift = incrementShift;
@@ -82,14 +82,15 @@ public class IncrementButtonWidget extends Widget {
         Position position = getPosition();
         Size size = getSize();
         if (buttonTexture instanceof SizedTextureArea) {
-            ((SizedTextureArea) buttonTexture).drawHorizontalCutSubArea(position.x, position.y, size.width, size.height, 0.0, 1.0);
+            ((SizedTextureArea) buttonTexture).drawHorizontalCutSubArea(position.x, position.y, size.width, size.height,
+                    0.0, 1.0);
         } else {
             buttonTexture.drawSubArea(position.x, position.y, size.width, size.height, 0.0, 0.0, 1.0, 1.0);
         }
 
         FontRenderer fontRenderer = Minecraft.getMinecraft().fontRenderer;
         String text = String.valueOf(clickValue);
-        if(clickValue >= 0)
+        if (clickValue >= 0)
             text = "+" + text;
         drawText(text,
                 position.x + size.width / 2f - (fontRenderer.getStringWidth(text) / 2f) * textScale,
@@ -109,7 +110,7 @@ public class IncrementButtonWidget extends Widget {
         } else if (isHovered) {
             long timeSinceHover = System.currentTimeMillis() - hoverStartTime;
             if (timeSinceHover > 750L && tooltip != null) {
-                List<String> hoverList = Arrays.asList(GTUtility.getForwardNewLineRegex().split(I18n.format(tooltip)));
+                List<String> hoverList = Arrays.asList(LocalizationUtils.formatLines(tooltip));
                 drawHoveringText(ItemStack.EMPTY, hoverList, 300, mouseX, mouseY);
             }
         }
@@ -130,7 +131,7 @@ public class IncrementButtonWidget extends Widget {
     @Override
     public boolean mouseClicked(int mouseX, int mouseY, int button) {
         if (isMouseOverElement(mouseX, mouseY)) {
-            if(shouldClientCallback)
+            if (shouldClientCallback)
                 updater.accept(clickValue);
             writeClientAction(-1, buf -> buf.writeInt(clickValue));
             playButtonClickSound();

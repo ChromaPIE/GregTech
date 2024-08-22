@@ -4,11 +4,11 @@ import gregtech.api.gui.IRenderContext;
 import gregtech.api.gui.Widget;
 import gregtech.api.gui.resources.IGuiTexture;
 import gregtech.api.gui.resources.TextureArea;
-import gregtech.api.util.GTUtility;
+import gregtech.api.util.LocalizationUtils;
 import gregtech.api.util.Position;
 import gregtech.api.util.Size;
+
 import net.minecraft.client.renderer.GlStateManager;
-import net.minecraft.client.resources.I18n;
 import net.minecraft.item.ItemStack;
 import net.minecraft.network.PacketBuffer;
 import net.minecraftforge.fml.relauncher.Side;
@@ -65,8 +65,13 @@ public class ImageWidget extends Widget {
         return this;
     }
 
+    protected IGuiTexture getArea() {
+        return area;
+    }
+
     @Override
     public void updateScreen() {
+        IGuiTexture area = getArea();
         if (area != null) {
             area.updateTick();
         }
@@ -92,6 +97,7 @@ public class ImageWidget extends Widget {
     @Override
     @SideOnly(Side.CLIENT)
     public void drawInBackground(int mouseX, int mouseY, float partialTicks, IRenderContext context) {
+        IGuiTexture area = getArea();
         if (!this.isVisible || area == null) return;
         if (ignoreColor) GlStateManager.color(1, 1, 1, 1);
         Position position = getPosition();
@@ -104,10 +110,10 @@ public class ImageWidget extends Widget {
 
     @Override
     public void drawInForeground(int mouseX, int mouseY) {
+        IGuiTexture area = getArea();
         if (this.isVisible && tooltipText != null && area != null && isMouseOverElement(mouseX, mouseY)) {
-            List<String> hoverList = Arrays.asList(GTUtility.getForwardNewLineRegex().split(I18n.format(tooltipText)));
+            List<String> hoverList = Arrays.asList(LocalizationUtils.formatLines(tooltipText));
             drawHoveringText(ItemStack.EMPTY, hoverList, 300, mouseX, mouseY);
         }
     }
 }
-

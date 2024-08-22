@@ -2,14 +2,15 @@ package gregtech.api.items.metaitem;
 
 import gregtech.api.GTValues;
 import gregtech.api.items.metaitem.stats.IFoodBehavior;
-import gregtech.api.util.GTUtility;
 import gregtech.api.util.RandomPotionEffect;
+
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.EnumAction;
 import net.minecraft.item.ItemStack;
 import net.minecraft.potion.PotionEffect;
 
-import javax.annotation.Nullable;
+import org.jetbrains.annotations.Nullable;
+
 import java.util.List;
 
 /**
@@ -28,7 +29,8 @@ public class FoodStats implements IFoodBehavior {
     @Nullable
     public ItemStack containerItem;
 
-    public FoodStats(int foodLevel, float saturation, boolean isDrink, boolean alwaysEdible, ItemStack containerItem, RandomPotionEffect... potionEffects) {
+    public FoodStats(int foodLevel, float saturation, boolean isDrink, boolean alwaysEdible, ItemStack containerItem,
+                     RandomPotionEffect... potionEffects) {
         this.foodLevel = foodLevel;
         this.saturation = saturation;
         this.isDrink = isDrink;
@@ -72,7 +74,7 @@ public class FoodStats implements IFoodBehavior {
         if (!player.world.isRemote) {
             for (RandomPotionEffect potionEffect : potionEffects) {
                 if (GTValues.RNG.nextDouble() * 100 > potionEffect.chance) {
-                    player.addPotionEffect(GTUtility.copyPotionEffect(potionEffect.effect));
+                    player.addPotionEffect(new PotionEffect(potionEffect.effect));
                 }
             }
 
@@ -100,8 +102,7 @@ public class FoodStats implements IFoodBehavior {
             for (int i = 0; i < potionEffects.length; i++) {
                 effects[i] = potionEffects[i].effect;
             }
-//            GTUtility.addPotionTooltip(Iterables.cycle(effects), lines); todo implement this
+            // GTUtility.addPotionTooltip(Iterables.cycle(effects), lines); todo implement this
         }
     }
-
 }

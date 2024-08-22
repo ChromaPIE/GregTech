@@ -1,14 +1,13 @@
 package gregtech.common.items.behaviors;
 
-import appeng.api.util.AEColor;
-import appeng.tile.networking.TileCableBus;
-import gregtech.api.GTValues;
 import gregtech.api.items.metaitem.stats.IItemDurabilityManager;
 import gregtech.api.metatileentity.MetaTileEntity;
 import gregtech.api.metatileentity.interfaces.IGregTechTileEntity;
 import gregtech.api.pipenet.tile.IPipeTile;
 import gregtech.api.util.GradientUtil;
+import gregtech.api.util.Mods;
 import gregtech.core.sound.GTSoundEvents;
+
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockColored;
 import net.minecraft.block.BlockStainedGlass;
@@ -21,13 +20,19 @@ import net.minecraft.init.Blocks;
 import net.minecraft.item.EnumDyeColor;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.*;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.EnumActionResult;
+import net.minecraft.util.EnumFacing;
+import net.minecraft.util.EnumHand;
+import net.minecraft.util.SoundCategory;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
-import net.minecraftforge.fml.common.Loader;
-import org.apache.commons.lang3.tuple.Pair;
 
-import javax.annotation.Nullable;
+import appeng.api.util.AEColor;
+import appeng.tile.networking.TileCableBus;
+import org.apache.commons.lang3.tuple.Pair;
+import org.jetbrains.annotations.Nullable;
+
 import java.awt.*;
 import java.util.List;
 
@@ -48,7 +53,8 @@ public class ColorSprayBehaviour extends AbstractUsableBehaviour implements IIte
     }
 
     @Override
-    public ActionResult<ItemStack> onItemUse(EntityPlayer player, World world, BlockPos pos, EnumHand hand, EnumFacing facing, float hitX, float hitY, float hitZ) {
+    public ActionResult<ItemStack> onItemUse(EntityPlayer player, World world, BlockPos pos, EnumHand hand,
+                                             EnumFacing facing, float hitX, float hitY, float hitZ) {
         ItemStack stack = player.getHeldItem(hand);
         if (!player.canPlayerEdit(pos, facing, stack)) {
             return ActionResult.newResult(EnumActionResult.FAIL, player.getHeldItem(hand));
@@ -57,7 +63,8 @@ public class ColorSprayBehaviour extends AbstractUsableBehaviour implements IIte
             return ActionResult.newResult(EnumActionResult.PASS, player.getHeldItem(hand));
         }
         useItemDurability(player, hand, stack, empty.copy());
-        world.playSound(null, player.posX, player.posY, player.posZ, GTSoundEvents.SPRAY_CAN_TOOL, SoundCategory.PLAYERS, 1.0f, 1.0f);
+        world.playSound(null, player.posX, player.posY, player.posZ, GTSoundEvents.SPRAY_CAN_TOOL,
+                SoundCategory.PLAYERS, 1.0f, 1.0f);
         return ActionResult.newResult(EnumActionResult.SUCCESS, player.getHeldItem(hand));
     }
 
@@ -89,7 +96,7 @@ public class ColorSprayBehaviour extends AbstractUsableBehaviour implements IIte
             world.setBlockState(pos, newBlockState);
             return true;
         }
-        if (Loader.isModLoaded(GTValues.MODID_APPENG)) {
+        if (Mods.AppliedEnergistics2.isModLoaded()) {
             TileEntity te = world.getTileEntity(pos);
             if (te instanceof TileCableBus) {
                 TileCableBus cable = (TileCableBus) te;
@@ -104,7 +111,8 @@ public class ColorSprayBehaviour extends AbstractUsableBehaviour implements IIte
     }
 
     @SuppressWarnings("unchecked, rawtypes")
-    private static boolean tryStripBlockColor(EntityPlayer player, World world, BlockPos pos, Block block, EnumFacing side) {
+    private static boolean tryStripBlockColor(EntityPlayer player, World world, BlockPos pos, Block block,
+                                              EnumFacing side) {
         // MC special cases
         if (block == Blocks.STAINED_GLASS) {
             world.setBlockState(pos, Blocks.GLASS.getDefaultState());
@@ -141,7 +149,7 @@ public class ColorSprayBehaviour extends AbstractUsableBehaviour implements IIte
         }
 
         // AE2 cable special case
-        if (Loader.isModLoaded(GTValues.MODID_APPENG)) {
+        if (Mods.AppliedEnergistics2.isModLoaded()) {
             if (te instanceof TileCableBus) {
                 TileCableBus cable = (TileCableBus) te;
                 // do not try to strip color if it is already colorless
@@ -184,7 +192,9 @@ public class ColorSprayBehaviour extends AbstractUsableBehaviour implements IIte
             lines.add(I18n.format("behaviour.paintspray.solvent.tooltip"));
         }
         lines.add(I18n.format("behaviour.paintspray.uses", remainingUses));
-        lines.add(I18n.format("behaviour.paintspray.offhand"));
+        if (color != null) {
+            lines.add(I18n.format("behaviour.paintspray.offhand"));
+        }
     }
 
     @Override

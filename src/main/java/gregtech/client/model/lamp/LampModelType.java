@@ -1,7 +1,8 @@
 package gregtech.client.model.lamp;
 
-import gregtech.api.GTValues;
+import gregtech.api.util.GTUtility;
 import gregtech.client.model.BorderlessLampBakedModel;
+
 import net.minecraft.client.renderer.block.model.IBakedModel;
 import net.minecraft.client.renderer.block.model.ModelResourceLocation;
 import net.minecraft.util.ResourceLocation;
@@ -16,7 +17,7 @@ import java.util.Objects;
  */
 public abstract class LampModelType {
 
-    public static final LampModelType LAMP = new LampModelType(new ResourceLocation(GTValues.MODID, "lamp")) {
+    public static final LampModelType LAMP = new LampModelType(GTUtility.gregtechId("lamp")) {
 
         @Override
         public IBakedModel createModel(ModelResourceLocation modelLocation) {
@@ -29,7 +30,7 @@ public abstract class LampModelType {
         }
     };
 
-    public static final LampModelType BORDERLESS_LAMP = new LampModelType(new ResourceLocation(GTValues.MODID, "lamp_borderless")) {
+    public static final LampModelType BORDERLESS_LAMP = new LampModelType(GTUtility.gregtechId("lamp_borderless")) {
 
         @Override
         public IBakedModel createModel(ModelResourceLocation modelLocation) {

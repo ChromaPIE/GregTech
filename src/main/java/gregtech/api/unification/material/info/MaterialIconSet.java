@@ -2,12 +2,12 @@ package gregtech.api.unification.material.info;
 
 import com.google.common.base.Preconditions;
 import crafttweaker.annotations.ZenRegister;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import stanhebben.zenscript.annotations.ZenClass;
 import stanhebben.zenscript.annotations.ZenGetter;
 import stanhebben.zenscript.annotations.ZenMethod;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -15,6 +15,9 @@ import java.util.Map;
 @ZenClass("mods.gregtech.material.MaterialIconSet")
 @ZenRegister
 public class MaterialIconSet {
+
+    // Keep this before all the static instatiations not to reset it
+    private static int idCounter = 0;
 
     public static final Map<String, MaterialIconSet> ICON_SETS = new HashMap<>();
     public static final MaterialIconSet DULL = new MaterialIconSet("dull", null, true);
@@ -40,11 +43,8 @@ public class MaterialIconSet {
     public static final MaterialIconSet CERTUS = new MaterialIconSet("certus", QUARTZ);
     public static final MaterialIconSet LAPIS = new MaterialIconSet("lapis", QUARTZ);
     public static final MaterialIconSet FLUID = new MaterialIconSet("fluid");
-    public static final MaterialIconSet GAS = new MaterialIconSet("gas");
 
     // Implementation -----------------------------------------------------------------------------------------------
-
-    private static int idCounter = 0;
 
     public final String name;
     public final int id;
@@ -61,7 +61,7 @@ public class MaterialIconSet {
      *
      * @param name the name of the iconset
      */
-    public MaterialIconSet(@Nonnull String name) {
+    public MaterialIconSet(@NotNull String name) {
         this(name, MaterialIconSet.DULL);
     }
 
@@ -71,19 +71,21 @@ public class MaterialIconSet {
      * @param name          the name of the iconset
      * @param parentIconset the parent iconset
      */
-    public MaterialIconSet(@Nonnull String name, @Nonnull MaterialIconSet parentIconset) {
+    public MaterialIconSet(@NotNull String name, @NotNull MaterialIconSet parentIconset) {
         this(name, parentIconset, false);
     }
 
     /**
      * Create a new MaterialIconSet which is a root
+     * 
      * @param name          the name of the iconset
      * @param parentIconset the parent iconset, should be null if this should be a root iconset
      * @param isRootIconset true if this should be a root iconset, otherwise false
      */
-    public MaterialIconSet(@Nonnull String name, @Nullable MaterialIconSet parentIconset, boolean isRootIconset) {
+    public MaterialIconSet(@NotNull String name, @Nullable MaterialIconSet parentIconset, boolean isRootIconset) {
         this.name = name.toLowerCase(Locale.ENGLISH);
-        Preconditions.checkArgument(!ICON_SETS.containsKey(this.name), "MaterialIconSet " + this.name + " already registered!");
+        Preconditions.checkArgument(!ICON_SETS.containsKey(this.name),
+                "MaterialIconSet " + this.name + " already registered!");
         this.id = idCounter++;
         this.isRootIconset = isRootIconset;
         this.parentIconset = parentIconset;
@@ -91,7 +93,7 @@ public class MaterialIconSet {
     }
 
     @ZenMethod("get")
-    public static MaterialIconSet getByName(@Nonnull String name) {
+    public static MaterialIconSet getByName(@NotNull String name) {
         return ICON_SETS.get(name.toLowerCase(Locale.ENGLISH));
     }
 

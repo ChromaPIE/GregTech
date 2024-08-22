@@ -1,29 +1,29 @@
 package gregtech.api.metatileentity;
 
-import gregtech.api.GTValues;
 import gregtech.api.GregTechAPI;
 import gregtech.api.gui.ModularUI;
 import gregtech.api.gui.UIFactory;
 import gregtech.api.metatileentity.interfaces.IGregTechTileEntity;
+import gregtech.api.util.GTUtility;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.network.PacketBuffer;
-import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
 /**
  * {@link UIFactory} implementation for {@link MetaTileEntity}
  */
+@Deprecated
 public class MetaTileEntityUIFactory extends UIFactory<IGregTechTileEntity> {
 
     public static final MetaTileEntityUIFactory INSTANCE = new MetaTileEntityUIFactory();
 
-    private MetaTileEntityUIFactory() {
-    }
+    private MetaTileEntityUIFactory() {}
 
     public void init() {
-        GregTechAPI.UI_FACTORY_REGISTRY.register(0, new ResourceLocation(GTValues.MODID, "meta_tile_entity_factory"), this);
+        GregTechAPI.UI_FACTORY_REGISTRY.register(0, GTUtility.gregtechId("meta_tile_entity_factory"), this);
     }
 
     @Override

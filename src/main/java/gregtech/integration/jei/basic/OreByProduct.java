@@ -1,8 +1,6 @@
 package gregtech.integration.jei.basic;
 
-import com.google.common.collect.ImmutableList;
-import gregtech.api.GTValues;
-import gregtech.api.recipes.Recipe.ChanceEntry;
+import gregtech.api.recipes.chance.output.impl.ChancedItemOutput;
 import gregtech.api.unification.OreDictUnifier;
 import gregtech.api.unification.material.Material;
 import gregtech.api.unification.material.Materials;
@@ -10,27 +8,34 @@ import gregtech.api.unification.material.info.MaterialFlags;
 import gregtech.api.unification.material.properties.OreProperty;
 import gregtech.api.unification.material.properties.PropertyKey;
 import gregtech.api.unification.ore.OrePrefix;
-import gregtech.api.util.GTUtility;
+import gregtech.client.utils.TooltipHelper;
 import gregtech.common.metatileentities.MetaTileEntities;
-import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
-import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
-import mezz.jei.api.ingredients.IIngredients;
-import mezz.jei.api.ingredients.VanillaTypes;
-import mezz.jei.api.recipe.IRecipeWrapper;
+
 import net.minecraft.client.resources.I18n;
 import net.minecraft.init.Blocks;
 import net.minecraft.init.Items;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.oredict.OreDictionary;
+
+import com.google.common.collect.ImmutableList;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import mezz.jei.api.ingredients.IIngredients;
+import mezz.jei.api.ingredients.VanillaTypes;
+import mezz.jei.api.recipe.IRecipeWrapper;
 import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import static gregtech.api.GTValues.LV;
+
 public class OreByProduct implements IRecipeWrapper {
 
     private static final List<OrePrefix> ORES = new ArrayList<>();
+
+    private static final int NUM_INPUTS = 21;
 
     public static void addOreByProductPrefix(OrePrefix orePrefix) {
         if (!ORES.contains(orePrefix)) {
@@ -43,12 +48,11 @@ public class OreByProduct implements IRecipeWrapper {
             OrePrefix.crushedPurified,
             OrePrefix.dustImpure,
             OrePrefix.dustPure,
-            OrePrefix.crushedCentrifuged
-    );
+            OrePrefix.crushedCentrifuged);
 
     private static ImmutableList<ItemStack> ALWAYS_MACHINES;
 
-    private final Int2ObjectMap<ChanceEntry> chances = new Int2ObjectOpenHashMap<>();
+    private final Int2ObjectMap<ChancedItemOutput> chances = new Int2ObjectOpenHashMap<>();
     private final List<List<ItemStack>> inputs = new ArrayList<>();
     private final List<List<ItemStack>> outputs = new ArrayList<>();
     private final List<List<FluidStack>> fluidInputs = new ArrayList<>();
@@ -61,25 +65,24 @@ public class OreByProduct implements IRecipeWrapper {
     public OreByProduct(Material material) {
         if (ALWAYS_MACHINES == null) {
             ALWAYS_MACHINES = ImmutableList.of(
-                    MetaTileEntities.MACERATOR[GTValues.LV].getStackForm(),
-                    MetaTileEntities.MACERATOR[GTValues.LV].getStackForm(),
-                    MetaTileEntities.CENTRIFUGE[GTValues.LV].getStackForm(),
-                    MetaTileEntities.ORE_WASHER[GTValues.LV].getStackForm(),
-                    MetaTileEntities.THERMAL_CENTRIFUGE[GTValues.LV].getStackForm(),
-                    MetaTileEntities.MACERATOR[GTValues.LV].getStackForm(),
-                    MetaTileEntities.MACERATOR[GTValues.LV].getStackForm(),
-                    MetaTileEntities.CENTRIFUGE[GTValues.LV].getStackForm()
-            );
+                    MetaTileEntities.MACERATOR[LV].getStackForm(),
+                    MetaTileEntities.MACERATOR[LV].getStackForm(),
+                    MetaTileEntities.CENTRIFUGE[LV].getStackForm(),
+                    MetaTileEntities.ORE_WASHER[LV].getStackForm(),
+                    MetaTileEntities.THERMAL_CENTRIFUGE[LV].getStackForm(),
+                    MetaTileEntities.MACERATOR[LV].getStackForm(),
+                    MetaTileEntities.MACERATOR[LV].getStackForm(),
+                    MetaTileEntities.CENTRIFUGE[LV].getStackForm());
         }
         OreProperty property = material.getProperty(PropertyKey.ORE);
         int oreMultiplier = property.getOreMultiplier();
         int byproductMultiplier = property.getByProductMultiplier();
         currentSlot = 0;
-        Material[] byproducts = new Material[]{
-                GTUtility.selectItemInList(0, material, property.getOreByProducts(), Material.class),
-                GTUtility.selectItemInList(1, material, property.getOreByProducts(), Material.class),
-                GTUtility.selectItemInList(2, material, property.getOreByProducts(), Material.class),
-                GTUtility.selectItemInList(3, material, property.getOreByProducts(), Material.class)
+        Material[] byproducts = new Material[] {
+                property.getOreByProduct(0, material),
+                property.getOreByProduct(1, material),
+                property.getOreByProduct(2, material),
+                property.getOreByProduct(3, material)
         };
 
         // "INPUTS"
@@ -97,7 +100,7 @@ public class OreByProduct implements IRecipeWrapper {
         // set up machines as inputs
         List<ItemStack> simpleWashers = new ArrayList<>();
         simpleWashers.add(new ItemStack(Items.CAULDRON));
-        simpleWashers.add(MetaTileEntities.ORE_WASHER[GTValues.LV].getStackForm());
+        simpleWashers.add(MetaTileEntities.ORE_WASHER[LV].getStackForm());
 
         if (!material.hasProperty(PropertyKey.BLAST)) {
             addToInputs(new ItemStack(Blocks.FURNACE));
@@ -116,19 +119,19 @@ public class OreByProduct implements IRecipeWrapper {
 
         if (washedIn != null && washedIn.getKey() != null) {
             hasChemBath = true;
-            addToInputs(MetaTileEntities.CHEMICAL_BATH[GTValues.LV].getStackForm());
+            addToInputs(MetaTileEntities.CHEMICAL_BATH[LV].getStackForm());
         } else {
             addToInputs(ItemStack.EMPTY);
         }
         if (separatedInto != null && !separatedInto.isEmpty()) {
             hasSeparator = true;
-            addToInputs(MetaTileEntities.ELECTROMAGNETIC_SEPARATOR[GTValues.LV].getStackForm());
+            addToInputs(MetaTileEntities.ELECTROMAGNETIC_SEPARATOR[LV].getStackForm());
         } else {
             addToInputs(ItemStack.EMPTY);
         }
         if (material.hasProperty(PropertyKey.GEM)) {
             hasSifter = true;
-            addToInputs(MetaTileEntities.SIFTER[GTValues.LV].getStackForm());
+            addToInputs(MetaTileEntities.SIFTER[LV].getStackForm());
         } else {
             addToInputs(ItemStack.EMPTY);
         }
@@ -141,7 +144,7 @@ public class OreByProduct implements IRecipeWrapper {
         }
 
         // total number of inputs added
-        currentSlot += 21;
+        currentSlot += NUM_INPUTS;
 
         // BASIC PROCESSING
 
@@ -149,7 +152,8 @@ public class OreByProduct implements IRecipeWrapper {
         // direct smelt
         if (hasDirectSmelt) {
             ItemStack smeltingResult;
-            Material smeltingMaterial = property.getDirectSmeltResult() == null ? material : property.getDirectSmeltResult();
+            Material smeltingMaterial = property.getDirectSmeltResult() == null ? material :
+                    property.getDirectSmeltResult();
             if (smeltingMaterial.hasProperty(PropertyKey.INGOT)) {
                 smeltingResult = OreDictUnifier.get(OrePrefix.ingot, smeltingMaterial);
             } else if (smeltingMaterial.hasProperty(PropertyKey.GEM)) {
@@ -179,11 +183,13 @@ public class OreByProduct implements IRecipeWrapper {
 
         // centrifuge impure -> dust
         addToOutputs(material, OrePrefix.dust, 1);
-        addToOutputs(byproducts[0], OrePrefix.dustTiny, 1);
+        addToOutputs(byproducts[0], OrePrefix.dust, 1);
+        addChance(1111, 0);
 
         // ore wash crushed -> crushed purified
         addToOutputs(material, OrePrefix.crushedPurified, 1);
-        addToOutputs(byproducts[0], OrePrefix.dustTiny, 3);
+        addToOutputs(byproducts[0], OrePrefix.dust, 1);
+        addChance(3333, 0);
         List<FluidStack> fluidStacks = new ArrayList<>();
         fluidStacks.add(Materials.Water.getFluid(1000));
         fluidStacks.add(Materials.DistilledWater.getFluid(100));
@@ -191,7 +197,8 @@ public class OreByProduct implements IRecipeWrapper {
 
         // TC crushed/crushed purified -> centrifuged
         addToOutputs(material, OrePrefix.crushedCentrifuged, 1);
-        addToOutputs(byproducts[1], OrePrefix.dustTiny, byproductMultiplier * 3);
+        addToOutputs(byproducts[1], OrePrefix.dust, byproductMultiplier);
+        addChance(3333, 0);
 
         // macerate centrifuged -> dust
         addToOutputs(material, OrePrefix.dust, 1);
@@ -205,7 +212,8 @@ public class OreByProduct implements IRecipeWrapper {
 
         // centrifuge purified -> dust
         addToOutputs(material, OrePrefix.dust, 1);
-        addToOutputs(byproducts[1], OrePrefix.dustTiny, 1);
+        addToOutputs(byproducts[1], OrePrefix.dust, 1);
+        addChance(1111, 0);
 
         // cauldron/simple washer
         addToOutputs(material, OrePrefix.crushed, 1);
@@ -233,16 +241,17 @@ public class OreByProduct implements IRecipeWrapper {
 
         // electromagnetic separator
         if (hasSeparator) {
-            ItemStack separatedStack1 = OreDictUnifier.get(OrePrefix.dustSmall, separatedInto.get(0));
-            OrePrefix prefix = (separatedInto.get(separatedInto.size() - 1).getBlastTemperature() == 0 && separatedInto.get(separatedInto.size() - 1).hasProperty(PropertyKey.INGOT))
-                    ? OrePrefix.nugget : OrePrefix.dustSmall;
-            ItemStack separatedStack2 = OreDictUnifier.get(prefix, separatedInto.get(separatedInto.size() - 1), prefix == OrePrefix.nugget ? 2 : 1);
+            OrePrefix prefix = (separatedInto.get(separatedInto.size() - 1).getBlastTemperature() == 0 &&
+                    separatedInto.get(separatedInto.size() - 1).hasProperty(PropertyKey.INGOT)) ? OrePrefix.nugget :
+                            OrePrefix.dust;
+            ItemStack separatedStack2 = OreDictUnifier.get(prefix, separatedInto.get(separatedInto.size() - 1),
+                    prefix == OrePrefix.nugget ? 2 : 1);
 
             addToOutputs(material, OrePrefix.dust, 1);
-            addToOutputs(separatedStack1);
-            addChance(4000, 850);
+            addToOutputs(separatedInto.get(0), OrePrefix.dust, 1);
+            addChance(1000, 250);
             addToOutputs(separatedStack2);
-            addChance(2000, 600);
+            addChance(prefix == OrePrefix.dust ? 500 : 2000, prefix == OrePrefix.dust ? 150 : 600);
         } else {
             addEmptyOutputs(3);
         }
@@ -250,8 +259,6 @@ public class OreByProduct implements IRecipeWrapper {
         // sifter
         if (hasSifter) {
             boolean highOutput = material.hasFlag(MaterialFlags.HIGH_SIFTER_OUTPUT);
-            ItemStack flawedStack = OreDictUnifier.get(OrePrefix.gemFlawed, material);
-            ItemStack chippedStack = OreDictUnifier.get(OrePrefix.gemChipped, material);
 
             addToOutputs(material, OrePrefix.gemExquisite, 1);
             addGemChance(300, 100, 500, 150, highOutput);
@@ -261,19 +268,10 @@ public class OreByProduct implements IRecipeWrapper {
             addGemChance(3500, 500, 5000, 1000, highOutput);
             addToOutputs(material, OrePrefix.dustPure, 1);
             addGemChance(5000, 750, 2500, 500, highOutput);
-
-            if (!flawedStack.isEmpty()) {
-                addToOutputs(flawedStack);
-                addGemChance(2500, 300, 2000, 500, highOutput);
-            } else {
-                addEmptyOutputs(1);
-            }
-            if (!chippedStack.isEmpty()) {
-                addToOutputs(chippedStack);
-                addGemChance(3500, 400, 3000, 350, highOutput);
-            } else {
-                addEmptyOutputs(1);
-            }
+            addToOutputs(material, OrePrefix.gemFlawed, 1);
+            addGemChance(2500, 300, 2000, 500, highOutput);
+            addToOutputs(material, OrePrefix.gemChipped, 1);
+            addGemChance(3500, 400, 3000, 350, highOutput);
         } else {
             addEmptyOutputs(6);
         }
@@ -288,14 +286,14 @@ public class OreByProduct implements IRecipeWrapper {
 
     public void addTooltip(int slotIndex, boolean input, Object ingredient, List<String> tooltip) {
         if (chances.containsKey(slotIndex)) {
-            ChanceEntry entry = chances.get(slotIndex);
+            ChancedItemOutput entry = chances.get(slotIndex);
             double chance = entry.getChance() / 100.0;
-            double boost = entry.getBoostPerTier() / 100.0;
-            tooltip.add(I18n.format("gregtech.recipe.chance", chance, boost));
+            double boost = entry.getChanceBoost() / 100.0;
+            tooltip.add(TooltipHelper.BLINKING_CYAN + I18n.format("gregtech.recipe.chance", chance, boost));
         }
     }
 
-    public ChanceEntry getChance(int slot) {
+    public ChancedItemOutput getChance(int slot) {
         return chances.get(slot);
     }
 
@@ -339,8 +337,11 @@ public class OreByProduct implements IRecipeWrapper {
     }
 
     private void addChance(int base, int tier) {
-        // this is solely for the chance overlay and tooltip, neither of which care about the ItemStack
-        chances.put(currentSlot - 1, new ChanceEntry(ItemStack.EMPTY, base, tier));
+        // hacky check to not add a chance for empty stacks
+        if (!outputs.get(currentSlot - 1 - NUM_INPUTS).get(0).isEmpty()) {
+            // this is solely for the chance overlay and tooltip, neither of which care about the ItemStack
+            chances.put(currentSlot - 1, new ChancedItemOutput(ItemStack.EMPTY, base, tier));
+        }
     }
 
     // make the code less :weary:

@@ -3,22 +3,22 @@ package gregtech.loaders.recipe.chemistry;
 import gregtech.api.unification.OreDictUnifier;
 import gregtech.api.unification.material.MarkerMaterials;
 import gregtech.api.unification.material.Materials;
+import gregtech.common.blocks.MetaBlocks;
 import gregtech.common.items.MetaItems;
+
 import net.minecraft.init.Blocks;
 import net.minecraft.init.Items;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.oredict.OreDictionary;
 
 import static gregtech.api.GTValues.*;
-import static gregtech.api.recipes.RecipeMaps.CHEMICAL_RECIPES;
-import static gregtech.api.recipes.RecipeMaps.LARGE_CHEMICAL_RECIPES;
+import static gregtech.api.recipes.RecipeMaps.*;
 import static gregtech.api.unification.material.Materials.*;
 import static gregtech.api.unification.ore.OrePrefix.*;
 
 public class ReactorRecipes {
 
     public static void init() {
-
         CHEMICAL_RECIPES.recipeBuilder()
                 .circuitMeta(1)
                 .fluidInputs(Isoprene.getFluid(144))
@@ -76,8 +76,6 @@ public class ReactorRecipes {
                 .fluidOutputs(PolyphenyleneSulfide.getFluid(1500))
                 .duration(240).EUt(360).buildAndRegister();
 
-
-
         CHEMICAL_RECIPES.recipeBuilder()
                 .input(dust, Polydimethylsiloxane, 9)
                 .input(dust, Sulfur)
@@ -85,38 +83,11 @@ public class ReactorRecipes {
                 .duration(600).EUt(VA[LV]).buildAndRegister();
 
         CHEMICAL_RECIPES.recipeBuilder()
-                .input(dust, Carbon, 2)
-                .input(dust, Rutile)
-                .fluidInputs(Chlorine.getFluid(4000))
-                .fluidOutputs(CarbonMonoxide.getFluid(2000))
-                .fluidOutputs(TitaniumTetrachloride.getFluid(1000))
-                .duration(400).EUt(VA[HV]).buildAndRegister();
-
-        CHEMICAL_RECIPES.recipeBuilder()
                 .fluidInputs(Dimethyldichlorosilane.getFluid(1000))
                 .fluidInputs(Water.getFluid(1000))
                 .output(dust, Polydimethylsiloxane, 3)
                 .fluidOutputs(DilutedHydrochloricAcid.getFluid(1000))
                 .duration(240).EUt(96).buildAndRegister();
-
-        CHEMICAL_RECIPES.recipeBuilder()
-                .input(dust, Silicon)
-                .fluidInputs(HydrochloricAcid.getFluid(2000))
-                .fluidInputs(Methanol.getFluid(2000))
-                .output(dust, Polydimethylsiloxane, 3)
-                .fluidOutputs(DilutedHydrochloricAcid.getFluid(2000))
-                .duration(480).EUt(96).buildAndRegister();
-
-        CHEMICAL_RECIPES.recipeBuilder()
-                .circuitMeta(2)
-                .input(dust, Silicon)
-                .fluidInputs(Water.getFluid(1000))
-                .fluidInputs(Chlorine.getFluid(4000))
-                .fluidInputs(Methane.getFluid(2000))
-                .output(dust, Polydimethylsiloxane, 3)
-                .fluidOutputs(HydrochloricAcid.getFluid(2000))
-                .fluidOutputs(DilutedHydrochloricAcid.getFluid(2000))
-                .duration(480).EUt(96).buildAndRegister();
 
         CHEMICAL_RECIPES.recipeBuilder()
                 .fluidInputs(Chlorine.getFluid(1000))
@@ -141,14 +112,6 @@ public class ReactorRecipes {
                 .fluidOutputs(Hydrogen.getFluid(3000))
                 .duration(400).EUt(VA[LV])
                 .buildAndRegister();
-
-        CHEMICAL_RECIPES.recipeBuilder()
-                .circuitMeta(3)
-                .fluidInputs(Chlorine.getFluid(2000))
-                .fluidInputs(Methane.getFluid(1000))
-                .fluidOutputs(HydrochloricAcid.getFluid(1000))
-                .fluidOutputs(Chloromethane.getFluid(1000))
-                .duration(80).EUt(VA[LV]).buildAndRegister();
 
         CHEMICAL_RECIPES.recipeBuilder()
                 .fluidInputs(Chlorine.getFluid(4000))
@@ -339,12 +302,22 @@ public class ReactorRecipes {
                 .duration(480).EUt(VA[LV]).buildAndRegister();
 
         CHEMICAL_RECIPES.recipeBuilder()
+                .circuitMeta(1)
                 .input(dust, Aluminium, 4)
                 .fluidInputs(IndiumConcentrate.getFluid(1000))
                 .output(dustSmall, Indium)
                 .output(dust, AluminiumSulfite, 4)
                 .fluidOutputs(LeadZincSolution.getFluid(1000))
                 .duration(50).EUt(600).buildAndRegister();
+
+        CHEMICAL_RECIPES.recipeBuilder()
+                .circuitMeta(4)
+                .input(dust, Aluminium, 16)
+                .fluidInputs(IndiumConcentrate.getFluid(4000))
+                .output(dust, Indium)
+                .output(dust, AluminiumSulfite, 16)
+                .fluidOutputs(LeadZincSolution.getFluid(4000))
+                .duration(200).EUt(600).buildAndRegister();
 
         CHEMICAL_RECIPES.recipeBuilder()
                 .circuitMeta(3)
@@ -366,7 +339,7 @@ public class ReactorRecipes {
                 .circuitMeta(1)
                 .input(gem, Charcoal)
                 .fluidInputs(Oxygen.getFluid(1000))
-                .output(dustTiny, Ash)
+                .chancedOutput(dust, Ash, 1111, 0)
                 .fluidOutputs(CarbonMonoxide.getFluid(1000))
                 .duration(80).EUt(VA[ULV]).buildAndRegister();
 
@@ -374,7 +347,7 @@ public class ReactorRecipes {
                 .circuitMeta(1)
                 .input(gem, Coal)
                 .fluidInputs(Oxygen.getFluid(1000))
-                .output(dustTiny, Ash)
+                .chancedOutput(dust, Ash, 1111, 0)
                 .fluidOutputs(CarbonMonoxide.getFluid(1000))
                 .duration(80).EUt(VA[ULV]).buildAndRegister();
 
@@ -382,7 +355,7 @@ public class ReactorRecipes {
                 .circuitMeta(1)
                 .input(dust, Charcoal)
                 .fluidInputs(Oxygen.getFluid(1000))
-                .output(dustTiny, Ash)
+                .chancedOutput(dust, Ash, 1111, 0)
                 .fluidOutputs(CarbonMonoxide.getFluid(1000))
                 .duration(80).EUt(VA[ULV]).buildAndRegister();
 
@@ -391,7 +364,7 @@ public class ReactorRecipes {
                 .input(dust, Coal)
                 .circuitMeta(1)
                 .fluidInputs(Oxygen.getFluid(1000))
-                .outputs(OreDictUnifier.get(dustTiny, Ash))
+                .chancedOutput(dust, Ash, 1111, 0)
                 .fluidOutputs(CarbonMonoxide.getFluid(1000))
                 .buildAndRegister();
 
@@ -423,7 +396,7 @@ public class ReactorRecipes {
                 .fluidInputs(Methanol.getFluid(1000))
                 .fluidOutputs(Water.getFluid(1000))
                 .fluidOutputs(Chloromethane.getFluid(1000))
-                .duration(160).EUt(VA[LV]).buildAndRegister();
+                .duration(80).EUt(VA[LV]).buildAndRegister();
 
         CHEMICAL_RECIPES.recipeBuilder()
                 .circuitMeta(2)
@@ -436,7 +409,7 @@ public class ReactorRecipes {
                 .circuitMeta(2)
                 .input(gem, Charcoal)
                 .fluidInputs(Oxygen.getFluid(2000))
-                .output(dustTiny, Ash)
+                .chancedOutput(dust, Ash, 1111, 0)
                 .fluidOutputs(CarbonDioxide.getFluid(1000))
                 .duration(80).EUt(VA[ULV]).buildAndRegister();
 
@@ -444,7 +417,7 @@ public class ReactorRecipes {
                 .circuitMeta(2)
                 .input(gem, Coal)
                 .fluidInputs(Oxygen.getFluid(2000))
-                .output(dustTiny, Ash)
+                .chancedOutput(dust, Ash, 1111, 0)
                 .fluidOutputs(CarbonDioxide.getFluid(1000))
                 .duration(80).EUt(VA[ULV]).buildAndRegister();
 
@@ -452,7 +425,7 @@ public class ReactorRecipes {
                 .circuitMeta(2)
                 .input(dust, Charcoal)
                 .fluidInputs(Oxygen.getFluid(2000))
-                .output(dustTiny, Ash)
+                .chancedOutput(dust, Ash, 1111, 0)
                 .fluidOutputs(CarbonDioxide.getFluid(1000))
                 .duration(80).EUt(VA[ULV]).buildAndRegister();
 
@@ -460,7 +433,7 @@ public class ReactorRecipes {
                 .circuitMeta(2)
                 .input(dust, Coal)
                 .fluidInputs(Oxygen.getFluid(2000))
-                .output(dustTiny, Ash)
+                .chancedOutput(dust, Ash, 1111, 0)
                 .fluidOutputs(CarbonDioxide.getFluid(1000))
                 .duration(80).EUt(VA[ULV]).buildAndRegister();
 
@@ -523,23 +496,10 @@ public class ReactorRecipes {
                 .duration(500).EUt(VA[LV]).buildAndRegister();
 
         CHEMICAL_RECIPES.recipeBuilder()
-                .input(dust, Quicklime, 2)
-                .fluidInputs(CarbonDioxide.getFluid(1000))
-                .output(dust, Calcite, 5)
-                .duration(80).EUt(VA[LV]).buildAndRegister();
-
-        CHEMICAL_RECIPES.recipeBuilder()
                 .input(dust, Magnesia, 2)
                 .fluidInputs(CarbonDioxide.getFluid(1000))
                 .output(dust, Magnesite, 5)
                 .duration(80).EUt(VA[LV]).buildAndRegister();
-
-        CHEMICAL_RECIPES.recipeBuilder()
-                .circuitMeta(1)
-                .input(dust, Calcite, 5)
-                .output(dust, Quicklime, 2)
-                .fluidOutputs(CarbonDioxide.getFluid(1000))
-                .duration(240).EUt(VA[LV]).buildAndRegister();
 
         CHEMICAL_RECIPES.recipeBuilder()
                 .input(dust, Magnesite, 5)
@@ -588,6 +548,13 @@ public class ReactorRecipes {
                 .fluidInputs(SulfuricAcid.getFluid(250))
                 .outputs(new ItemStack(Blocks.TNT))
                 .duration(200).EUt(24).buildAndRegister();
+
+        CHEMICAL_RECIPES.recipeBuilder()
+                .inputs(MetaItems.GELLED_TOLUENE.getStackForm(4))
+                .fluidInputs(NitrationMixture.getFluid(200))
+                .outputs(new ItemStack(MetaBlocks.ITNT))
+                .fluidOutputs(DilutedSulfuricAcid.getFluid(150))
+                .duration(80).EUt(VA[HV]).buildAndRegister();
 
         CHEMICAL_RECIPES.recipeBuilder()
                 .input(dust, SodiumHydroxide, 6)
@@ -681,5 +648,33 @@ public class ReactorRecipes {
                 .fluidInputs(PolyvinylAcetate.getFluid(144))
                 .fluidOutputs(PolyvinylButyral.getFluid(144))
                 .duration(400).EUt(VA[HV]).buildAndRegister();
+
+        CHEMICAL_RECIPES.recipeBuilder()
+                .fluidInputs(Benzene.getFluid(1000))
+                .fluidInputs(Toluene.getFluid(1000))
+                .output(dust, Biphenyl, 2)
+                .fluidOutputs(Methane.getFluid(1000))
+                .duration(200).EUt(VH[HV]).buildAndRegister();
+
+        CHEMICAL_RECIPES.recipeBuilder()
+                .fluidInputs(Benzene.getFluid(2000))
+                .fluidInputs(Oxygen.getFluid(1000))
+                .circuitMeta(1)
+                .output(dust, Biphenyl, 2)
+                .fluidOutputs(Water.getFluid(1000))
+                .duration(400).EUt(VA[HV]).buildAndRegister();
+
+        CHEMICAL_RECIPES.recipeBuilder()
+                .input(dust, Biphenyl, 2)
+                .fluidInputs(Hydrogen.getFluid(2000))
+                .fluidOutputs(Benzene.getFluid(2000))
+                .duration(400).EUt(VA[EV]).buildAndRegister();
+
+        CHEMICAL_RECIPES.recipeBuilder()
+                .input(dust, Biphenyl, 2)
+                .fluidInputs(Chlorine.getFluid(4000))
+                .fluidOutputs(PolychlorinatedBiphenyl.getFluid(1000))
+                .fluidOutputs(HydrochloricAcid.getFluid(2000))
+                .duration(200).EUt(VH[HV]).buildAndRegister();
     }
 }

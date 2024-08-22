@@ -1,15 +1,17 @@
 package gregtech.integration.jei.basic;
 
 import gregtech.api.util.FileUtility;
-import gregtech.api.util.GTJEIUtility;
 import gregtech.api.worldgen.config.BedrockFluidDepositDefinition;
-import mezz.jei.api.ingredients.IIngredients;
-import mezz.jei.api.ingredients.VanillaTypes;
-import mezz.jei.api.recipe.IRecipeWrapper;
+import gregtech.integration.jei.utils.JEIResourceDepositCategoryUtils;
+
 import net.minecraft.item.ItemStack;
 import net.minecraft.world.biome.Biome;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.FluidUtil;
+
+import mezz.jei.api.ingredients.IIngredients;
+import mezz.jei.api.ingredients.VanillaTypes;
+import mezz.jei.api.recipe.IRecipeWrapper;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -33,10 +35,9 @@ public class GTFluidVeinInfo implements IRecipeWrapper {
     private final List<List<ItemStack>> bucketList = new ArrayList<>();
 
     public GTFluidVeinInfo(BedrockFluidDepositDefinition definition) {
-
         this.definition = definition;
 
-        //Get the Name and trim unneeded information
+        // Get the Name and trim unneeded information
         this.name = definition.getAssignedName();
         if (this.name == null) {
             this.name = FileUtility.trimFileName(definition.getDepositName());
@@ -60,8 +61,7 @@ public class GTFluidVeinInfo implements IRecipeWrapper {
         fluidList2.add(fluid);
         fluidList.add(fluidList2);
 
-        this.biomeFunction =  definition.getBiomeWeightModifier();
-
+        this.biomeFunction = definition.getBiomeWeightModifier();
     }
 
     @Override
@@ -70,7 +70,7 @@ public class GTFluidVeinInfo implements IRecipeWrapper {
         ingredients.setOutputLists(VanillaTypes.FLUID, fluidList);
 
         ItemStack bucket = FluidUtil.getFilledBucket(fluid);
-        if(!bucket.isEmpty()) {
+        if (!bucket.isEmpty()) {
             bucketList.add(Collections.singletonList(bucket));
             ingredients.setInputLists(VanillaTypes.ITEM, bucketList);
             ingredients.setOutputLists(VanillaTypes.ITEM, bucketList);
@@ -78,14 +78,10 @@ public class GTFluidVeinInfo implements IRecipeWrapper {
     }
 
     public void addTooltip(int slotIndex, boolean input, Object ingredient, List<String> tooltip) {
-        if(description != null) {
+        if (description != null) {
             tooltip.add(description);
         }
-
-        List<String> biomeTooltip = GTJEIUtility.createSpawnPageBiomeTooltip(biomeFunction, weight);
-        if(!biomeTooltip.isEmpty()) {
-            tooltip.addAll(biomeTooltip);
-        }
+        tooltip.addAll(JEIResourceDepositCategoryUtils.createSpawnPageBiomeTooltip(biomeFunction, weight));
     }
 
     public BedrockFluidDepositDefinition getDefinition() {
@@ -123,5 +119,4 @@ public class GTFluidVeinInfo implements IRecipeWrapper {
     public FluidStack getFluid() {
         return fluid;
     }
-
 }

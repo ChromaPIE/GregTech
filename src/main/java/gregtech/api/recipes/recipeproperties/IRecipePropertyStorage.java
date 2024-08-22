@@ -5,8 +5,6 @@ import java.util.Set;
 
 public interface IRecipePropertyStorage {
 
-    String STACKTRACE = "Stacktrace:";
-
     /**
      * Stores new {@link RecipeProperty} with value
      *
@@ -50,6 +48,8 @@ public interface IRecipePropertyStorage {
 
     Set<String> getRecipePropertyKeys();
 
+    Set<RecipeProperty<?>> getPropertyTypes();
+
     /**
      * Provides un-casted value for one specific {@link RecipeProperty} searched by key
      *
@@ -57,5 +57,4 @@ public interface IRecipePropertyStorage {
      * @return {@link Object} value on success; otherwise {@code null}
      */
     Object getRawRecipePropertyValue(String key);
-
 }

@@ -1,6 +1,7 @@
 package gregtech.api.damagesources;
 
 import gregtech.api.items.toolitem.IGTTool;
+
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.EntityEquipmentSlot;
@@ -8,7 +9,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.util.DamageSource;
 import net.minecraft.util.EntityDamageSource;
 
-import javax.annotation.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 public class DamageSources {
 
@@ -48,24 +49,18 @@ public class DamageSources {
         return TURBINE;
     }
 
-    // accessed via ASM
-    @SuppressWarnings("unused")
     public static DamageSource getPlayerDamage(@Nullable EntityPlayer source) {
         ItemStack stack = source != null ? source.getHeldItemMainhand() : ItemStack.EMPTY;
-        if (!stack.isEmpty() && stack.getItem() instanceof IGTTool) {
-            IGTTool tool = (IGTTool) stack.getItem();
-            return new DamageSourceTool("player", source, String.format("death.attack.%s", tool.getId()));
+        if (!stack.isEmpty() && stack.getItem() instanceof IGTTool tool) {
+            return new DamageSourceTool("player", source, String.format("death.attack.%s", tool.getToolId()));
         }
         return new EntityDamageSource("player", source);
     }
 
-    // accessed via ASM
-    @SuppressWarnings("unused")
     public static DamageSource getMobDamage(@Nullable EntityLivingBase source) {
         ItemStack stack = source != null ? source.getItemStackFromSlot(EntityEquipmentSlot.MAINHAND) : ItemStack.EMPTY;
-        if (!stack.isEmpty() && stack.getItem() instanceof IGTTool) {
-            IGTTool tool = (IGTTool) stack.getItem();
-            return new DamageSourceTool("mob", source, String.format("death.attack.%s", tool.getId()));
+        if (!stack.isEmpty() && stack.getItem() instanceof IGTTool tool) {
+            return new DamageSourceTool("mob", source, String.format("death.attack.%s", tool.getToolId()));
         }
         return new EntityDamageSource("mob", source);
     }

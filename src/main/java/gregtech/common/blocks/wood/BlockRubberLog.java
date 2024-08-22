@@ -1,7 +1,9 @@
 package gregtech.common.blocks.wood;
 
-import gregtech.api.GregTechAPI;
+import gregtech.api.items.toolitem.ToolClasses;
+import gregtech.common.creativetab.GTCreativeTabs;
 import gregtech.common.items.MetaItems;
+
 import net.minecraft.block.BlockLog;
 import net.minecraft.block.properties.PropertyBool;
 import net.minecraft.block.state.BlockStateContainer;
@@ -12,7 +14,8 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.IBlockAccess;
 import net.minecraft.world.World;
 
-import javax.annotation.Nonnull;
+import org.jetbrains.annotations.NotNull;
+
 import java.util.Random;
 
 public class BlockRubberLog extends BlockLog {
@@ -24,16 +27,17 @@ public class BlockRubberLog extends BlockLog {
                 .withProperty(LOG_AXIS, BlockLog.EnumAxis.Y)
                 .withProperty(NATURAL, false));
         setTranslationKey("rubber_log");
-        setCreativeTab(GregTechAPI.TAB_GREGTECH);
+        setCreativeTab(GTCreativeTabs.TAB_GREGTECH);
+        setHarvestLevel(ToolClasses.AXE, 0);
     }
 
-    @Nonnull
+    @NotNull
     @Override
     protected BlockStateContainer createBlockState() {
         return new BlockStateContainer(this, LOG_AXIS, NATURAL);
     }
 
-    @Nonnull
+    @NotNull
     @Override
     public IBlockState getStateFromMeta(int meta) {
         return getDefaultState()
@@ -47,7 +51,8 @@ public class BlockRubberLog extends BlockLog {
     }
 
     @Override
-    public void getDrops(@Nonnull NonNullList<ItemStack> drops, @Nonnull IBlockAccess world, @Nonnull BlockPos pos, IBlockState state, int fortune) {
+    public void getDrops(@NotNull NonNullList<ItemStack> drops, @NotNull IBlockAccess world, @NotNull BlockPos pos,
+                         IBlockState state, int fortune) {
         Random rand = world instanceof World ? ((World) world).rand : RANDOM;
         if (state.getValue(NATURAL)) {
             if (rand.nextDouble() <= .85D) {

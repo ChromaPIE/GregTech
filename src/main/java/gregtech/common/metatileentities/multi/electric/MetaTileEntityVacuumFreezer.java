@@ -11,12 +11,18 @@ import gregtech.client.renderer.ICubeRenderer;
 import gregtech.client.renderer.texture.Textures;
 import gregtech.common.blocks.BlockMetalCasing.MetalCasingType;
 import gregtech.common.blocks.MetaBlocks;
+import gregtech.core.sound.GTSoundEvents;
+
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.SoundEvent;
+import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 
-import javax.annotation.Nonnull;
+import org.jetbrains.annotations.NotNull;
 
 public class MetaTileEntityVacuumFreezer extends RecipeMapMultiblockController {
+
     public MetaTileEntityVacuumFreezer(ResourceLocation metaTileEntityId) {
         super(metaTileEntityId, RecipeMaps.VACUUM_RECIPES);
     }
@@ -38,6 +44,7 @@ public class MetaTileEntityVacuumFreezer extends RecipeMapMultiblockController {
                 .build();
     }
 
+    @SideOnly(Side.CLIENT)
     @Override
     public ICubeRenderer getBaseTexture(IMultiblockPart sourcePart) {
         return Textures.FROST_PROOF_CASING;
@@ -47,7 +54,13 @@ public class MetaTileEntityVacuumFreezer extends RecipeMapMultiblockController {
         return MetaBlocks.METAL_CASING.getState(MetalCasingType.ALUMINIUM_FROSTPROOF);
     }
 
-    @Nonnull
+    @Override
+    public SoundEvent getBreakdownSound() {
+        return GTSoundEvents.BREAKDOWN_ELECTRICAL;
+    }
+
+    @SideOnly(Side.CLIENT)
+    @NotNull
     @Override
     protected ICubeRenderer getFrontOverlay() {
         return Textures.VACUUM_FREEZER_OVERLAY;

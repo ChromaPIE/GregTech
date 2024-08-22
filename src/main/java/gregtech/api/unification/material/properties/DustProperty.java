@@ -1,6 +1,6 @@
 package gregtech.api.unification.material.properties;
 
-public class DustProperty implements IMaterialProperty<DustProperty> {
+public class DustProperty implements IMaterialProperty {
 
     /**
      * Tool level needed to harvest block of this Material.
@@ -48,10 +48,5 @@ public class DustProperty implements IMaterialProperty<DustProperty> {
     }
 
     @Override
-    public void verifyProperty(MaterialProperties properties) {
-        FluidProperty prop = properties.getProperty(PropertyKey.FLUID);
-        if (prop != null && prop.getFluidTemperature() == FluidProperty.BASE_TEMP) {
-            prop.setFluidTemperature(1200);
-        }
-    }
+    public void verifyProperty(MaterialProperties properties) {}
 }

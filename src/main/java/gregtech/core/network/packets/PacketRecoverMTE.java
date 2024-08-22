@@ -1,11 +1,10 @@
 package gregtech.core.network.packets;
 
-import gregtech.api.GregTechAPI;
 import gregtech.api.block.machines.BlockMachine;
 import gregtech.api.metatileentity.interfaces.IGregTechTileEntity;
 import gregtech.api.network.IPacket;
 import gregtech.api.network.IServerExecutor;
-import lombok.NoArgsConstructor;
+
 import net.minecraft.network.NetHandlerPlayServer;
 import net.minecraft.network.PacketBuffer;
 import net.minecraft.network.play.server.SPacketBlockChange;
@@ -16,11 +15,13 @@ import net.minecraftforge.fml.common.FMLCommonHandler;
 
 import static gregtech.api.capability.GregtechDataCodes.INITIALIZE_MTE;
 
-@NoArgsConstructor
 public class PacketRecoverMTE implements IPacket, IServerExecutor {
 
     private int dimension;
     private BlockPos pos;
+
+    @SuppressWarnings("unused")
+    public PacketRecoverMTE() {}
 
     public PacketRecoverMTE(int dimension, BlockPos pos) {
         this.dimension = dimension;
@@ -43,10 +44,11 @@ public class PacketRecoverMTE implements IPacket, IServerExecutor {
     public void executeServer(NetHandlerPlayServer handler) {
         World world = FMLCommonHandler.instance().getMinecraftServerInstance().getWorld(dimension);
         TileEntity te = world.getTileEntity(pos);
-        if (te instanceof IGregTechTileEntity && ((IGregTechTileEntity) te).isValid()) {
-            IGregTechTileEntity holder = (IGregTechTileEntity) te;
+        if (te instanceof IGregTechTileEntity holder && holder.isValid()) {
             holder.writeCustomData(INITIALIZE_MTE, buffer -> {
-                buffer.writeVarInt(GregTechAPI.MTE_REGISTRY.getIdByObjectName(holder.getMetaTileEntity().metaTileEntityId));
+                buffer.writeVarInt(
+                        holder.getMetaTileEntity().getRegistry()
+                                .getIdByObjectName(holder.getMetaTileEntity().metaTileEntityId));
                 holder.getMetaTileEntity().writeInitialSyncData(buffer);
             });
         } else if (!(world.getBlockState(pos).getBlock() instanceof BlockMachine)) {

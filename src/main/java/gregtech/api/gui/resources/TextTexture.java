@@ -11,7 +11,8 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 import java.util.Collections;
 import java.util.List;
 
-public class TextTexture implements IGuiTexture{
+public class TextTexture implements IGuiTexture {
+
     public String text;
     public int color;
     public int width;
@@ -19,14 +20,24 @@ public class TextTexture implements IGuiTexture{
     public TextType type;
     @SideOnly(Side.CLIENT)
     private List<String> texts;
+    private final boolean isClient = FMLCommonHandler.instance().getSide().isClient();
 
     public TextTexture(String text, int color) {
         this.color = color;
         this.type = TextType.NORMAL;
-        if (FMLCommonHandler.instance().getSide().isClient()) {
+        if (isClient) {
             this.text = I18n.format(text);
             texts = Collections.singletonList(this.text);
         }
+    }
+
+    public TextTexture() {
+        this.color = 0xFFFFFF;
+        this.type = TextType.NORMAL;
+        this.text = "";
+
+        if (isClient)
+            this.texts = Collections.singletonList(this.text);
     }
 
     public TextTexture setColor(int color) {
@@ -41,11 +52,18 @@ public class TextTexture implements IGuiTexture{
 
     public TextTexture setWidth(int width) {
         this.width = width;
-        if (FMLCommonHandler.instance().getSide().isClient()) {
-            if (this.width > 0) {
-                texts = Minecraft.getMinecraft().fontRenderer.listFormattedStringToWidth(text, width);
-            } else {
-                texts = Collections.singletonList(text);
+        return this;
+    }
+
+    public TextTexture setText(String text) {
+        if (!this.text.equals(text)) {
+            this.text = text;
+            if (isClient) {
+                if (this.width > 0) {
+                    texts = Minecraft.getMinecraft().fontRenderer.listFormattedStringToWidth(text, width);
+                } else {
+                    texts = Collections.singletonList(text);
+                }
             }
         }
         return this;
@@ -87,7 +105,7 @@ public class TextTexture implements IGuiTexture{
         GlStateManager.color(1, 1, 1, 1);
     }
 
-    public enum TextType{
+    public enum TextType {
         NORMAL,
         HIDE,
         ROLL

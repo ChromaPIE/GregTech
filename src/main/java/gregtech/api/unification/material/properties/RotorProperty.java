@@ -1,8 +1,8 @@
 package gregtech.api.unification.material.properties;
 
-import javax.annotation.Nonnull;
+import org.jetbrains.annotations.NotNull;
 
-public class RotorProperty implements IMaterialProperty<RotorProperty> {
+public class RotorProperty implements IMaterialProperty {
 
     /**
      * Speed of rotors made from this Material.
@@ -59,7 +59,7 @@ public class RotorProperty implements IMaterialProperty<RotorProperty> {
     }
 
     @Override
-    public void verifyProperty(@Nonnull MaterialProperties properties) {
+    public void verifyProperty(@NotNull MaterialProperties properties) {
         properties.ensureSet(PropertyKey.INGOT, true);
     }
 }

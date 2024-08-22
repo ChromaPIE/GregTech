@@ -1,14 +1,16 @@
 package gregtech.common.terminal.app.guide;
 
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import gregtech.api.GTValues;
 import gregtech.api.GregTechAPI;
 import gregtech.api.gui.resources.IGuiTexture;
 import gregtech.api.gui.resources.ItemStackTexture;
 import gregtech.api.metatileentity.MetaTileEntity;
+import gregtech.api.util.GTUtility;
 import gregtech.common.metatileentities.MetaTileEntities;
+
 import net.minecraft.util.ResourceLocation;
+
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 
 public class MultiBlockGuideApp extends GuideApp<MetaTileEntity> {
 
@@ -18,12 +20,14 @@ public class MultiBlockGuideApp extends GuideApp<MetaTileEntity> {
 
     @Override
     public MetaTileEntity ofJson(JsonObject json) {
-        String[] valids = {"multiblock", "metatileentity"};
+        String[] valids = { "multiblock", "metatileentity" };
         if (json.isJsonObject()) {
             for (String valid : valids) {
                 JsonElement id = json.getAsJsonObject().get(valid);
-                if (id != null && id.isJsonPrimitive())
-                    return GregTechAPI.MTE_REGISTRY.getObject(new ResourceLocation(GTValues.MODID, id.getAsString()));
+                if (id != null && id.isJsonPrimitive()) {
+                    ResourceLocation location = GTUtility.gregtechId(id.getAsString());
+                    return GregTechAPI.mteManager.getRegistry(location.getNamespace()).getObject(location);
+                }
             }
         }
         return null;

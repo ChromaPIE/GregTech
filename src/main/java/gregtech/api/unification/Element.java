@@ -21,19 +21,21 @@ public class Element {
     @ZenProperty("isotope")
     public final boolean isIsotope;
     @ZenProperty("halfLifeSeconds")
-    public final long halfLifeSeconds;
+    public final double halfLifeSeconds;
     @ZenProperty("decayTo")
     public final String decayTo;
 
     /**
      * @param protons         Amount of Protons
-     * @param neutrons        Amount of Neutrons (I could have made mistakes with the Neutron amount calculation, please tell me if I did something wrong)
+     * @param neutrons        Amount of Neutrons (I could have made mistakes with the Neutron amount calculation, please
+     *                        tell me if I did something wrong)
      * @param halfLifeSeconds Amount of Half Life this Material has in Seconds. -1 for stable Materials
      * @param decayTo         String representing the Elements it decays to. Separated by an '&' Character
      * @param name            Name of the Element
      * @param symbol          Symbol of the Element
      */
-    public Element(long protons, long neutrons, long halfLifeSeconds, String decayTo, String name, String symbol, boolean isIsotope) {
+    protected Element(long protons, long neutrons, double halfLifeSeconds, String decayTo, String name, String symbol,
+                      boolean isIsotope) {
         this.protons = protons;
         this.neutrons = neutrons;
         this.halfLifeSeconds = halfLifeSeconds;
@@ -71,6 +73,6 @@ public class Element {
     @Override
     @ZenMethod
     public String toString() {
-        return super.toString();
+        return name;
     }
 }

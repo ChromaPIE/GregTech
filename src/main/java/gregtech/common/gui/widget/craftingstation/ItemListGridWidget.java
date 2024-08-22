@@ -4,32 +4,42 @@ import gregtech.api.gui.INativeWidget;
 import gregtech.api.gui.Widget;
 import gregtech.api.gui.widgets.ScrollableListWidget;
 import gregtech.api.gui.widgets.WidgetGroup;
-import gregtech.api.util.GTUtility;
 import gregtech.api.util.ItemStackHashStrategy;
 import gregtech.common.inventory.IItemInfo;
 import gregtech.common.inventory.IItemList;
 import gregtech.common.inventory.IItemList.InsertMode;
 import gregtech.common.inventory.SimpleItemInfo;
-import it.unimi.dsi.fastutil.objects.Object2ObjectOpenCustomHashMap;
+
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.network.PacketBuffer;
 
-import javax.annotation.Nullable;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenCustomHashMap;
+import org.jetbrains.annotations.Nullable;
+
 import java.io.IOException;
 import java.util.*;
 
 public class ItemListGridWidget extends ScrollableListWidget {
+
+    private static final Comparator<IItemInfo> COMPARATOR = Comparator.comparing(
+            IItemInfo::getItemStack,
+            Comparator.<ItemStack>comparingInt(it -> Item.REGISTRY.getIDForObject(it.getItem()))
+                    .thenComparing(ItemStack::getItemDamage)
+                    .thenComparing(ItemStack::hasTagCompound)
+                    .thenComparing(it -> -Objects.hashCode(it.getTagCompound()))
+                    .thenComparing(it -> -it.getCount()));
 
     @Nullable
     private final IItemList itemList;
     private final int slotAmountX;
     private final int slotAmountY;
     private int slotRowsAmount = 0;
-    private final Map<ItemStack, SimpleItemInfo> cachedItemList = new Object2ObjectOpenCustomHashMap<>(ItemStackHashStrategy.comparingAllButCount());
+    private final Map<ItemStack, SimpleItemInfo> cachedItemList = new Object2ObjectOpenCustomHashMap<>(
+            ItemStackHashStrategy.comparingAllButCount());
     private final List<SimpleItemInfo> itemsChanged = new ArrayList<>();
     private final List<ItemStack> itemsRemoved = new ArrayList<>();
 
-    private final Comparator<IItemInfo> comparator = Comparator.comparing(IItemInfo::getItemStack, GTUtility.createItemStackComparator());
     private final List<SimpleItemInfo> displayItemList = new ArrayList<>();
 
     public ItemListGridWidget(int x, int y, int slotsX, int slotsY, @Nullable IItemList itemList) {
@@ -73,7 +83,8 @@ public class ItemListGridWidget extends ScrollableListWidget {
         ItemStack itemStack = clickedSlot.getHandle().getStack();
         if (clickedSlot.getHandle().canTakeStack(gui.entityPlayer) && !itemStack.isEmpty()) {
             itemStack = clickedSlot.onItemTake(gui.entityPlayer, itemStack, true);
-            int amountInserted = getItemList().insertItem(itemStack, itemStack.getCount(), false, InsertMode.LOWEST_PRIORITY);
+            int amountInserted = getItemList().insertItem(itemStack, itemStack.getCount(), false,
+                    InsertMode.LOWEST_PRIORITY);
             if (amountInserted > 0) {
                 clickedSlot.onItemTake(gui.entityPlayer, itemStack, false);
                 itemStack.shrink(amountInserted);
@@ -193,14 +204,16 @@ public class ItemListGridWidget extends ScrollableListWidget {
                 int itemsRemoved = buffer.readVarInt();
                 for (int i = 0; i < itemsRemoved; i++) {
                     ItemStack itemStack = buffer.readItemStack();
-                    this.displayItemList.removeIf(it -> ItemStackHashStrategy.comparingAllButCount().equals(it.getItemStack(), itemStack));
+                    this.displayItemList.removeIf(
+                            it -> ItemStackHashStrategy.comparingAllButCount().equals(it.getItemStack(), itemStack));
                 }
                 int itemsChanged = buffer.readVarInt();
                 for (int i = 0; i < itemsChanged; i++) {
                     ItemStack itemStack = buffer.readItemStack();
                     int newTotalAmount = buffer.readVarInt();
                     SimpleItemInfo itemInfo = displayItemList.stream()
-                            .filter(it -> ItemStackHashStrategy.comparingAllButCount().equals(it.getItemStack(), itemStack))
+                            .filter(it -> ItemStackHashStrategy.comparingAllButCount().equals(it.getItemStack(),
+                                    itemStack))
                             .findAny()
                             .orElse(null);
                     if (itemInfo == null) {
@@ -209,7 +222,7 @@ public class ItemListGridWidget extends ScrollableListWidget {
                     }
                     itemInfo.setTotalItemAmount(newTotalAmount);
                 }
-                this.displayItemList.sort(comparator);
+                this.displayItemList.sort(COMPARATOR);
             } catch (IOException ex) {
                 throw new RuntimeException(ex);
             }

@@ -1,10 +1,7 @@
 package gregtech.api.util;
 
 import gregtech.api.capability.IMultipleTankHandler;
-import gregtech.api.recipes.FluidKey;
-import it.unimi.dsi.fastutil.ints.IntArrayList;
-import it.unimi.dsi.fastutil.ints.IntList;
-import it.unimi.dsi.fastutil.objects.Object2IntMap;
+
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.fluids.FluidActionResult;
 import net.minecraftforge.fluids.FluidStack;
@@ -15,22 +12,27 @@ import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.IItemHandlerModifiable;
 import net.minecraftforge.items.ItemHandlerHelper;
 
-import javax.annotation.Nonnull;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntList;
+import it.unimi.dsi.fastutil.objects.Object2IntMap;
+import org.jetbrains.annotations.NotNull;
+
 import java.util.List;
-import java.util.Map;
 import java.util.function.Predicate;
 
 public class GTTransferUtils {
 
-    public static int transferFluids(@Nonnull IFluidHandler sourceHandler, @Nonnull IFluidHandler destHandler) {
+    public static int transferFluids(@NotNull IFluidHandler sourceHandler, @NotNull IFluidHandler destHandler) {
         return transferFluids(sourceHandler, destHandler, Integer.MAX_VALUE, fluidStack -> true);
     }
 
-    public static int transferFluids(@Nonnull IFluidHandler sourceHandler, @Nonnull IFluidHandler destHandler, int transferLimit) {
+    public static int transferFluids(@NotNull IFluidHandler sourceHandler, @NotNull IFluidHandler destHandler,
+                                     int transferLimit) {
         return transferFluids(sourceHandler, destHandler, transferLimit, fluidStack -> true);
     }
 
-    public static int transferFluids(@Nonnull IFluidHandler sourceHandler, @Nonnull IFluidHandler destHandler, int transferLimit, @Nonnull Predicate<FluidStack> fluidFilter) {
+    public static int transferFluids(@NotNull IFluidHandler sourceHandler, @NotNull IFluidHandler destHandler,
+                                     int transferLimit, @NotNull Predicate<FluidStack> fluidFilter) {
         int fluidLeftToTransfer = transferLimit;
 
         for (IFluidTankProperties tankProperties : sourceHandler.getTankProperties()) {
@@ -62,7 +64,8 @@ public class GTTransferUtils {
         return transferLimit - fluidLeftToTransfer;
     }
 
-    public static boolean transferExactFluidStack(@Nonnull IFluidHandler sourceHandler, @Nonnull IFluidHandler destHandler, FluidStack fluidStack) {
+    public static boolean transferExactFluidStack(@NotNull IFluidHandler sourceHandler,
+                                                  @NotNull IFluidHandler destHandler, FluidStack fluidStack) {
         int amount = fluidStack.amount;
         FluidStack sourceFluid = sourceHandler.drain(fluidStack, false);
         if (sourceFluid == null || sourceFluid.amount != amount) {
@@ -96,7 +99,8 @@ public class GTTransferUtils {
 
     /**
      * Simulates the insertion of items into a target inventory, then optionally performs the insertion.
-     * <br /><br />
+     * <br />
+     * <br />
      * Simulating will not modify any of the input parameters. Insertion will either succeed completely, or fail
      * without modifying anything.
      * This method should be called with {@code simulate} {@code true} first, then {@code simulate} {@code false},
@@ -132,7 +136,8 @@ public class GTTransferUtils {
 
     /**
      * Simulates the insertion of fluid into a target fluid handler, then optionally performs the insertion.
-     * <br /><br />
+     * <br />
+     * <br />
      * Simulating will not modify any of the input parameters. Insertion will either succeed completely, or fail
      * without modifying anything.
      * This method should be called with {@code simulate} {@code true} first, then {@code simulate} {@code false},
@@ -148,18 +153,18 @@ public class GTTransferUtils {
                                                   List<FluidStack> fluidStacks) {
         if (simulate) {
             OverlayedFluidHandler overlayedFluidHandler = new OverlayedFluidHandler(fluidHandler);
-            Map<FluidKey, Integer> fluidKeyMap = GTHashMaps.fromFluidCollection(fluidStacks);
-            for (Map.Entry<FluidKey, Integer> entry : fluidKeyMap.entrySet()) {
-                int amountToInsert = entry.getValue();
-                int inserted = overlayedFluidHandler.insertStackedFluidKey(entry.getKey(), amountToInsert);
-                if (inserted != amountToInsert) {
+            for (FluidStack fluidStack : fluidStacks) {
+                int inserted = overlayedFluidHandler.insertFluid(fluidStack, fluidStack.amount);
+                if (inserted != fluidStack.amount) {
                     return false;
                 }
             }
             return true;
         }
 
-        fluidStacks.forEach(fluidStack -> fluidHandler.fill(fluidStack, true));
+        for (FluidStack fluidStack : fluidStacks) {
+            fluidHandler.fill(fluidStack, true);
+        }
         return true;
     }
 
@@ -181,8 +186,7 @@ public class GTTransferUtils {
             ItemStack slotStack = handler.getStackInSlot(i);
             if (slotStack.isEmpty()) {
                 emptySlots.add(i);
-            }
-            if (ItemHandlerHelper.canItemStacksStack(stack, slotStack)) {
+            } else if (ItemHandlerHelper.canItemStacksStack(stack, slotStack)) {
                 stack = handler.insertItem(i, stack, simulate);
                 if (stack.isEmpty()) {
                     return ItemStack.EMPTY;
@@ -219,22 +223,19 @@ public class GTTransferUtils {
         return stack;
     }
 
-    public static boolean areStackable(FluidStack stack, FluidStack stack2) {
-        return stack != null && stack.amount > 0 &&
-                stack2 != null && stack2.amount > 0 &&
-                stack.isFluidEqual(stack2);
-    }
-
     // TODO try to remove this one day
-    public static void fillInternalTankFromFluidContainer(IFluidHandler fluidHandler, IItemHandlerModifiable itemHandler, int inputSlot, int outputSlot) {
+    public static void fillInternalTankFromFluidContainer(IFluidHandler fluidHandler,
+                                                          IItemHandlerModifiable itemHandler, int inputSlot,
+                                                          int outputSlot) {
         ItemStack inputContainerStack = itemHandler.extractItem(inputSlot, 1, true);
-        FluidActionResult result = FluidUtil.tryEmptyContainer(inputContainerStack, fluidHandler, Integer.MAX_VALUE, null, false);
+        FluidActionResult result = FluidUtil.tryEmptyContainer(inputContainerStack, fluidHandler, Integer.MAX_VALUE,
+                null, false);
         if (result.isSuccess()) {
             ItemStack remainingItem = result.getResult();
             if (ItemStack.areItemStacksEqual(inputContainerStack, remainingItem))
-                return; //do not fill if item stacks match
+                return; // do not fill if item stacks match
             if (!remainingItem.isEmpty() && !itemHandler.insertItem(outputSlot, remainingItem, true).isEmpty())
-                return; //do not fill if can't put remaining item
+                return; // do not fill if can't put remaining item
             FluidUtil.tryEmptyContainer(inputContainerStack, fluidHandler, Integer.MAX_VALUE, null, true);
             itemHandler.extractItem(inputSlot, 1, false);
             itemHandler.insertItem(outputSlot, remainingItem, false);

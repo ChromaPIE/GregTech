@@ -5,6 +5,7 @@ import gregtech.api.terminal.app.AbstractApplication;
 import gregtech.api.terminal.hardware.Hardware;
 import gregtech.api.util.FileUtility;
 import gregtech.api.util.GTLog;
+import gregtech.api.util.Mods;
 import gregtech.common.ConfigHolder;
 import gregtech.common.items.MetaItems;
 import gregtech.common.terminal.app.VirtualTankApp;
@@ -23,12 +24,14 @@ import gregtech.common.terminal.app.guideeditor.GuideEditorApp;
 import gregtech.common.terminal.app.hardwaremanager.HardwareManagerApp;
 import gregtech.common.terminal.app.multiblockhelper.MultiBlockPreviewARApp;
 import gregtech.common.terminal.app.prospector.ProspectorApp;
+import gregtech.common.terminal.app.prospector.ProspectorMode;
 import gregtech.common.terminal.app.recipechart.RecipeChartApp;
 import gregtech.common.terminal.app.settings.SettingsApp;
 import gregtech.common.terminal.app.teleport.TeleportApp;
 import gregtech.common.terminal.app.worldprospector.WorldProspectorARApp;
 import gregtech.common.terminal.hardware.BatteryHardware;
 import gregtech.common.terminal.hardware.DeviceHardware;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.IResourceManager;
 import net.minecraft.client.resources.SimpleReloadableResourceManager;
@@ -39,17 +42,19 @@ import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
-import javax.annotation.Nonnull;
+import org.jetbrains.annotations.NotNull;
+
 import java.io.File;
 import java.util.*;
 import java.util.stream.Collectors;
 
 public class TerminalRegistry {
-    protected static final Map<String, AbstractApplication> APP_REGISTER = new LinkedHashMap<>();
-    protected static final Map<String, Hardware> HW_REGISTER = new LinkedHashMap<>();
-    protected static final Map<String, List<Hardware>[]> APP_HW_DEMAND = new HashMap<>();
-    protected static final Map<String, List<ItemStack>[]> APP_UPGRADE_CONDITIONS = new HashMap<>();
-    protected static final List<String> DEFAULT_APPS = new ArrayList<>();
+
+    public static final Map<String, AbstractApplication> APP_REGISTER = new LinkedHashMap<>();
+    public static final Map<String, Hardware> HW_REGISTER = new LinkedHashMap<>();
+    public static final Map<String, List<Hardware>[]> APP_HW_DEMAND = new HashMap<>();
+    public static final Map<String, List<ItemStack>[]> APP_UPGRADE_CONDITIONS = new HashMap<>();
+    public static final List<String> DEFAULT_APPS = new ArrayList<>();
     @SideOnly(Side.CLIENT)
     public static File TERMINAL_PATH;
 
@@ -73,6 +78,7 @@ public class TerminalRegistry {
         AppRegistryBuilder.create(new TutorialGuideApp()).defaultApp().build();
         AppRegistryBuilder.create(new GuideEditorApp()).defaultApp().build();
         AppRegistryBuilder.create(new SettingsApp()).defaultApp().build();
+        AppRegistryBuilder.create(new CapeSelectorApp()).defaultApp().build();
 
         AppRegistryBuilder.create(new TeleportApp())
                 .battery(GTValues.ZPM, 10000)
@@ -89,7 +95,7 @@ public class TerminalRegistry {
                 .battery(GTValues.LV, 150)
                 .build();
 
-        AppRegistryBuilder.create(new ProspectorApp(0))
+        AppRegistryBuilder.create(new ProspectorApp(ProspectorMode.ORE))
                 .battery(0, GTValues.LV, 640)
                 .battery(1, GTValues.LV, 640)
                 .battery(2, GTValues.MV, 1000)
@@ -107,7 +113,7 @@ public class TerminalRegistry {
                 .device(4, DeviceHardware.DEVICE.PROSPECTOR_HV)
                 .build();
 
-        AppRegistryBuilder.create(new ProspectorApp(1))
+        AppRegistryBuilder.create(new ProspectorApp(ProspectorMode.FLUID))
                 .battery(0, GTValues.MV, 1000)
                 .battery(1, GTValues.MV, 1000)
                 .battery(2, GTValues.HV, 1500)
@@ -126,7 +132,7 @@ public class TerminalRegistry {
                 .upgrade(1, MetaItems.EMITTER_HV.getStackForm(4), MetaItems.WORKSTATION_EV.getStackForm(2))
                 .defaultApp()
                 .build();
-        if (Loader.isModLoaded(GTValues.MODID_JEI)) {
+        if (Mods.JustEnoughItems.isModLoaded()) {
             AppRegistryBuilder.create(new RecipeChartApp())
                     .battery(GTValues.LV, 160)
                     .upgrade(0, new ItemStack(Items.PAPER, 32))
@@ -155,19 +161,13 @@ public class TerminalRegistry {
                 .battery(GTValues.MV, 500)
                 .device(DeviceHardware.DEVICE.WIRELESS)
                 .build();
-        AppRegistryBuilder.create(new CapeSelectorApp())
-                .battery(GTValues.ULV, 8)
-                .build();
-        if (Loader.isModLoaded(GTValues.MODID_CT)) { // handle CT register
-            CTTerminalRegistry.register();
-        }
     }
 
     @SideOnly(Side.CLIENT)
     public static void initTerminalFiles() {
-        ((SimpleReloadableResourceManager) Minecraft.getMinecraft().getResourceManager()).registerReloadListener(TerminalRegistry::onResourceManagerReload);
+        ((SimpleReloadableResourceManager) Minecraft.getMinecraft().getResourceManager())
+                .registerReloadListener(TerminalRegistry::onResourceManagerReload);
     }
-
 
     @SideOnly(Side.CLIENT)
     public static void onResourceManagerReload(IResourceManager resourceManager) {
@@ -192,7 +192,8 @@ public class TerminalRegistry {
         HW_REGISTER.put(name, hardware);
     }
 
-    public static void registerHardwareDemand(String name, boolean isDefaultApp, @Nonnull List<Hardware>[] hardware, @Nonnull List<ItemStack>[] upgrade) {
+    public static void registerHardwareDemand(String name, boolean isDefaultApp, @NotNull List<Hardware>[] hardware,
+                                              @NotNull List<ItemStack>[] upgrade) {
         if (name != null && APP_REGISTER.containsKey(name)) {
             if (isDefaultApp) {
                 DEFAULT_APPS.add(name);
@@ -229,17 +230,19 @@ public class TerminalRegistry {
     }
 
     public static List<ItemStack> getAppHardwareUpgradeConditions(String name, int tier) {
-        return APP_UPGRADE_CONDITIONS.get(name)[tier] != null ? APP_UPGRADE_CONDITIONS.get(name)[tier] : Collections.emptyList();
+        return APP_UPGRADE_CONDITIONS.get(name)[tier] != null ? APP_UPGRADE_CONDITIONS.get(name)[tier] :
+                Collections.emptyList();
     }
 
     private static class AppRegistryBuilder {
+
         AbstractApplication app;
         boolean isDefaultApp;
         BatteryHardware[] battery;
         List<Hardware>[] hardware;
         List<ItemStack>[] upgrade;
 
-        public static AppRegistryBuilder create(AbstractApplication app){
+        public static AppRegistryBuilder create(AbstractApplication app) {
             AppRegistryBuilder builder = new AppRegistryBuilder();
             builder.app = app;
             builder.battery = new BatteryHardware[app.getMaxTier() + 1];
@@ -248,7 +251,7 @@ public class TerminalRegistry {
             return builder;
         }
 
-        public AppRegistryBuilder defaultApp(){
+        public AppRegistryBuilder defaultApp() {
             this.isDefaultApp = true;
             return this;
         }

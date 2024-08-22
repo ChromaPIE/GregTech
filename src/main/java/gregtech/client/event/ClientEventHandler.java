@@ -1,6 +1,5 @@
 package gregtech.client.event;
 
-import com.mojang.authlib.minecraft.MinecraftProfileTexture;
 import gregtech.api.GTValues;
 import gregtech.api.items.armor.ArmorMetaItem;
 import gregtech.api.items.metaitem.MetaItem;
@@ -12,11 +11,12 @@ import gregtech.client.particle.GTParticleManager;
 import gregtech.client.renderer.handler.BlockPosHighlightRenderer;
 import gregtech.client.renderer.handler.MultiblockPreviewRenderer;
 import gregtech.client.renderer.handler.TerminalARRenderer;
+import gregtech.client.utils.BloomEffectUtil;
 import gregtech.client.utils.DepthTextureUtil;
 import gregtech.client.utils.TooltipHelper;
 import gregtech.common.ConfigHolder;
 import gregtech.common.metatileentities.multi.electric.centralmonitor.MetaTileEntityMonitorScreen;
-import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.entity.AbstractClientPlayer;
 import net.minecraft.inventory.EntityEquipmentSlot;
@@ -25,6 +25,7 @@ import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.client.event.*;
+import net.minecraftforge.event.world.WorldEvent;
 import net.minecraftforge.fml.client.event.ConfigChangedEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
@@ -33,7 +34,10 @@ import net.minecraftforge.fml.common.gameevent.TickEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
-import javax.annotation.Nonnull;
+import com.mojang.authlib.minecraft.MinecraftProfileTexture;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import org.jetbrains.annotations.NotNull;
+
 import java.util.Map;
 import java.util.UUID;
 
@@ -43,6 +47,7 @@ import static gregtech.api.GTValues.CLIENT_TIME;
 @Mod.EventBusSubscriber(Side.CLIENT)
 public class ClientEventHandler {
 
+    @SuppressWarnings("ConstantValue")
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onDrawBlockHighlight(DrawBlockHighlightEvent event) {
         if (event.getTarget().getBlockPos() == null) {
@@ -66,7 +71,9 @@ public class ClientEventHandler {
         GTParticleManager.clientTick(event);
         TerminalARRenderer.onClientTick(event);
         TooltipHelper.onClientTick(event);
-        CLIENT_TIME++;
+        if (event.phase == TickEvent.Phase.END) {
+            CLIENT_TIME++;
+        }
     }
 
     @SubscribeEvent
@@ -81,8 +88,8 @@ public class ClientEventHandler {
     @SubscribeEvent
     public static void onRenderGameOverlayPre(RenderGameOverlayEvent.Pre event) {
         TerminalARRenderer.renderGameOverlayEvent(event);
-        if (ConfigHolder.misc.debug && event instanceof RenderGameOverlayEvent.Text) {
-            GTParticleManager.debugOverlay((RenderGameOverlayEvent.Text) event);
+        if (ConfigHolder.misc.debug && event instanceof RenderGameOverlayEvent.Text text) {
+            GTParticleManager.debugOverlay(text);
         }
     }
 
@@ -131,7 +138,7 @@ public class ClientEventHandler {
         }
     }
 
-    private static void renderHUDMetaArmor(@Nonnull ItemStack stack) {
+    private static void renderHUDMetaArmor(@NotNull ItemStack stack) {
         if (stack.getItem() instanceof ArmorMetaItem) {
             ArmorMetaItem<?>.ArmorMetaValueItem valueItem = ((ArmorMetaItem<?>) stack.getItem()).getItem(stack);
             if (valueItem == null) return;
@@ -141,7 +148,7 @@ public class ClientEventHandler {
         }
     }
 
-    private static void renderHUDMetaItem(@Nonnull ItemStack stack) {
+    private static void renderHUDMetaItem(@NotNull ItemStack stack) {
         if (stack.getItem() instanceof MetaItem<?>) {
             MetaItem<?>.MetaValueItem valueItem = ((MetaItem<?>) stack.getItem()).getItem(stack);
             if (valueItem == null) return;
@@ -151,5 +158,10 @@ public class ClientEventHandler {
                 }
             }
         }
+    }
+
+    @SubscribeEvent
+    public static void onWorldUnload(WorldEvent.Unload event) {
+        BloomEffectUtil.invalidateWorldTickets(event.getWorld());
     }
 }

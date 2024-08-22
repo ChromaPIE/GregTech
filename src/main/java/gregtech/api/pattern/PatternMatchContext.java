@@ -1,7 +1,10 @@
 package gregtech.api.pattern;
 
+import org.jetbrains.annotations.NotNull;
+
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Supplier;
 
 /**
@@ -12,8 +15,11 @@ public class PatternMatchContext {
 
     private final Map<String, Object> data = new HashMap<>();
 
+    private boolean neededFlip = false;
+
     public void reset() {
         this.data.clear();
+        this.neededFlip = false;
     }
 
     public void set(String key, Object value) {
@@ -55,4 +61,16 @@ public class PatternMatchContext {
         return result;
     }
 
+    @NotNull
+    public Set<Map.Entry<String, Object>> entrySet() {
+        return data.entrySet();
+    }
+
+    public boolean neededFlip() {
+        return neededFlip;
+    }
+
+    public void setNeededFlip(boolean neededFlip) {
+        this.neededFlip = neededFlip;
+    }
 }

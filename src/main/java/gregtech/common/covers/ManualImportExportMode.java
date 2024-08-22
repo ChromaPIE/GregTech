@@ -2,7 +2,7 @@ package gregtech.common.covers;
 
 import net.minecraft.util.IStringSerializable;
 
-import javax.annotation.Nonnull;
+import org.jetbrains.annotations.NotNull;
 
 public enum ManualImportExportMode implements IStringSerializable {
 
@@ -10,13 +10,14 @@ public enum ManualImportExportMode implements IStringSerializable {
     FILTERED("cover.universal.manual_import_export.mode.filtered"),
     UNFILTERED("cover.universal.manual_import_export.mode.unfiltered");
 
+    public static final ManualImportExportMode[] VALUES = values();
     public final String localeName;
 
     ManualImportExportMode(String localeName) {
         this.localeName = localeName;
     }
 
-    @Nonnull
+    @NotNull
     @Override
     public String getName() {
         return localeName;

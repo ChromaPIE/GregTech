@@ -6,7 +6,7 @@ import gregtech.api.network.IClientExecutor;
 import gregtech.api.network.IPacket;
 import gregtech.api.util.GTLog;
 import gregtech.core.network.NetworkUtils;
-import lombok.NoArgsConstructor;
+
 import net.minecraft.client.network.NetHandlerPlayClient;
 import net.minecraft.network.PacketBuffer;
 import net.minecraftforge.fml.relauncher.Side;
@@ -15,7 +15,6 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 import java.util.ArrayList;
 import java.util.List;
 
-@NoArgsConstructor
 public class PacketUIOpen implements IPacket, IClientExecutor {
 
     private int uiFactoryId;
@@ -23,7 +22,11 @@ public class PacketUIOpen implements IPacket, IClientExecutor {
     private int windowId;
     private List<PacketUIWidgetUpdate> initialWidgetUpdates;
 
-    public PacketUIOpen(int uiFactoryId, PacketBuffer serializedHolder, int windowId, List<PacketUIWidgetUpdate> initialWidgetUpdates) {
+    @SuppressWarnings("unused")
+    public PacketUIOpen() {}
+
+    public PacketUIOpen(int uiFactoryId, PacketBuffer serializedHolder, int windowId,
+                        List<PacketUIWidgetUpdate> initialWidgetUpdates) {
         this.uiFactoryId = uiFactoryId;
         this.serializedHolder = serializedHolder;
         this.windowId = windowId;

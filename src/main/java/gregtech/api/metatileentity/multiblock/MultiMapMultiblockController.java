@@ -1,11 +1,15 @@
 package gregtech.api.metatileentity.multiblock;
 
-import codechicken.lib.raytracer.CuboidRayTraceResult;
 import gregtech.api.capability.GregtechDataCodes;
 import gregtech.api.capability.GregtechTileCapabilities;
 import gregtech.api.capability.IMultipleRecipeMaps;
+import gregtech.api.gui.GuiTextures;
+import gregtech.api.gui.Widget;
+import gregtech.api.gui.widgets.ImageCycleButtonWidget;
 import gregtech.api.pattern.TraceabilityPredicate;
 import gregtech.api.recipes.RecipeMap;
+import gregtech.api.util.LocalizationUtils;
+
 import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
@@ -14,21 +18,21 @@ import net.minecraft.network.PacketBuffer;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.text.ITextComponent;
-import net.minecraft.util.text.Style;
 import net.minecraft.util.text.TextComponentTranslation;
-import net.minecraft.util.text.TextFormatting;
-import net.minecraft.util.text.event.HoverEvent;
 import net.minecraft.world.World;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
-import javax.annotation.Nullable;
+import codechicken.lib.raytracer.CuboidRayTraceResult;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
 import java.util.List;
 
 @SuppressWarnings("unused")
-public abstract class MultiMapMultiblockController extends RecipeMapMultiblockController implements IMultipleRecipeMaps {
+public abstract class MultiMapMultiblockController extends RecipeMapMultiblockController
+                                                   implements IMultipleRecipeMaps {
 
     // array of possible recipes, specific to each multi - used when the multi has multiple RecipeMaps
     private final RecipeMap<?>[] recipeMaps;
@@ -42,7 +46,8 @@ public abstract class MultiMapMultiblockController extends RecipeMapMultiblockCo
     }
 
     @Override
-    public boolean onScrewdriverClick(EntityPlayer playerIn, EnumHand hand, EnumFacing facing, CuboidRayTraceResult hitResult) {
+    public boolean onScrewdriverClick(EntityPlayer playerIn, EnumHand hand, EnumFacing facing,
+                                      CuboidRayTraceResult hitResult) {
         if (recipeMaps.length == 1) return true;
         if (!getWorld().isRemote) {
             if (!this.recipeMapWorkable.isActive()) {
@@ -56,7 +61,8 @@ public abstract class MultiMapMultiblockController extends RecipeMapMultiblockCo
                 setRecipeMapIndex(index);
                 this.recipeMapWorkable.forceRecipeRecheck();
             } else {
-                playerIn.sendMessage(new TextComponentTranslation("gregtech.multiblock.multiple_recipemaps.switch_message"));
+                playerIn.sendStatusMessage(
+                        new TextComponentTranslation("gregtech.multiblock.multiple_recipemaps.switch_message"), true);
             }
         }
 
@@ -68,7 +74,8 @@ public abstract class MultiMapMultiblockController extends RecipeMapMultiblockCo
         return recipeMaps;
     }
 
-    protected void setRecipeMapIndex(int index) {
+    @Override
+    public void setRecipeMapIndex(int index) {
         this.recipeMapIndex = index;
         if (!getWorld().isRemote) {
             writeCustomData(GregtechDataCodes.RECIPE_MAP_INDEX, buf -> buf.writeByte(index));
@@ -77,16 +84,24 @@ public abstract class MultiMapMultiblockController extends RecipeMapMultiblockCo
     }
 
     @Override
+    public int getRecipeMapIndex() {
+        return recipeMapIndex;
+    }
+
+    @Override
     public RecipeMap<?> getCurrentRecipeMap() {
         return getAvailableRecipeMaps()[recipeMapIndex];
     }
 
     @Override
-    public TraceabilityPredicate autoAbilities(boolean checkEnergyIn, boolean checkMaintenance, boolean checkItemIn, boolean checkItemOut, boolean checkFluidIn, boolean checkFluidOut, boolean checkMuffler) {
+    public TraceabilityPredicate autoAbilities(boolean checkEnergyIn, boolean checkMaintenance, boolean checkItemIn,
+                                               boolean checkItemOut, boolean checkFluidIn, boolean checkFluidOut,
+                                               boolean checkMuffler) {
         boolean checkedItemIn = false, checkedItemOut = false, checkedFluidIn = false, checkedFluidOut = false;
 
         TraceabilityPredicate predicate = super.autoAbilities(checkMaintenance, checkMuffler)
-                .or(checkEnergyIn ? abilities(MultiblockAbility.INPUT_ENERGY).setMinGlobalLimited(1).setMaxGlobalLimited(3).setPreviewCount(1) : new TraceabilityPredicate());
+                .or(checkEnergyIn ? abilities(MultiblockAbility.INPUT_ENERGY).setMinGlobalLimited(1)
+                        .setMaxGlobalLimited(3).setPreviewCount(1) : new TraceabilityPredicate());
 
         for (RecipeMap<?> recipeMap : getAvailableRecipeMaps()) {
             if (!checkedItemIn && checkItemIn) {
@@ -118,17 +133,17 @@ public abstract class MultiMapMultiblockController extends RecipeMapMultiblockCo
     }
 
     @Override
-    protected void addExtraDisplayInfo(List<ITextComponent> textList) {
-        super.addExtraDisplayInfo(textList);
-        if (recipeMaps.length == 1) return;
-        textList.add(new TextComponentTranslation("gregtech.multiblock.multiple_recipemaps.header")
-                .setStyle(new Style().setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
-                        new TextComponentTranslation("gregtech.multiblock.multiple_recipemaps.tooltip")))));
-
-        textList.add(new TextComponentTranslation("recipemap." + getAvailableRecipeMaps()[this.recipeMapIndex].getUnlocalizedName() + ".name")
-                .setStyle(new Style().setColor(TextFormatting.AQUA)
-                        .setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
-                                new TextComponentTranslation("gregtech.multiblock.multiple_recipemaps.tooltip")))));
+    protected @NotNull Widget getFlexButton(int x, int y, int width, int height) {
+        if (getAvailableRecipeMaps() != null && getAvailableRecipeMaps().length > 1) {
+            return new ImageCycleButtonWidget(x, y, width, height, GuiTextures.BUTTON_MULTI_MAP,
+                    getAvailableRecipeMaps().length, this::getRecipeMapIndex, this::setRecipeMapIndex)
+                            .shouldUseBaseBackground().singleTexture()
+                            .setTooltipHoverString(i -> LocalizationUtils
+                                    .format("gregtech.multiblock.multiple_recipemaps.header") + " " +
+                                    LocalizationUtils.format(
+                                            "recipemap." + getAvailableRecipeMaps()[i].getUnlocalizedName() + ".name"));
+        }
+        return super.getFlexButton(x, y, width, height);
     }
 
     @Override
@@ -142,9 +157,9 @@ public abstract class MultiMapMultiblockController extends RecipeMapMultiblockCo
     public String recipeMapsToString() {
         StringBuilder recipeMapsString = new StringBuilder();
         RecipeMap<?>[] recipeMaps = getAvailableRecipeMaps();
-        for(int i = 0; i < recipeMaps.length; i++) {
+        for (int i = 0; i < recipeMaps.length; i++) {
             recipeMapsString.append(recipeMaps[i].getLocalizedName());
-            if(recipeMaps.length - 1 != i)
+            if (recipeMaps.length - 1 != i)
                 recipeMapsString.append(", "); // For delimiting
         }
         return recipeMapsString.toString();

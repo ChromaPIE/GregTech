@@ -1,17 +1,18 @@
 package gregtech.common.items;
 
-import com.google.common.base.CaseFormat;
+import gregtech.api.GregTechAPI;
 import gregtech.api.items.armor.ArmorMetaItem;
 import gregtech.api.items.materialitem.MetaPrefixItem;
 import gregtech.api.items.metaitem.MetaItem;
 import gregtech.api.items.metaitem.MetaItem.MetaValueItem;
-import gregtech.api.items.metaitem.MetaOreDictItem;
 import gregtech.api.unification.OreDictUnifier;
 import gregtech.api.unification.material.MarkerMaterial;
+import gregtech.api.unification.material.registry.MaterialRegistry;
 import gregtech.api.unification.ore.OrePrefix;
 import gregtech.api.util.GTLog;
 import gregtech.client.renderer.handler.FacadeRenderer;
 import gregtech.common.items.armor.MetaArmor;
+
 import net.minecraft.client.renderer.block.model.IBakedModel;
 import net.minecraft.client.renderer.block.model.ModelResourceLocation;
 import net.minecraft.item.EnumDyeColor;
@@ -22,12 +23,13 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
+import com.google.common.base.CaseFormat;
+
 import java.util.*;
 
 public final class MetaItems {
 
-    private MetaItems() {
-    }
+    private MetaItems() {}
 
     public static final List<MetaItem<?>> ITEMS = MetaItem.getMetaItems();
 
@@ -112,6 +114,7 @@ public final class MetaItems {
     public static MetaItem<?>.MetaValueItem CARBON_MESH;
     public static MetaItem<?>.MetaValueItem CARBON_FIBER_PLATE;
     public static MetaItem<?>.MetaValueItem DUCT_TAPE;
+    public static MetaItem<?>.MetaValueItem BASIC_TAPE;
 
     public static MetaItem<?>.MetaValueItem NEUTRON_REFLECTOR;
 
@@ -275,15 +278,16 @@ public final class MetaItems {
 
     public static MetaItem<?>.MetaValueItem TOOL_DATA_STICK;
     public static MetaItem<?>.MetaValueItem TOOL_DATA_ORB;
+    public static MetaItem<?>.MetaValueItem TOOL_DATA_MODULE;
 
     public static final Map<MarkerMaterial, MetaValueItem> GLASS_LENSES = new HashMap<>();
 
     public static MetaItem<?>.MetaValueItem SILICON_BOULE;
-    public static MetaItem<?>.MetaValueItem GLOWSTONE_BOULE;
+    public static MetaItem<?>.MetaValueItem PHOSPHORUS_BOULE;
     public static MetaItem<?>.MetaValueItem NAQUADAH_BOULE;
     public static MetaItem<?>.MetaValueItem NEUTRONIUM_BOULE;
     public static MetaItem<?>.MetaValueItem SILICON_WAFER;
-    public static MetaItem<?>.MetaValueItem GLOWSTONE_WAFER;
+    public static MetaItem<?>.MetaValueItem PHOSPHORUS_WAFER;
     public static MetaItem<?>.MetaValueItem NAQUADAH_WAFER;
     public static MetaItem<?>.MetaValueItem NEUTRONIUM_WAFER;
 
@@ -409,6 +413,9 @@ public final class MetaItems {
     public static MetaItem<?>.MetaValueItem COMPONENT_GRINDER_DIAMOND;
     public static MetaItem<?>.MetaValueItem COMPONENT_GRINDER_TUNGSTEN;
 
+    public static MetaItem<?>.MetaValueItem IRON_MINECART_WHEELS;
+    public static MetaItem<?>.MetaValueItem STEEL_MINECART_WHEELS;
+
     public static MetaItem<?>.MetaValueItem QUANTUM_EYE;
     public static MetaItem<?>.MetaValueItem QUANTUM_STAR;
     public static MetaItem<?>.MetaValueItem GRAVI_STAR;
@@ -429,9 +436,9 @@ public final class MetaItems {
     public static MetaItem<?>.MetaValueItem COVER_ITEM_DETECTOR_ADVANCED;
     public static MetaItem<?>.MetaValueItem COVER_ENERGY_DETECTOR;
     public static MetaItem<?>.MetaValueItem COVER_ENERGY_DETECTOR_ADVANCED;
+    public static MetaItem<?>.MetaValueItem COVER_MAINTENANCE_DETECTOR;
 
     public static MetaItem<?>.MetaValueItem COVER_SCREEN;
-    public static MetaItem<?>.MetaValueItem COVER_CRAFTING;
     public static MetaItem<?>.MetaValueItem COVER_INFINITE_WATER;
     public static MetaItem<?>.MetaValueItem COVER_ENDER_FLUID_LINK;
     public static MetaItem<?>.MetaValueItem COVER_DIGITAL_INTERFACE;
@@ -452,7 +459,6 @@ public final class MetaItems {
     public static MetaItem<?>.MetaValueItem COVER_SOLAR_PANEL_LUV;
     public static MetaItem<?>.MetaValueItem COVER_SOLAR_PANEL_ZPM;
     public static MetaItem<?>.MetaValueItem COVER_SOLAR_PANEL_UV;
-
 
     public static MetaItem<?>.MetaValueItem PLUGIN_TEXT;
     public static MetaItem<?>.MetaValueItem PLUGIN_ONLINE_PIC;
@@ -498,8 +504,10 @@ public final class MetaItems {
     public static MetaItem<?>.MetaValueItem CAMERA;
     public static MetaItem<?>.MetaValueItem TERMINAL;
 
-    public static final MetaItem<?>.MetaValueItem[] DYE_ONLY_ITEMS = new MetaItem.MetaValueItem[EnumDyeColor.values().length];
-    public static final MetaItem<?>.MetaValueItem[] SPRAY_CAN_DYES = new MetaItem.MetaValueItem[EnumDyeColor.values().length];
+    public static final MetaItem<?>.MetaValueItem[] DYE_ONLY_ITEMS = new MetaItem.MetaValueItem[EnumDyeColor
+            .values().length];
+    public static final MetaItem<?>.MetaValueItem[] SPRAY_CAN_DYES = new MetaItem.MetaValueItem[EnumDyeColor
+            .values().length];
 
     public static MetaItem<?>.MetaValueItem TURBINE_ROTOR;
 
@@ -554,7 +562,7 @@ public final class MetaItems {
 
     public static MetaItem<?>.MetaValueItem LOGO;
 
-    public static MetaOreDictItem CT_OREDICT_ITEM;
+    public static MetaItem<?>.MetaValueItem MULTIBLOCK_BUILDER;
 
     private static final List<OrePrefix> orePrefixes = new ArrayList<>();
 
@@ -603,14 +611,14 @@ public final class MetaItems {
     public static void init() {
         MetaItem1 first = new MetaItem1();
         first.setRegistryName("meta_item_1");
-        CT_OREDICT_ITEM = new MetaOreDictItem((short) 0);
-        CT_OREDICT_ITEM.setRegistryName("meta_oredict_item_ct");
         MetaArmor armor = new MetaArmor();
         armor.setRegistryName("gt_armor");
         for (OrePrefix prefix : orePrefixes) {
-            String regName = CaseFormat.UPPER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE, prefix.name());
-            MetaPrefixItem metaOrePrefix = new MetaPrefixItem(prefix);
-            metaOrePrefix.setRegistryName(String.format("meta_%s", regName));
+            for (MaterialRegistry registry : GregTechAPI.materialManager.getRegistries()) {
+                String regName = CaseFormat.UPPER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE, prefix.name());
+                MetaPrefixItem metaOrePrefix = new MetaPrefixItem(registry, prefix);
+                metaOrePrefix.setRegistryName(registry.getModid(), String.format("meta_%s", regName));
+            }
         }
     }
 
@@ -624,7 +632,8 @@ public final class MetaItems {
             // Register "craftingLensWhite" for example
             OreDictUnifier.registerOre(entry.getValue().getStackForm(), OrePrefix.craftingLens, entry.getKey());
             // Register "craftingLensGlass", intended only for recipes to dye lenses and not in the Engraver
-            OreDictUnifier.registerOre(entry.getValue().getStackForm(), String.format("%s%s", OrePrefix.craftingLens.name(), "Glass"));
+            OreDictUnifier.registerOre(entry.getValue().getStackForm(),
+                    String.format("%s%s", OrePrefix.craftingLens.name(), "Glass"));
         }
     }
 
@@ -652,10 +661,10 @@ public final class MetaItems {
     }
 
     @SideOnly(Side.CLIENT)
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    private static void registerSpecialItemModel(ModelBakeEvent event, MetaValueItem metaValueItem, IBakedModel bakedModel) {
-        //god these casts when intellij says you're fine but compiler complains about shit boundaries
-        //noinspection RedundantCast
+    @SuppressWarnings({ "unchecked", "rawtypes" })
+    private static void registerSpecialItemModel(ModelBakeEvent event, MetaValueItem metaValueItem,
+                                                 IBakedModel bakedModel) {
+        // noinspection RedundantCast
         ResourceLocation modelPath = ((MetaItem) metaValueItem.getMetaItem()).createItemModelPath(metaValueItem, "");
         ModelResourceLocation modelResourceLocation = new ModelResourceLocation(modelPath, "inventory");
         event.getModelRegistry().putObject(modelResourceLocation, bakedModel);

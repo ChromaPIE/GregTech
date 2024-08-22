@@ -1,5 +1,7 @@
 package gregtech.loaders.recipe.chemistry;
 
+import gregtech.api.fluids.store.FluidStorageKeys;
+
 import net.minecraft.init.Items;
 
 import static gregtech.api.GTValues.*;
@@ -11,7 +13,6 @@ import static gregtech.api.unification.ore.OrePrefix.ingot;
 public class ChemistryRecipes {
 
     public static void init() {
-
         PetrochemRecipes.init();
         DistillationRecipes.init();
         SeparationRecipes.init();
@@ -28,7 +29,7 @@ public class ChemistryRecipes {
         PlatGroupMetalsRecipes.init();
         NaquadahRecipes.init();
         AcidRecipes.init();
-
+        TitaniumRecipes.init();
 
         // A Few Random Recipes
         FLUID_HEATER_RECIPES.recipeBuilder()
@@ -65,12 +66,12 @@ public class ChemistryRecipes {
 
         VACUUM_RECIPES.recipeBuilder()
                 .fluidInputs(Oxygen.getFluid(1000))
-                .fluidOutputs(LiquidOxygen.getFluid(1000))
+                .fluidOutputs(Oxygen.getFluid(FluidStorageKeys.LIQUID, 1000))
                 .duration(240).EUt(VA[EV]).buildAndRegister();
 
         VACUUM_RECIPES.recipeBuilder()
                 .fluidInputs(Helium.getFluid(1000))
-                .fluidOutputs(LiquidHelium.getFluid(1000))
+                .fluidOutputs(Helium.getFluid(FluidStorageKeys.LIQUID, 1000))
                 .duration(240).EUt(VA[EV]).buildAndRegister();
 
         BLAST_RECIPES.recipeBuilder()
@@ -107,23 +108,5 @@ public class ChemistryRecipes {
                 .fluidOutputs(EnderAir.getFluid(10000))
                 .dimension(1)
                 .duration(200).EUt(256).buildAndRegister();
-
-        // CaCO3 + 2NaCl -> Na2CO3 + CaCl2
-        BLAST_RECIPES.recipeBuilder()
-                .input(dust, Calcite, 5)
-                .input(dust, Salt, 4)
-                .output(dust, SodaAsh, 6)
-                .output(dust, CalciumChloride, 3)
-                .duration(120).EUt(VA[MV]).blastFurnaceTemp(1500)
-                .buildAndRegister();
-
-        // 2NaOH + CO2 -> Na2CO3 + H20
-        CHEMICAL_RECIPES.recipeBuilder()
-                .input(dust, SodiumHydroxide, 6)
-                .fluidInputs(CarbonDioxide.getFluid(1000))
-                .output(dust, SodaAsh, 6)
-                .fluidOutputs(Water.getFluid(1000))
-                .duration(80).EUt(VA[HV])
-                .buildAndRegister();
     }
 }

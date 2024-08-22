@@ -1,9 +1,5 @@
 package gregtech.common.metatileentities.multi.multiblockpart;
 
-import codechicken.lib.render.CCRenderState;
-import codechicken.lib.render.pipeline.ColourMultiplier;
-import codechicken.lib.render.pipeline.IVertexOperation;
-import codechicken.lib.vec.Matrix4;
 import gregtech.api.metatileentity.ITieredMetaTileEntity;
 import gregtech.api.metatileentity.MetaTileEntity;
 import gregtech.api.metatileentity.multiblock.IMultiblockPart;
@@ -11,18 +7,28 @@ import gregtech.api.metatileentity.multiblock.MultiblockControllerBase;
 import gregtech.api.util.GTUtility;
 import gregtech.client.renderer.ICubeRenderer;
 import gregtech.client.renderer.texture.Textures;
+import gregtech.client.renderer.texture.cube.SimpleOrientedCubeRenderer;
 import gregtech.client.renderer.texture.custom.FireboxActiveRenderer;
+
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.network.PacketBuffer;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.BlockPos;
+import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
+
+import codechicken.lib.render.CCRenderState;
+import codechicken.lib.render.pipeline.ColourMultiplier;
+import codechicken.lib.render.pipeline.IVertexOperation;
+import codechicken.lib.vec.Matrix4;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.tuple.Pair;
 
 import static gregtech.api.capability.GregtechDataCodes.SYNC_CONTROLLER;
 
-public abstract class MetaTileEntityMultiblockPart extends MetaTileEntity implements IMultiblockPart, ITieredMetaTileEntity {
+public abstract class MetaTileEntityMultiblockPart extends MetaTileEntity
+                                                   implements IMultiblockPart, ITieredMetaTileEntity {
 
     private final int tier;
     private BlockPos controllerPos;
@@ -36,6 +42,7 @@ public abstract class MetaTileEntityMultiblockPart extends MetaTileEntity implem
     }
 
     @Override
+    @SideOnly(Side.CLIENT)
     public Pair<TextureAtlasSprite, Integer> getParticleTexture() {
         return Pair.of(getBaseTexture().getParticleSprite(), getPaintingColorForRendering());
     }
@@ -43,12 +50,13 @@ public abstract class MetaTileEntityMultiblockPart extends MetaTileEntity implem
     @Override
     public void renderMetaTileEntity(CCRenderState renderState, Matrix4 translation, IVertexOperation[] pipeline) {
         ICubeRenderer baseTexture = getBaseTexture();
-        if (baseTexture instanceof FireboxActiveRenderer) {
-            baseTexture.renderOriented(renderState, translation, ArrayUtils.add(pipeline,
-                    new ColourMultiplier(GTUtility.convertRGBtoOpaqueRGBA_CL(getPaintingColorForRendering()))), getFrontFacing());
+        pipeline = ArrayUtils.add(pipeline,
+                new ColourMultiplier(GTUtility.convertRGBtoOpaqueRGBA_CL(getPaintingColorForRendering())));
+
+        if (baseTexture instanceof FireboxActiveRenderer || baseTexture instanceof SimpleOrientedCubeRenderer) {
+            baseTexture.renderOriented(renderState, translation, pipeline, getFrontFacing());
         } else {
-            baseTexture.render(renderState, translation, ArrayUtils.add(pipeline,
-                    new ColourMultiplier(GTUtility.convertRGBtoOpaqueRGBA_CL(getPaintingColorForRendering()))));
+            baseTexture.render(renderState, translation, pipeline);
         }
     }
 
@@ -57,15 +65,17 @@ public abstract class MetaTileEntityMultiblockPart extends MetaTileEntity implem
     }
 
     public MultiblockControllerBase getController() {
-        if (getWorld() != null && getWorld().isRemote) { //check this only clientside
+        if (getWorld() != null && getWorld().isRemote) { // check this only clientside
             if (controllerTile == null && controllerPos != null) {
                 this.controllerTile = (MultiblockControllerBase) GTUtility.getMetaTileEntity(getWorld(), controllerPos);
             }
         }
         if (controllerTile != null && (controllerTile.getHolder() == null ||
-                !controllerTile.isValid() || !(getWorld().isRemote || controllerTile.getMultiblockParts().contains(this)))) {
-            //tile can become invalid for many reasons, and can also forgot to remove us once we aren't in structure anymore
-            //so check it here to prevent bugs with dangling controller reference and wrong texture
+                !controllerTile.isValid() ||
+                !(getWorld().isRemote || controllerTile.getMultiblockParts().contains(this)))) {
+            // tile can become invalid for many reasons, and can also forgot to remove us once we aren't in structure
+            // anymore
+            // so check it here to prevent bugs with dangling controller reference and wrong texture
             this.controllerTile = null;
         }
         return controllerTile;
@@ -170,5 +180,12 @@ public abstract class MetaTileEntityMultiblockPart extends MetaTileEntity implem
     @Override
     public int getDefaultPaintingColor() {
         return !isAttachedToMultiBlock() && hatchTexture == null ? super.getDefaultPaintingColor() : 0xFFFFFF;
+    }
+
+    @Override
+    public boolean getIsWeatherOrTerrainResistant() {
+        MultiblockControllerBase controllerBase = getController();
+        if (controllerBase == null) return super.getIsWeatherOrTerrainResistant();
+        return controllerBase.isMultiblockPartWeatherResistant(this);
     }
 }

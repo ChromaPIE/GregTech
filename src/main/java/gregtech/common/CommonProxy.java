@@ -6,21 +6,32 @@ import gregtech.api.block.VariantItemBlock;
 import gregtech.api.block.machines.MachineItemBlock;
 import gregtech.api.items.metaitem.MetaItem;
 import gregtech.api.items.toolitem.IGTTool;
+import gregtech.api.metatileentity.registry.MTERegistry;
+import gregtech.api.recipes.GTRecipeInputCache;
 import gregtech.api.recipes.ModHandler;
-import gregtech.api.recipes.crafttweaker.MetaItemBracketHandler;
-import gregtech.api.recipes.ingredients.GTRecipeInput;
+import gregtech.api.recipes.ingredients.GTRecipeOreInput;
 import gregtech.api.recipes.recipeproperties.FusionEUToStartProperty;
 import gregtech.api.terminal.TerminalRegistry;
 import gregtech.api.unification.material.Material;
-import gregtech.api.unification.material.Materials;
+import gregtech.api.unification.material.info.MaterialFlags;
 import gregtech.api.unification.material.properties.DustProperty;
-import gregtech.api.unification.material.properties.FluidPipeProperties;
 import gregtech.api.unification.material.properties.PropertyKey;
+import gregtech.api.unification.material.registry.MaterialRegistry;
 import gregtech.api.unification.ore.OrePrefix;
 import gregtech.api.unification.ore.StoneType;
 import gregtech.api.unification.stack.ItemMaterialInfo;
+import gregtech.api.util.AssemblyLineManager;
 import gregtech.api.util.GTLog;
-import gregtech.common.blocks.*;
+import gregtech.common.blocks.BlockCompressed;
+import gregtech.common.blocks.BlockFrame;
+import gregtech.common.blocks.BlockLamp;
+import gregtech.common.blocks.BlockOre;
+import gregtech.common.blocks.BlockSurfaceRock;
+import gregtech.common.blocks.LampItemBlock;
+import gregtech.common.blocks.MaterialItemBlock;
+import gregtech.common.blocks.MetaBlocks;
+import gregtech.common.blocks.OreItemBlock;
+import gregtech.common.blocks.StoneVariantBlock;
 import gregtech.common.items.MetaItems;
 import gregtech.common.items.ToolItems;
 import gregtech.common.pipelike.cable.BlockCable;
@@ -29,13 +40,18 @@ import gregtech.common.pipelike.fluidpipe.BlockFluidPipe;
 import gregtech.common.pipelike.fluidpipe.ItemBlockFluidPipe;
 import gregtech.common.pipelike.itempipe.BlockItemPipe;
 import gregtech.common.pipelike.itempipe.ItemBlockItemPipe;
-import gregtech.integration.groovy.GroovyScriptCompat;
-import gregtech.integration.jei.GTJeiPlugin;
+import gregtech.common.pipelike.laser.BlockLaserPipe;
+import gregtech.common.pipelike.laser.ItemBlockLaserPipe;
+import gregtech.common.pipelike.optical.BlockOpticalPipe;
+import gregtech.common.pipelike.optical.ItemBlockOpticalPipe;
+import gregtech.datafix.GTDataFixers;
+import gregtech.integration.groovy.GroovyScriptModule;
 import gregtech.loaders.MaterialInfoLoader;
 import gregtech.loaders.OreDictionaryLoader;
 import gregtech.loaders.recipe.CraftingComponent;
 import gregtech.loaders.recipe.GTRecipeManager;
-import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
+import gregtech.modules.GregTechModules;
+
 import net.minecraft.block.Block;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemBlock;
@@ -50,12 +66,12 @@ import net.minecraftforge.event.RegistryEvent;
 import net.minecraftforge.event.furnace.FurnaceFuelBurnTimeEvent;
 import net.minecraftforge.fml.client.event.ConfigChangedEvent;
 import net.minecraftforge.fml.common.Loader;
+import net.minecraftforge.fml.common.LoaderState;
 import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.common.event.FMLLoadCompleteEvent;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
-import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.registries.IForgeRegistry;
+
 import org.apache.commons.lang3.ArrayUtils;
 
 import java.util.Arrays;
@@ -72,51 +88,54 @@ public class CommonProxy {
         GTLog.logger.info("Registering Blocks...");
         IForgeRegistry<Block> registry = event.getRegistry();
 
-        registry.register(MACHINE);
+        for (MTERegistry r : GregTechAPI.mteManager.getRegistries()) {
+            registry.register(r.getBlock());
+        }
 
         StoneType.init();
 
-        for (Material material : GregTechAPI.MATERIAL_REGISTRY) {
-
-            if (material.hasProperty(PropertyKey.ORE)) {
-                createOreBlock(material);
-            }
-
-            if (material.hasProperty(PropertyKey.WIRE)) {
-                for (BlockCable cable : CABLES) {
-                    if (!cable.getItemPipeType(null).isCable() || !material.getProperty(PropertyKey.WIRE).isSuperconductor())
-                        cable.addCableMaterial(material, material.getProperty(PropertyKey.WIRE));
+        for (MaterialRegistry materialRegistry : GregTechAPI.materialManager.getRegistries()) {
+            for (Material material : materialRegistry) {
+                if (material.hasProperty(PropertyKey.ORE) && !material.hasFlag(MaterialFlags.DISABLE_ORE_BLOCK)) {
+                    createOreBlock(material);
                 }
-            }
-            if (material.hasProperty(PropertyKey.FLUID_PIPE)) {
-                for (BlockFluidPipe pipe : FLUID_PIPES) {
-                    if (!pipe.getItemPipeType(pipe.getItem(material)).getOrePrefix().isIgnored(material)) {
-                        pipe.addPipeMaterial(material, material.getProperty(PropertyKey.FLUID_PIPE));
+
+                if (material.hasProperty(PropertyKey.WIRE)) {
+                    for (BlockCable cable : CABLES.get(materialRegistry.getModid())) {
+                        if (!cable.getItemPipeType(null).isCable() ||
+                                !material.getProperty(PropertyKey.WIRE).isSuperconductor())
+                            cable.addCableMaterial(material, material.getProperty(PropertyKey.WIRE));
+                    }
+                }
+                if (material.hasProperty(PropertyKey.FLUID_PIPE)) {
+                    for (BlockFluidPipe pipe : FLUID_PIPES.get(materialRegistry.getModid())) {
+                        if (!pipe.getItemPipeType(pipe.getItem(material)).getOrePrefix().isIgnored(material)) {
+                            pipe.addPipeMaterial(material, material.getProperty(PropertyKey.FLUID_PIPE));
+                        }
+                    }
+                }
+                if (material.hasProperty(PropertyKey.ITEM_PIPE)) {
+                    for (BlockItemPipe pipe : ITEM_PIPES.get(materialRegistry.getModid())) {
+                        if (!pipe.getItemPipeType(pipe.getItem(material)).getOrePrefix().isIgnored(material)) {
+                            pipe.addPipeMaterial(material, material.getProperty(PropertyKey.ITEM_PIPE));
+                        }
                     }
                 }
             }
-            if (material.hasProperty(PropertyKey.ITEM_PIPE)) {
-                for (BlockItemPipe pipe : ITEM_PIPES) {
-                    if (!pipe.getItemPipeType(pipe.getItem(material)).getOrePrefix().isIgnored(material)) {
-                        pipe.addPipeMaterial(material, material.getProperty(PropertyKey.ITEM_PIPE));
-                    }
-                }
-            }
-        }
-        for (BlockFluidPipe pipe : FLUID_PIPES) {
-            if (!pipe.getItemPipeType(pipe.getItem(Materials.Wood)).getOrePrefix().isIgnored(Materials.Wood) ||
-                    !pipe.getItemPipeType(pipe.getItem(Materials.TreatedWood)).getOrePrefix().isIgnored(Materials.TreatedWood)) {
-                pipe.addPipeMaterial(Materials.Wood, new FluidPipeProperties(340, 5, false, false, false, false));
-                pipe.addPipeMaterial(Materials.TreatedWood, new FluidPipeProperties(340, 10, false, false, false, false));
-            }
-        }
 
-        for (BlockCable cable : CABLES) registry.register(cable);
-        for (BlockFluidPipe pipe : FLUID_PIPES) registry.register(pipe);
-        for (BlockItemPipe pipe : ITEM_PIPES) registry.register(pipe);
+            for (BlockCable cable : CABLES.get(materialRegistry.getModid())) registry.register(cable);
+            for (BlockFluidPipe pipe : FLUID_PIPES.get(materialRegistry.getModid())) registry.register(pipe);
+            for (BlockItemPipe pipe : ITEM_PIPES.get(materialRegistry.getModid())) registry.register(pipe);
+        }
+        for (BlockOpticalPipe pipe : OPTICAL_PIPES) registry.register(pipe);
+        for (BlockLaserPipe pipe : LASER_PIPES) registry.register(pipe);
 
+        registry.register(LD_ITEM_PIPE);
+        registry.register(LD_FLUID_PIPE);
         registry.register(HERMETIC_CASING);
         registry.register(CLEANROOM_CASING);
+        registry.register(COMPUTER_CASING);
+        registry.register(BATTERY_BLOCK);
         registry.register(FOAM);
         registry.register(REINFORCED_FOAM);
         registry.register(PETRIFIED_FOAM);
@@ -150,14 +169,19 @@ public class CommonProxy {
         registry.register(RUBBER_WOOD_DOOR);
         registry.register(TREATED_WOOD_DOOR);
         registry.register(BRITTLE_CHARCOAL);
+        registry.register(POWDERBARREL);
+        registry.register(ITNT);
+        registry.register(METAL_SHEET);
+        registry.register(LARGE_METAL_SHEET);
+        registry.register(STUDS);
 
         for (BlockLamp block : LAMPS.values()) registry.register(block);
         for (BlockLamp block : BORDERLESS_LAMPS.values()) registry.register(block);
 
-        COMPRESSED.values().stream().distinct().forEach(registry::register);
-        FRAMES.values().stream().distinct().forEach(registry::register);
-        SURFACE_ROCK.values().stream().distinct().forEach(registry::register);
-        ORES.forEach(registry::register);
+        for (BlockCompressed block : COMPRESSED_BLOCKS) registry.register(block);
+        for (BlockFrame block : FRAME_BLOCKS) registry.register(block);
+        for (BlockSurfaceRock block : SURFACE_ROCK_BLOCKS) registry.register(block);
+        for (BlockOre block : ORES) registry.register(block);
     }
 
     private static void createOreBlock(Material material) {
@@ -191,7 +215,7 @@ public class CommonProxy {
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void registerBlocksLast(RegistryEvent.Register<Block> event) {
-        //last chance for mods to register their potion types is here
+        // last chance for mods to register their potion types is here
         FLUID_BLOCKS.forEach(event.getRegistry()::register);
     }
 
@@ -211,14 +235,27 @@ public class CommonProxy {
 
         GTRecipeManager.preLoad();
 
-        registry.register(createItemBlock(MACHINE, MachineItemBlock::new));
+        for (MTERegistry r : GregTechAPI.mteManager.getRegistries()) {
+            registry.register(createItemBlock(r.getBlock(), MachineItemBlock::new));
+        }
 
-        for (BlockCable cable : CABLES) registry.register(createItemBlock(cable, ItemBlockCable::new));
-        for (BlockFluidPipe pipe : FLUID_PIPES) registry.register(createItemBlock(pipe, ItemBlockFluidPipe::new));
-        for (BlockItemPipe pipe : ITEM_PIPES) registry.register(createItemBlock(pipe, ItemBlockItemPipe::new));
+        for (MaterialRegistry materialRegistry : GregTechAPI.materialManager.getRegistries()) {
+            for (BlockCable cable : CABLES.get(materialRegistry.getModid()))
+                registry.register(createItemBlock(cable, ItemBlockCable::new));
+            for (BlockFluidPipe pipe : FLUID_PIPES.get(materialRegistry.getModid()))
+                registry.register(createItemBlock(pipe, ItemBlockFluidPipe::new));
+            for (BlockItemPipe pipe : ITEM_PIPES.get(materialRegistry.getModid()))
+                registry.register(createItemBlock(pipe, ItemBlockItemPipe::new));
+        }
+        for (BlockOpticalPipe pipe : OPTICAL_PIPES) registry.register(createItemBlock(pipe, ItemBlockOpticalPipe::new));
+        for (BlockLaserPipe pipe : LASER_PIPES) registry.register(createItemBlock(pipe, ItemBlockLaserPipe::new));
 
+        registry.register(createItemBlock(LD_ITEM_PIPE, ItemBlock::new));
+        registry.register(createItemBlock(LD_FLUID_PIPE, ItemBlock::new));
         registry.register(createItemBlock(HERMETIC_CASING, VariantItemBlock::new));
         registry.register(createItemBlock(CLEANROOM_CASING, VariantItemBlock::new));
+        registry.register(createItemBlock(COMPUTER_CASING, VariantItemBlock::new));
+        registry.register(createItemBlock(BATTERY_BLOCK, VariantItemBlock::new));
         registry.register(createItemBlock(BOILER_CASING, VariantItemBlock::new));
         registry.register(createItemBlock(BOILER_FIREBOX_CASING, VariantItemBlock::new));
         registry.register(createItemBlock(METAL_CASING, VariantItemBlock::new));
@@ -231,6 +268,9 @@ public class CommonProxy {
         registry.register(createItemBlock(FUSION_CASING, VariantItemBlock::new));
         registry.register(createItemBlock(WARNING_SIGN, VariantItemBlock::new));
         registry.register(createItemBlock(WARNING_SIGN_1, VariantItemBlock::new));
+        registry.register(createItemBlock(METAL_SHEET, VariantItemBlock::new));
+        registry.register(createItemBlock(LARGE_METAL_SHEET, VariantItemBlock::new));
+        registry.register(createItemBlock(STUDS, VariantItemBlock::new));
         for (BlockLamp block : LAMPS.values()) {
             registry.register(createItemBlock(block, LampItemBlock::new));
         }
@@ -253,34 +293,38 @@ public class CommonProxy {
         registry.register(createItemBlock(RUBBER_LOG, ItemBlock::new));
         registry.register(createItemBlock(RUBBER_LEAVES, ItemBlock::new));
         registry.register(createItemBlock(RUBBER_SAPLING, ItemBlock::new));
+        registry.register(createItemBlock(POWDERBARREL, ItemBlock::new));
+        registry.register(createItemBlock(ITNT, ItemBlock::new));
 
-        COMPRESSED.values()
-                .stream().distinct()
-                .map(block -> createItemBlock(block, CompressedItemBlock::new))
-                .forEach(registry::register);
-        FRAMES.values()
-                .stream().distinct()
-                .map(block -> createItemBlock(block, FrameItemBlock::new))
-                .forEach(registry::register);
-        ORES.stream()
-                .map(block -> createItemBlock(block, OreItemBlock::new))
-                .forEach(registry::register);
+        for (BlockCompressed block : COMPRESSED_BLOCKS) {
+            registry.register(createItemBlock(block, b -> new MaterialItemBlock(b, OrePrefix.block)));
+        }
+        for (BlockFrame block : FRAME_BLOCKS) {
+            registry.register(createItemBlock(block, b -> new MaterialItemBlock(b, OrePrefix.frameGt)));
+        }
+        for (BlockOre block : ORES) {
+            registry.register(createItemBlock(block, OreItemBlock::new));
+        }
     }
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void initComponents(RegistryEvent.Register<IRecipe> event) {
+        GTRecipeInputCache.enableCache();
         CraftingComponent.initializeComponents();
         MinecraftForge.EVENT_BUS.post(new GregTechAPI.RegisterEvent<>(null, CraftingComponent.class));
     }
 
-    //this is called with normal priority, so most mods working with
-    //ore dictionary and recipes will get recipes accessible in time
+    // this is called with normal priority, so most mods working with
+    // ore dictionary and recipes will get recipes accessible in time
     @SubscribeEvent
     public static void registerRecipes(RegistryEvent.Register<IRecipe> event) {
-        //Registers Fusion tiers for the FusionEUToStartProperty
-        FusionEUToStartProperty.registerFusionTier(6, "(MK1)");
-        FusionEUToStartProperty.registerFusionTier(7, "(MK2)");
-        FusionEUToStartProperty.registerFusionTier(8, "(MK3)");
+        // Registers Fusion tiers for the FusionEUToStartProperty
+        FusionEUToStartProperty.registerFusionTier(GTValues.LuV, "(MK1)");
+        FusionEUToStartProperty.registerFusionTier(GTValues.ZPM, "(MK2)");
+        FusionEUToStartProperty.registerFusionTier(GTValues.UV, "(MK3)");
+
+        // Register data stick copying custom scanner logic
+        AssemblyLineManager.registerScannerLogic();
 
         GTLog.logger.info("Registering ore dictionary...");
 
@@ -298,29 +342,27 @@ public class CommonProxy {
         GTRecipeManager.load();
     }
 
-    //this is called almost last, to make sure all mods registered their ore dictionary
-    //items and blocks for running first phase of material handlers
-    //it will also clear generated materials
+    // this is called almost last, to make sure all mods registered their ore dictionary
+    // items and blocks for running first phase of material handlers
+    // it will also clear generated materials
     @SubscribeEvent(priority = EventPriority.LOW)
     public static void runEarlyMaterialHandlers(RegistryEvent.Register<IRecipe> event) {
         GTLog.logger.info("Running early material handlers...");
         OrePrefix.runMaterialHandlers();
     }
 
-    //this is called last, so all mods finished registering their stuff, as example, CraftTweaker
-    //if it registered some kind of ore dictionary entry, late processing will hook it and generate recipes
+    // this is called last, so all mods finished registering their stuff, as example, CraftTweaker
+    // if it registered some kind of ore dictionary entry, late processing will hook it and generate recipes
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void registerRecipesLowest(RegistryEvent.Register<IRecipe> event) {
         GTLog.logger.info("Running late material handlers...");
         OrePrefix.runMaterialHandlers();
         GTRecipeManager.loadLatest();
 
-        if (Loader.isModLoaded(GTValues.MODID_CT)) {
-            MetaItemBracketHandler.rebuildComponentRegistry();
-        }
-        if (GroovyScriptCompat.isLoaded()) {
-            GroovyScriptCompat.loadMetaItemBracketHandler();
-        }
+        // On initial load we need to postpone cache flushing until FMLPostInitializationEvent
+        // to account for post-init recipe registration
+        if (Loader.instance().hasReachedState(LoaderState.AVAILABLE))
+            GTRecipeInputCache.disableCache();
     }
 
     @SubscribeEvent
@@ -334,19 +376,17 @@ public class CommonProxy {
     public static void modifyFuelBurnTime(FurnaceFuelBurnTimeEvent event) {
         ItemStack stack = event.getItemStack();
         Block block = Block.getBlockFromItem(stack.getItem());
-        //handle sapling and log burn rates
+        // handle sapling and log burn rates
         if (block == RUBBER_SAPLING) {
             event.setBurnTime(100);
         } else if (block == WOOD_SLAB) {
             event.setBurnTime(150);
-        } else if (stack.getItem() instanceof CompressedItemBlock) {
-            //handle material blocks burn value
-            CompressedItemBlock itemBlock = (CompressedItemBlock) stack.getItem();
-            Material material = itemBlock.getBlockState(stack).getValue(itemBlock.compressedBlock.variantProperty);
+        } else if (block instanceof BlockCompressed) {
+            // handle material blocks burn value
+            Material material = ((BlockCompressed) block).getGtMaterial(stack);
             DustProperty property = material.getProperty(PropertyKey.DUST);
-            if (property != null &&
-                    property.getBurnTime() > 0) {
-                //compute burn value for block prefix, taking amount of material in block into account
+            if (property != null && property.getBurnTime() > 0) {
+                // compute burn value for block prefix, taking amount of material in block into account
                 double materialUnitsInBlock = OrePrefix.block.getMaterialAmount(material) / (GTValues.M * 1.0);
                 event.setBurnTime((int) (materialUnitsInBlock * property.getBurnTime()));
             }
@@ -363,10 +403,10 @@ public class CommonProxy {
         return itemBlock;
     }
 
-    public void onPreLoad() {
-    }
+    public void onPreLoad() {}
 
     public void onLoad() {
+        GTDataFixers.init();
     }
 
     public void onPostLoad() {
@@ -377,11 +417,15 @@ public class CommonProxy {
         }
     }
 
-    public void onLoadComplete(FMLLoadCompleteEvent event) {
-        if (Loader.isModLoaded(GTValues.MODID_JEI) && event.getSide() == Side.CLIENT) {
-            GTJeiPlugin.setupInputHandler();
-        }
-        GTRecipeInput.INSTANCES = new ObjectOpenHashSet<>();
+    public void onLoadComplete() {
+        GTRecipeInputCache.disableCache();
+
+        // If JEI and GS is not loaded, refresh ore dict ingredients
+        // Not needed if JEI is loaded, as done in the JEI plugin (and this runs after that)
+        // Not needed if GS is loaded, as done after script loads (and this runs after that)
+        if (!GregTechAPI.moduleManager.isModuleEnabled(GregTechModules.MODULE_JEI) &&
+                !GroovyScriptModule.isCurrentlyRunning())
+            GTRecipeOreInput.refreshStackCache();
     }
 
     public boolean isFancyGraphics() {

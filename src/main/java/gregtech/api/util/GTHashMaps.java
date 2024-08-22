@@ -1,22 +1,25 @@
 package gregtech.api.util;
 
 import gregtech.api.recipes.FluidKey;
-import it.unimi.dsi.fastutil.objects.Object2IntLinkedOpenHashMap;
-import it.unimi.dsi.fastutil.objects.Object2IntMap;
-import it.unimi.dsi.fastutil.objects.Object2IntOpenCustomHashMap;
+
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.capability.IFluidHandler;
 import net.minecraftforge.items.IItemHandler;
 
-import javax.annotation.Nonnull;
+import it.unimi.dsi.fastutil.objects.Object2IntLinkedOpenCustomHashMap;
+import it.unimi.dsi.fastutil.objects.Object2IntLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2IntMap;
+import it.unimi.dsi.fastutil.objects.Object2IntOpenCustomHashMap;
+import org.jetbrains.annotations.NotNull;
+
 import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
 
 public final class GTHashMaps {
 
-    private GTHashMaps() {/**/}
+    private GTHashMaps() {}
 
     /**
      * Maps all items in the {@link IItemHandler} into a {@link ItemStack}, {@link Integer} value as amount
@@ -24,9 +27,21 @@ public final class GTHashMaps {
      * @param inputs The inventory handler of the inventory
      * @return a {@link Map} of {@link ItemStack} and {@link Integer} as amount on the inventory
      */
-    @Nonnull
-    public static Object2IntMap<ItemStack> fromItemHandler(@Nonnull IItemHandler inputs) {
-        final Object2IntMap<ItemStack> map = new Object2IntOpenCustomHashMap<>(ItemStackHashStrategy.comparingAllButCount());
+    @NotNull
+    public static Object2IntMap<ItemStack> fromItemHandler(@NotNull IItemHandler inputs) {
+        return fromItemHandler(inputs, false);
+    }
+
+    /**
+     * Maps all items in the {@link IItemHandler} into a {@link ItemStack}, {@link Integer} value as amount
+     *
+     * @param inputs The inventory handler of the inventory
+     * @param linked If the Map should be a Linked Map to preserve insertion order
+     * @return a {@link Map} of {@link ItemStack} and {@link Integer} as amount on the inventory
+     */
+    @NotNull
+    public static Object2IntMap<ItemStack> fromItemHandler(@NotNull IItemHandler inputs, boolean linked) {
+        final Object2IntMap<ItemStack> map = createItemStackMap(linked);
 
         // Create a single stack of the combined count for each item
 
@@ -41,14 +56,29 @@ public final class GTHashMaps {
     }
 
     /**
-     * Maps all items in the {@link ItemStack} {@link Collection} into a {@link ItemStack}, {@link Integer} value as amount
+     * Maps all items in the {@link ItemStack} {@link Collection} into a {@link ItemStack}, {@link Integer} value as
+     * amount
      *
      * @param inputs The inventory handler of the inventory
      * @return a {@link Map} of {@link ItemStack} and {@link Integer} as amount on the inventory
      */
-    @Nonnull
-    public static Object2IntMap<ItemStack> fromItemStackCollection(@Nonnull Iterable<ItemStack> inputs) {
-        final Object2IntMap<ItemStack> map = new Object2IntOpenCustomHashMap<>(ItemStackHashStrategy.comparingAllButCount());
+    @NotNull
+    public static Object2IntMap<ItemStack> fromItemStackCollection(@NotNull Iterable<ItemStack> inputs) {
+        return fromItemStackCollection(inputs, false);
+    }
+
+    /**
+     * Maps all items in the {@link ItemStack} {@link Collection} into a {@link ItemStack}, {@link Integer} value as
+     * amount
+     *
+     * @param inputs The inventory handler of the inventory
+     * @param linked If the Map should be a Linked Map to preserve insertion order
+     * @return a {@link Map} of {@link ItemStack} and {@link Integer} as amount on the inventory
+     */
+    @NotNull
+    public static Object2IntMap<ItemStack> fromItemStackCollection(@NotNull Iterable<ItemStack> inputs,
+                                                                   boolean linked) {
+        final Object2IntMap<ItemStack> map = createItemStackMap(linked);
 
         // Create a single stack of the combined count for each item
 
@@ -61,11 +91,18 @@ public final class GTHashMaps {
         return map;
     }
 
+    @NotNull
+    private static Object2IntMap<ItemStack> createItemStackMap(boolean linked) {
+        ItemStackHashStrategy strategy = ItemStackHashStrategy.comparingAllButCount();
+        return linked ? new Object2IntLinkedOpenCustomHashMap<>(strategy) : new Object2IntOpenCustomHashMap<>(strategy);
+    }
+
     /**
      * Maps all fluids in the {@link IFluidHandler} into a {@link FluidKey}, {@link Integer} value as amount
      *
      * @param fluidInputs The combined fluid input inventory handler, in the form of an {@link IFluidHandler}
-     * @return a {@link Set} of unique {@link FluidKey}s for each fluid in the handler. Will be oversized stacks if required
+     * @return a {@link Set} of unique {@link FluidKey}s for each fluid in the handler. Will be oversized stacks if
+     *         required
      */
     public static Map<FluidKey, Integer> fromFluidHandler(IFluidHandler fluidInputs) {
         final Object2IntMap<FluidKey> map = new Object2IntLinkedOpenHashMap<>();
@@ -84,10 +121,12 @@ public final class GTHashMaps {
     }
 
     /**
-     * Maps all fluids in the {@link FluidStack} {@link Collection} into a {@link FluidKey}, {@link Integer} value as amount
+     * Maps all fluids in the {@link FluidStack} {@link Collection} into a {@link FluidKey}, {@link Integer} value as
+     * amount
      *
      * @param fluidInputs The combined fluid input inventory handler, in the form of an {@link IFluidHandler}
-     * @return a {@link Set} of unique {@link FluidKey}s for each fluid in the handler. Will be oversized stacks if required
+     * @return a {@link Set} of unique {@link FluidKey}s for each fluid in the handler. Will be oversized stacks if
+     *         required
      */
     public static Map<FluidKey, Integer> fromFluidCollection(Collection<FluidStack> fluidInputs) {
         final Object2IntMap<FluidKey> map = new Object2IntLinkedOpenHashMap<>();

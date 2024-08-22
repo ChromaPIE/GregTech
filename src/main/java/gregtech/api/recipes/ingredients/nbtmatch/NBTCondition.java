@@ -2,6 +2,8 @@ package gregtech.api.recipes.ingredients.nbtmatch;
 
 import gregtech.api.util.GTLog;
 
+import org.jetbrains.annotations.Nullable;
+
 import java.util.Objects;
 
 /**
@@ -18,6 +20,7 @@ public class NBTCondition {
         return new NBTCondition(tagType, nbtKey, value);
     }
 
+    @Nullable
     public final NBTTagType tagType;
     public final String nbtKey;
     public final Object value;
@@ -28,13 +31,13 @@ public class NBTCondition {
         this.value = null;
     }
 
+    @SuppressWarnings("NullableProblems")
     protected NBTCondition(NBTTagType tagType, String nbtKey, Object value) {
         this.tagType = tagType;
         this.nbtKey = nbtKey;
         this.value = value;
         if (tagType == null || nbtKey == null || value == null) {
-            GTLog.logger.error("NBTCondition must not have null parameters.");
-            GTLog.logger.error("Stacktrace:", new IllegalArgumentException());
+            GTLog.logger.error("NBTCondition must not have null parameters.", new Throwable());
         }
     }
 

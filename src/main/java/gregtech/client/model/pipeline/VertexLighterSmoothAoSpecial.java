@@ -1,11 +1,12 @@
 package gregtech.client.model.pipeline;
 
-import gregtech.client.shader.Shaders;
+import gregtech.api.util.Mods;
+
 import net.minecraft.client.renderer.color.BlockColors;
 import net.minecraft.util.math.MathHelper;
 
-//This is a verbatim copy of VertexLighterSmoothAo except with a custom base class.
-//Ao Features are disabled when the shader is active.
+// This is a verbatim copy of VertexLighterSmoothAo except with a custom base class.
+// Ao Features are disabled when the shader is active.
 public class VertexLighterSmoothAoSpecial extends VertexLighterFlatSpecial {
 
     public VertexLighterSmoothAoSpecial(BlockColors colors) {
@@ -14,7 +15,7 @@ public class VertexLighterSmoothAoSpecial extends VertexLighterFlatSpecial {
 
     @Override
     protected void updateLightmap(float[] normal, float[] lightmap, float x, float y, float z) {
-        if (Shaders.isOptiFineShaderPackLoaded()) {
+        if (Mods.Optifine.isModLoaded()) {
             super.updateLightmap(normal, lightmap, x, y, z);
             return;
         }
@@ -27,7 +28,7 @@ public class VertexLighterSmoothAoSpecial extends VertexLighterFlatSpecial {
     protected void updateColor(float[] normal, float[] color, float x, float y, float z, float tint, int multiplier) {
         super.updateColor(normal, color, x, y, z, tint, multiplier);
 
-        if (Shaders.isOptiFineShaderPackLoaded()) {
+        if (Mods.Optifine.isModLoaded()) {
             return;
         }
 
@@ -145,7 +146,7 @@ public class VertexLighterSmoothAoSpecial extends VertexLighterFlatSpecial {
 
     @Override
     public void updateBlockInfo() {
-        if (Shaders.isOptiFineShaderPackLoaded()) {
+        if (Mods.Optifine.isModLoaded()) {
             super.updateBlockInfo();
             return;
         }
@@ -153,5 +154,4 @@ public class VertexLighterSmoothAoSpecial extends VertexLighterFlatSpecial {
         blockInfo.updateShift();
         blockInfo.updateLightMatrix();
     }
-
 }

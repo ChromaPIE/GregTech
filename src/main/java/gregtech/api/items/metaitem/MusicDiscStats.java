@@ -2,6 +2,7 @@ package gregtech.api.items.metaitem;
 
 import gregtech.api.items.metaitem.stats.IItemBehaviour;
 import gregtech.api.items.metaitem.stats.IMusicDisc;
+
 import net.minecraft.block.BlockJukebox;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.player.EntityPlayer;
@@ -30,13 +31,18 @@ public class MusicDiscStats implements IMusicDisc, IItemBehaviour {
         return sound;
     }
 
+    public String getName() {
+        return sound.getSoundName().getPath();
+    }
+
     @Override
-    public ActionResult<ItemStack> onItemUse(EntityPlayer player, World world, BlockPos pos, EnumHand hand, EnumFacing facing, float hitX, float hitY, float hitZ) {
+    public ActionResult<ItemStack> onItemUse(EntityPlayer player, World world, BlockPos pos, EnumHand hand,
+                                             EnumFacing facing, float hitX, float hitY, float hitZ) {
         IBlockState iblockstate = world.getBlockState(pos);
         ItemStack itemStack = player.getHeldItem(hand);
-        if (iblockstate.getBlock() == Blocks.JUKEBOX && !(Boolean)iblockstate.getValue(BlockJukebox.HAS_RECORD)) {
+        if (iblockstate.getBlock() == Blocks.JUKEBOX && !(Boolean) iblockstate.getValue(BlockJukebox.HAS_RECORD)) {
             if (!world.isRemote) {
-                ((BlockJukebox)Blocks.JUKEBOX).insertRecord(world, pos, iblockstate, itemStack);
+                ((BlockJukebox) Blocks.JUKEBOX).insertRecord(world, pos, iblockstate, itemStack);
                 world.playEvent(SOUND_TYPE, pos, itemStack.getItemDamage());
                 itemStack.shrink(1);
                 player.addStat(StatList.RECORD_PLAYED);

@@ -1,10 +1,10 @@
 package gregtech.client.shader;
 
-import codechicken.lib.render.shader.ShaderObject;
-import codechicken.lib.render.shader.ShaderProgram;
 import gregtech.api.GTValues;
 import gregtech.api.util.GTLog;
+import gregtech.api.util.Mods;
 import gregtech.common.ConfigHolder;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.OpenGlHelper;
@@ -14,10 +14,12 @@ import net.minecraft.client.shader.Framebuffer;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
-import java.lang.reflect.Field;
+import codechicken.lib.render.shader.ShaderObject;
+import codechicken.lib.render.shader.ShaderProgram;
+import org.jetbrains.annotations.ApiStatus;
+
 import java.util.HashMap;
 import java.util.Map;
-import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 
 import static codechicken.lib.render.shader.ShaderHelper.getStream;
@@ -34,12 +36,13 @@ import static codechicken.lib.render.shader.ShaderObject.ShaderType.VERTEX;
  */
 @SideOnly(Side.CLIENT)
 public class Shaders {
+
     public static Minecraft mc;
     private final static Map<ShaderObject, ShaderProgram> FULL_IMAGE_PROGRAMS;
 
     public static ShaderObject IMAGE_V;
     public static ShaderObject IMAGE_F;
-//    public static ShaderObject BLACK_HOLE;
+    // public static ShaderObject BLACK_HOLE;
     public static ShaderObject SCANNING;
 
     public static ShaderObject BLOOM_COMBINE;
@@ -54,40 +57,18 @@ public class Shaders {
     public static ShaderObject S_BLUR;
     public static ShaderObject COMPOSITE;
 
-    // OptiFine
-    private static BooleanSupplier isShaderPackLoaded;
-
     static {
         mc = Minecraft.getMinecraft();
         FULL_IMAGE_PROGRAMS = new HashMap<>();
         if (allowedShader()) {
             initShaders();
         }
-        try { // hook optFine. thanks to Scannable.
-            final Class<?> clazz = Class.forName("net.optifine.shaders.Shaders");
-            final Field shaderPackLoaded = clazz.getDeclaredField("shaderPackLoaded");
-            shaderPackLoaded.setAccessible(true);
-            isShaderPackLoaded = () -> {
-                try {
-                    return shaderPackLoaded.getBoolean(null);
-                } catch (final IllegalAccessException e) {
-                    GTLog.logger.warn("Failed reading field indicating whether shaders are enabled. Shader mod integration disabled.");
-                    isShaderPackLoaded = null;
-                    return false;
-                }
-            };
-            GTLog.logger.info("Find optiFine mod loaded.");
-        } catch (ClassNotFoundException e) {
-            GTLog.logger.info("No optiFine mod found.");
-        } catch (NoSuchFieldException | NoClassDefFoundError e) {
-            GTLog.logger.warn("Failed integrating with shader mod. Ignoring.");
-        }
     }
 
     public static void initShaders() {
         IMAGE_V = initShader(IMAGE_V, VERTEX, "image.vert");
         IMAGE_F = initShader(IMAGE_F, FRAGMENT, "image.frag");
-//        BLACK_HOLE = initShader(BLACK_HOLE, FRAGMENT, "blackhole.frag");
+        // BLACK_HOLE = initShader(BLACK_HOLE, FRAGMENT, "blackhole.frag");
         SCANNING = initShader(SCANNING, FRAGMENT, "scanning.frag");
         BLOOM_COMBINE = initShader(BLOOM_COMBINE, FRAGMENT, "bloom_combine.frag");
         BLUR = initShader(BLUR, FRAGMENT, "blur.frag");
@@ -105,7 +86,9 @@ public class Shaders {
 
     public static ShaderObject loadShader(ShaderObject.ShaderType shaderType, String location) {
         try {
-            return new ShaderObject(shaderType, readShader(getStream(String.format("/assets/%s/shaders/%s", GTValues.MODID, location)))).compileShader();
+            return new ShaderObject(shaderType,
+                    readShader(getStream(String.format("/assets/%s/shaders/%s", GTValues.MODID, location))))
+                            .compileShader();
         } catch (Exception exception) {
             GTLog.logger.error("error while loading shader {}", location, exception);
         }
@@ -122,13 +105,17 @@ public class Shaders {
         return OpenGlHelper.shadersSupported && ConfigHolder.client.shader.useShader;
     }
 
+    /** @deprecated Use {@link Mods#Optifine} to check this instead. */
+    @Deprecated
+    @ApiStatus.ScheduledForRemoval(inVersion = "2.9")
     public static boolean isOptiFineShaderPackLoaded() {
-        return isShaderPackLoaded != null && isShaderPackLoaded.getAsBoolean();
+        return Mods.Optifine.isModLoaded();
     }
 
-    public static Framebuffer renderFullImageInFBO(Framebuffer fbo, ShaderObject frag, Consumer<ShaderProgram.UniformCache> uniformCache) {
+    public static Framebuffer renderFullImageInFBO(Framebuffer fbo, ShaderObject frag,
+                                                   Consumer<ShaderProgram.UniformCache> uniformCache) {
         if (fbo == null || frag == null || !allowedShader()) return fbo;
-//        int lastID = glGetInteger(GL30.GL_FRAMEBUFFER_BINDING);
+        // int lastID = glGetInteger(GL30.GL_FRAMEBUFFER_BINDING);
 
         fbo.bindFramebuffer(true);
 
@@ -140,7 +127,7 @@ public class Shaders {
             FULL_IMAGE_PROGRAMS.put(frag, program);
         }
 
-        program.useShader(cache->{
+        program.useShader(cache -> {
             cache.glUniform2F("u_resolution", fbo.framebufferWidth, fbo.framebufferHeight);
             if (uniformCache != null) {
                 uniformCache.accept(cache);
@@ -158,9 +145,9 @@ public class Shaders {
         tessellator.draw();
 
         program.releaseShader();
-//        GlStateManager.viewport(0, 0, mc.displayWidth, mc.displayHeight);
+        // GlStateManager.viewport(0, 0, mc.displayWidth, mc.displayHeight);
 
-//        OpenGlHelper.glBindFramebuffer(OpenGlHelper.GL_FRAMEBUFFER, lastID);
+        // OpenGlHelper.glBindFramebuffer(OpenGlHelper.GL_FRAMEBUFFER, lastID);
         return fbo;
     }
 }

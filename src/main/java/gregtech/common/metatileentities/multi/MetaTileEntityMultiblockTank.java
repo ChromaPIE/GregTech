@@ -1,11 +1,8 @@
 package gregtech.common.metatileentities.multi;
 
-import codechicken.lib.raytracer.CuboidRayTraceResult;
-import codechicken.lib.render.CCRenderState;
-import codechicken.lib.render.pipeline.IVertexOperation;
-import codechicken.lib.vec.Matrix4;
 import gregtech.api.capability.impl.FilteredFluidHandler;
 import gregtech.api.capability.impl.FluidTankList;
+import gregtech.api.capability.impl.PropertyFluidFilter;
 import gregtech.api.gui.GuiTextures;
 import gregtech.api.gui.ModularUI;
 import gregtech.api.gui.widgets.LabelWidget;
@@ -22,6 +19,7 @@ import gregtech.common.blocks.BlockMetalCasing;
 import gregtech.common.blocks.BlockSteamCasing;
 import gregtech.common.blocks.MetaBlocks;
 import gregtech.common.metatileentities.MetaTileEntities;
+
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.EntityPlayer;
@@ -30,10 +28,18 @@ import net.minecraft.util.EnumFacing;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.world.World;
-import net.minecraftforge.fluids.FluidTank;
+import net.minecraftforge.common.capabilities.Capability;
+import net.minecraftforge.fluids.capability.CapabilityFluidHandler;
+import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
+import codechicken.lib.raytracer.CuboidRayTraceResult;
+import codechicken.lib.render.CCRenderState;
+import codechicken.lib.render.pipeline.IVertexOperation;
+import codechicken.lib.vec.Matrix4;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
 import java.util.List;
 
 public class MetaTileEntityMultiblockTank extends MultiblockWithDisplayBase {
@@ -52,12 +58,12 @@ public class MetaTileEntityMultiblockTank extends MultiblockWithDisplayBase {
     protected void initializeInventory() {
         super.initializeInventory();
 
-        FluidTank tank = new FilteredFluidHandler(capacity).setFillPredicate(
-                fluidStack -> isMetal || (!fluidStack.getFluid().isGaseous() && fluidStack.getFluid().getTemperature() <= 325));
-        FluidTankList tankList = new FluidTankList(true, tank);
+        FilteredFluidHandler tank = new FilteredFluidHandler(capacity);
+        if (!isMetal) {
+            tank.setFilter(new PropertyFluidFilter(340, false, false, false, false));
+        }
 
-        this.importFluids = tankList;
-        this.exportFluids = tankList;
+        this.exportFluids = this.importFluids = new FluidTankList(true, tank);
         this.fluidInventory = tank;
     }
 
@@ -67,12 +73,10 @@ public class MetaTileEntityMultiblockTank extends MultiblockWithDisplayBase {
     }
 
     @Override
-    protected void updateFormedValid() {
-
-    }
+    protected void updateFormedValid() {}
 
     @Override
-    @Nonnull
+    @NotNull
     protected BlockPattern createStructurePattern() {
         return FactoryBlockPattern.start()
                 .aisle("XXX", "XXX", "XXX")
@@ -97,8 +101,9 @@ public class MetaTileEntityMultiblockTank extends MultiblockWithDisplayBase {
         return MetaTileEntities.WOODEN_TANK_VALVE;
     }
 
+    @SideOnly(Side.CLIENT)
     @Override
-    @Nonnull
+    @NotNull
     public ICubeRenderer getBaseTexture(IMultiblockPart sourcePart) {
         if (isMetal)
             return Textures.SOLID_STEEL_CASING;
@@ -111,14 +116,20 @@ public class MetaTileEntityMultiblockTank extends MultiblockWithDisplayBase {
     }
 
     @Override
-    public boolean onRightClick(EntityPlayer playerIn, EnumHand hand, EnumFacing facing, CuboidRayTraceResult hitResult) {
+    public boolean onRightClick(EntityPlayer playerIn, EnumHand hand, EnumFacing facing,
+                                CuboidRayTraceResult hitResult) {
         if (!isStructureFormed())
             return false;
         return super.onRightClick(playerIn, hand, facing, hitResult);
     }
 
     @Override
-    protected ModularUI.Builder createUITemplate(@Nonnull EntityPlayer entityPlayer) {
+    protected boolean openGUIOnRightClick() {
+        return isStructureFormed();
+    }
+
+    @Override
+    protected ModularUI.Builder createUITemplate(@NotNull EntityPlayer entityPlayer) {
         return ModularUI.defaultBuilder()
                 .widget(new LabelWidget(6, 6, getMetaFullName()))
                 .widget(new TankWidget(importFluids.getTankAt(0), 52, 18, 72, 61)
@@ -133,16 +144,30 @@ public class MetaTileEntityMultiblockTank extends MultiblockWithDisplayBase {
         getFrontOverlay().renderSided(getFrontFacing(), renderState, translation, pipeline);
     }
 
-    @Nonnull
+    @SideOnly(Side.CLIENT)
+    @NotNull
     @Override
     protected ICubeRenderer getFrontOverlay() {
         return Textures.MULTIBLOCK_TANK_OVERLAY;
     }
 
     @Override
-    public void addInformation(ItemStack stack, @Nullable World player, @Nonnull List<String> tooltip, boolean advanced) {
+    public void addInformation(ItemStack stack, @Nullable World player, @NotNull List<String> tooltip,
+                               boolean advanced) {
         super.addInformation(stack, player, tooltip, advanced);
         tooltip.add(I18n.format("gregtech.multiblock.tank.tooltip"));
         tooltip.add(I18n.format("gregtech.universal.tooltip.fluid_storage_capacity", capacity));
+    }
+
+    @Override
+    public <T> T getCapability(Capability<T> capability, EnumFacing side) {
+        if (capability == CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY) {
+            if (isStructureFormed()) {
+                return CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY.cast(fluidInventory);
+            } else {
+                return null;
+            }
+        }
+        return super.getCapability(capability, side);
     }
 }

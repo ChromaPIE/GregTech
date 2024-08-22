@@ -1,8 +1,9 @@
 package gregtech.api.capability;
 
 import gregtech.api.capability.impl.AbstractRecipeLogic;
-import gregtech.api.cover.ICoverable;
+import gregtech.api.cover.CoverHolder;
 import gregtech.api.metatileentity.multiblock.IMaintenance;
+
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.CapabilityInject;
 
@@ -11,8 +12,8 @@ public class GregtechTileCapabilities {
     @CapabilityInject(IWorkable.class)
     public static Capability<IWorkable> CAPABILITY_WORKABLE = null;
 
-    @CapabilityInject(ICoverable.class)
-    public static Capability<ICoverable> CAPABILITY_COVERABLE = null;
+    @CapabilityInject(CoverHolder.class)
+    public static Capability<CoverHolder> CAPABILITY_COVER_HOLDER = null;
 
     @CapabilityInject(IControllable.class)
     public static Capability<IControllable> CAPABILITY_CONTROLLABLE = null;
@@ -29,4 +30,12 @@ public class GregtechTileCapabilities {
     @CapabilityInject(IMaintenance.class)
     public static Capability<IMaintenance> CAPABILITY_MAINTENANCE = null;
 
+    @CapabilityInject(IDataAccessHatch.class)
+    public static Capability<IDataAccessHatch> CAPABILITY_DATA_ACCESS = null;
+
+    @CapabilityInject(ILaserContainer.class)
+    public static Capability<ILaserContainer> CAPABILITY_LASER = null;
+
+    @CapabilityInject(IOpticalComputationProvider.class)
+    public static Capability<IOpticalComputationProvider> CABABILITY_COMPUTATION_PROVIDER = null;
 }

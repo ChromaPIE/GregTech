@@ -1,37 +1,32 @@
 package gregtech.common.covers;
 
-import codechicken.lib.raytracer.CuboidRayTraceResult;
-import codechicken.lib.render.CCRenderState;
-import codechicken.lib.render.pipeline.IVertexOperation;
-import codechicken.lib.vec.Cuboid6;
-import codechicken.lib.vec.Matrix4;
-import com.google.common.math.IntMath;
-import gregtech.api.GTValues;
+import gregtech.api.capability.GregtechDataCodes;
 import gregtech.api.capability.GregtechTileCapabilities;
 import gregtech.api.capability.IControllable;
 import gregtech.api.capability.impl.FluidHandlerDelegate;
-import gregtech.api.cover.CoverBehavior;
+import gregtech.api.cover.CoverBase;
+import gregtech.api.cover.CoverDefinition;
 import gregtech.api.cover.CoverWithUI;
-import gregtech.api.cover.ICoverable;
-import gregtech.api.gui.GuiTextures;
-import gregtech.api.gui.ModularUI;
-import gregtech.api.gui.widgets.*;
-import gregtech.api.metatileentity.MetaTileEntity;
+import gregtech.api.cover.CoverableView;
+import gregtech.api.mui.GTGuiTextures;
+import gregtech.api.mui.GTGuis;
 import gregtech.api.util.GTTransferUtils;
 import gregtech.client.renderer.texture.Textures;
 import gregtech.client.renderer.texture.cube.SimpleSidedCubeRenderer;
 import gregtech.common.covers.filter.FluidFilterContainer;
-import net.minecraft.block.Block;
+
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
-import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.network.PacketBuffer;
 import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.*;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.BlockPos.PooledMutableBlockPos;
+import net.minecraft.util.BlockRenderLayer;
+import net.minecraft.util.EnumActionResult;
+import net.minecraft.util.EnumFacing;
+import net.minecraft.util.EnumHand;
+import net.minecraft.util.IStringSerializable;
+import net.minecraft.util.ITickable;
 import net.minecraft.util.math.MathHelper;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.fluids.FluidStack;
@@ -40,59 +35,86 @@ import net.minecraftforge.fluids.capability.IFluidHandler;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-import java.util.function.Function;
-import java.util.function.IntSupplier;
+import codechicken.lib.raytracer.CuboidRayTraceResult;
+import codechicken.lib.render.CCRenderState;
+import codechicken.lib.render.pipeline.IVertexOperation;
+import codechicken.lib.vec.Cuboid6;
+import codechicken.lib.vec.Matrix4;
+import com.cleanroommc.modularui.api.drawable.IDrawable;
+import com.cleanroommc.modularui.api.widget.Interactable;
+import com.cleanroommc.modularui.drawable.DynamicDrawable;
+import com.cleanroommc.modularui.factory.SidedPosGuiData;
+import com.cleanroommc.modularui.screen.ModularPanel;
+import com.cleanroommc.modularui.utils.Color;
+import com.cleanroommc.modularui.utils.MouseData;
+import com.cleanroommc.modularui.value.sync.EnumSyncValue;
+import com.cleanroommc.modularui.value.sync.IntSyncValue;
+import com.cleanroommc.modularui.value.sync.PanelSyncManager;
+import com.cleanroommc.modularui.value.sync.StringSyncValue;
+import com.cleanroommc.modularui.widget.ParentWidget;
+import com.cleanroommc.modularui.widgets.ButtonWidget;
+import com.cleanroommc.modularui.widgets.layout.Column;
+import com.cleanroommc.modularui.widgets.layout.Row;
+import com.cleanroommc.modularui.widgets.textfield.TextFieldWidget;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
-public class CoverPump extends CoverBehavior implements CoverWithUI, ITickable, IControllable {
+public class CoverPump extends CoverBase implements CoverWithUI, ITickable, IControllable {
 
     public final int tier;
     public final int maxFluidTransferRate;
     protected int transferRate;
-    protected PumpMode pumpMode;
+    protected PumpMode pumpMode = PumpMode.EXPORT;
     protected ManualImportExportMode manualImportExportMode = ManualImportExportMode.DISABLED;
-    protected DistributionMode distributionMode;
+    protected DistributionMode distributionMode = DistributionMode.INSERT_FIRST;
     protected int fluidLeftToTransferLastSecond;
     private CoverableFluidHandlerWrapper fluidHandlerWrapper;
     protected boolean isWorkingAllowed = true;
-    protected FluidFilterContainer fluidFilter;
-    protected BucketMode bucketMode;
+    protected FluidFilterContainer fluidFilterContainer;
+    protected BucketMode bucketMode = BucketMode.MILLI_BUCKET;
 
-    public CoverPump(ICoverable coverHolder, EnumFacing attachedSide, int tier, int mbPerTick) {
-        super(coverHolder, attachedSide);
+    public CoverPump(@NotNull CoverDefinition definition, @NotNull CoverableView coverableView,
+                     @NotNull EnumFacing attachedSide, int tier, int mbPerTick) {
+        super(definition, coverableView, attachedSide);
         this.tier = tier;
         this.maxFluidTransferRate = mbPerTick;
         this.transferRate = mbPerTick;
         this.fluidLeftToTransferLastSecond = transferRate;
-        this.pumpMode = PumpMode.EXPORT;
-        this.distributionMode = DistributionMode.INSERT_FIRST;
-        this.bucketMode = BucketMode.MILLI_BUCKET;
-        this.fluidFilter = new FluidFilterContainer(this, this::shouldShowTip);
+        this.fluidFilterContainer = new FluidFilterContainer(this);
     }
 
-    protected boolean shouldShowTip() {
-        return false;
+    public void setStringTransferRate(String s) {
+        this.fluidFilterContainer.setTransferSize(
+                getBucketMode() == BucketMode.MILLI_BUCKET ?
+                        Integer.parseInt(s) :
+                        Integer.parseInt(s) * 1000);
+    }
+
+    public String getStringTransferRate() {
+        return String.valueOf(getBucketMode() == BucketMode.MILLI_BUCKET ?
+                this.fluidFilterContainer.getTransferSize() :
+                this.fluidFilterContainer.getTransferSize() / 1000);
     }
 
     public void setTransferRate(int transferRate) {
-        this.transferRate = transferRate;
-        coverHolder.markDirty();
+        if (bucketMode == BucketMode.BUCKET) transferRate *= 1000;
+        this.transferRate = MathHelper.clamp(transferRate, 1, maxFluidTransferRate);
+        markDirty();
     }
 
     public int getTransferRate() {
-        return transferRate;
+        return bucketMode == BucketMode.BUCKET ? transferRate / 1000 : transferRate;
     }
 
     protected void adjustTransferRate(int amount) {
         amount *= this.bucketMode == BucketMode.BUCKET ? 1000 : 1;
-        setTransferRate(MathHelper.clamp(transferRate + amount, 1, maxFluidTransferRate));
+        setTransferRate(this.transferRate + amount);
     }
 
     public void setPumpMode(PumpMode pumpMode) {
         this.pumpMode = pumpMode;
-        writeUpdateData(1, buf -> buf.writeEnumValue(pumpMode));
-        coverHolder.markDirty();
+        writeCustomData(GregtechDataCodes.UPDATE_COVER_MODE, buf -> buf.writeEnumValue(pumpMode));
+        markDirty();
     }
 
     public PumpMode getPumpMode() {
@@ -103,7 +125,7 @@ public class CoverPump extends CoverBehavior implements CoverWithUI, ITickable, 
         this.bucketMode = bucketMode;
         if (this.bucketMode == BucketMode.BUCKET)
             setTransferRate(transferRate / 1000 * 1000);
-        coverHolder.markDirty();
+        markDirty();
     }
 
     public BucketMode getBucketMode() {
@@ -116,16 +138,16 @@ public class CoverPump extends CoverBehavior implements CoverWithUI, ITickable, 
 
     protected void setManualImportExportMode(ManualImportExportMode manualImportExportMode) {
         this.manualImportExportMode = manualImportExportMode;
-        coverHolder.markDirty();
+        markDirty();
     }
 
     public FluidFilterContainer getFluidFilterContainer() {
-        return fluidFilter;
+        return fluidFilterContainer;
     }
 
     @Override
     public void update() {
-        long timer = coverHolder.getOffsetTimer();
+        long timer = getOffsetTimer();
         if (isWorkingAllowed && fluidLeftToTransferLastSecond > 0) {
             this.fluidLeftToTransferLastSecond -= doTransferFluids(fluidLeftToTransferLastSecond);
         }
@@ -135,170 +157,207 @@ public class CoverPump extends CoverBehavior implements CoverWithUI, ITickable, 
     }
 
     protected int doTransferFluids(int transferLimit) {
-        BlockPos pos = coverHolder.getPos().offset(attachedSide);
-        TileEntity tileEntity = coverHolder.getWorld().getTileEntity(pos);
-        IFluidHandler fluidHandler = tileEntity == null ? null : tileEntity.getCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, attachedSide.getOpposite());
-        IFluidHandler myFluidHandler = coverHolder.getCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, attachedSide);
+        TileEntity tileEntity = getNeighbor(getAttachedSide());
+        IFluidHandler fluidHandler = tileEntity == null ? null : tileEntity
+                .getCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, getAttachedSide().getOpposite());
+        IFluidHandler myFluidHandler = getCoverableView().getCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY,
+                getAttachedSide());
         if (fluidHandler == null || myFluidHandler == null) {
             return 0;
         }
         return doTransferFluidsInternal(myFluidHandler, fluidHandler, transferLimit);
     }
 
-    protected int doTransferFluidsInternal(IFluidHandler myFluidHandler, IFluidHandler fluidHandler, int transferLimit) {
+    protected int doTransferFluidsInternal(IFluidHandler myFluidHandler, IFluidHandler fluidHandler,
+                                           int transferLimit) {
         if (pumpMode == PumpMode.IMPORT) {
-            return GTTransferUtils.transferFluids(fluidHandler, myFluidHandler, transferLimit, fluidFilter::testFluidStack);
+            return GTTransferUtils.transferFluids(fluidHandler, myFluidHandler, transferLimit,
+                    fluidFilterContainer::test);
         } else if (pumpMode == PumpMode.EXPORT) {
-            return GTTransferUtils.transferFluids(myFluidHandler, fluidHandler, transferLimit, fluidFilter::testFluidStack);
+            return GTTransferUtils.transferFluids(myFluidHandler, fluidHandler, transferLimit,
+                    fluidFilterContainer::test);
         }
         return 0;
     }
 
     protected boolean checkInputFluid(FluidStack fluidStack) {
-        return fluidFilter.testFluidStack(fluidStack);
-    }
-
-    protected ModularUI buildUI(ModularUI.Builder builder, EntityPlayer player) {
-        return builder.build(this, player);
-    }
-
-    protected String getUITitle() {
-        return "cover.pump.title";
-    }
-
-    @SuppressWarnings("UnstableApiUsage")
-    @Override
-    public ModularUI createUI(EntityPlayer player) {
-        WidgetGroup primaryGroup = new WidgetGroup();
-        primaryGroup.addWidget(new LabelWidget(10, 5, getUITitle(), GTValues.VN[tier]));
-
-        primaryGroup.addWidget(new ImageWidget(44, 20, 62, 20, GuiTextures.DISPLAY));
-
-        primaryGroup.addWidget(new IncrementButtonWidget(136, 20, 30, 20, 1, 10, 100, 1000, this::adjustTransferRate)
-                .setDefaultTooltip()
-                .setShouldClientCallback(false));
-        primaryGroup.addWidget(new IncrementButtonWidget(10, 20, 34, 20, -1, -10, -100, -1000, this::adjustTransferRate)
-                .setDefaultTooltip()
-                .setShouldClientCallback(false));
-
-        TextFieldWidget2 textField = new TextFieldWidget2(45, 26, 60, 20, () -> bucketMode == BucketMode.BUCKET ? Integer.toString(transferRate / 1000) : Integer.toString(transferRate), val -> {
-            if (val != null && !val.isEmpty()) {
-                int amount = Integer.parseInt(val);
-                if (this.bucketMode == BucketMode.BUCKET) {
-                    amount = IntMath.saturatedMultiply(amount, 1000);
-                }
-                setTransferRate(amount);
-            }
-        })
-                .setCentered(true)
-                .setNumbersOnly(1, bucketMode == BucketMode.BUCKET ? maxFluidTransferRate / 1000 : maxFluidTransferRate)
-                .setMaxLength(8);
-        primaryGroup.addWidget(textField);
-
-        primaryGroup.addWidget(new CycleButtonWidget(106, 20, 30, 20,
-                BucketMode.class, this::getBucketMode, mode -> {
-            if (mode != bucketMode) {
-                setBucketMode(mode);
-            }
-        }));
-
-        primaryGroup.addWidget(new CycleButtonWidget(10, 43, 75, 18,
-                PumpMode.class, this::getPumpMode, this::setPumpMode));
-
-        primaryGroup.addWidget(new CycleButtonWidget(7, 160, 116, 20,
-                ManualImportExportMode.class, this::getManualImportExportMode, this::setManualImportExportMode)
-                .setTooltipHoverString("cover.universal.manual_import_export.mode.description"));
-
-        this.fluidFilter.initUI(88, primaryGroup::addWidget);
-
-        ModularUI.Builder builder = ModularUI.builder(GuiTextures.BACKGROUND, 176, 184 + 82)
-                .widget(primaryGroup)
-                .bindPlayerInventory(player.inventory, GuiTextures.SLOT, 7, 184);
-        return buildUI(builder, player);
-    }
-
-    public static Function<String, String> getTextFieldValidator(IntSupplier maxSupplier) {
-        int min = 1;
-        return val -> {
-            if (val.isEmpty()) {
-                return String.valueOf(min);
-            }
-            int max = maxSupplier.getAsInt();
-            int num;
-            try {
-                num = Integer.parseInt(val);
-            } catch (NumberFormatException ignored) {
-                return String.valueOf(max);
-            }
-            if (num < min) {
-                return String.valueOf(min);
-            }
-            if (num > max) {
-                return String.valueOf(max);
-            }
-            return val;
-        };
+        return fluidFilterContainer.test(fluidStack);
     }
 
     @Override
-    public EnumActionResult onScrewdriverClick(EntityPlayer playerIn, EnumHand hand, CuboidRayTraceResult hitResult) {
-        if (!coverHolder.getWorld().isRemote) {
+    public boolean usesMui2() {
+        return true;
+    }
+
+    @Override
+    public ModularPanel buildUI(SidedPosGuiData guiData, PanelSyncManager guiSyncManager) {
+        var panel = GTGuis.createPanel(this, 176, 192);
+
+        getFluidFilterContainer().setMaxTransferSize(getMaxTransferRate());
+
+        return panel.child(CoverWithUI.createTitleRow(getPickItem()))
+                .child(createUI(panel, guiSyncManager))
+                .bindPlayerInventory();
+    }
+
+    protected ParentWidget<?> createUI(ModularPanel mainPanel, PanelSyncManager syncManager) {
+        var manualIOmode = new EnumSyncValue<>(ManualImportExportMode.class,
+                this::getManualImportExportMode, this::setManualImportExportMode);
+        manualIOmode.updateCacheFromSource(true);
+
+        var throughput = new IntSyncValue(this::getTransferRate, this::setTransferRate);
+        throughput.updateCacheFromSource(true);
+
+        var throughputString = new StringSyncValue(
+                throughput::getStringValue,
+                throughput::setStringValue);
+        throughputString.updateCacheFromSource(true);
+
+        var pumpMode = new EnumSyncValue<>(PumpMode.class, this::getPumpMode, this::setPumpMode);
+        pumpMode.updateCacheFromSource(true);
+
+        syncManager.syncValue("manual_io", manualIOmode);
+        syncManager.syncValue("pump_mode", pumpMode);
+        syncManager.syncValue("throughput", throughput);
+
+        var column = new Column().top(24).margin(7, 0)
+                .widthRel(1f).coverChildrenHeight();
+
+        if (createThroughputRow())
+            column.child(new Row().coverChildrenHeight()
+                    .marginBottom(2).widthRel(1f)
+                    .child(new ButtonWidget<>()
+                            .left(0).width(18)
+                            .onMousePressed(mouseButton -> {
+                                int val = throughput.getValue() - getIncrementValue(MouseData.create(mouseButton));
+                                throughput.setValue(val, true, true);
+                                Interactable.playButtonClickSound();
+                                return true;
+                            })
+                            .onUpdateListener(w -> w.overlay(createAdjustOverlay(false))))
+                    .child(new TextFieldWidget()
+                            .left(18).right(18)
+                            .setTextColor(Color.WHITE.darker(1))
+                            .setNumbers(1, maxFluidTransferRate)
+                            .value(throughputString)
+                            .background(GTGuiTextures.DISPLAY))
+                    .child(new ButtonWidget<>()
+                            .right(0).width(18)
+                            .onMousePressed(mouseButton -> {
+                                int val = throughput.getValue() + getIncrementValue(MouseData.create(mouseButton));
+                                throughput.setValue(val, true, true);
+                                Interactable.playButtonClickSound();
+                                return true;
+                            })
+                            .onUpdateListener(w -> w.overlay(createAdjustOverlay(true)))));
+
+        if (createFilterRow())
+            column.child(getFluidFilterContainer()
+                    .initUI(mainPanel, syncManager));
+
+        if (createManualIOModeRow())
+            column.child(new EnumRowBuilder<>(ManualImportExportMode.class)
+                    .value(manualIOmode)
+                    .lang("cover.generic.manual_io")
+                    .overlay(new IDrawable[] {
+                            new DynamicDrawable(() -> pumpMode.getValue().isImport() ?
+                                    GTGuiTextures.MANUAL_IO_OVERLAY_OUT[0] : GTGuiTextures.MANUAL_IO_OVERLAY_IN[0]),
+                            new DynamicDrawable(() -> pumpMode.getValue().isImport() ?
+                                    GTGuiTextures.MANUAL_IO_OVERLAY_OUT[1] : GTGuiTextures.MANUAL_IO_OVERLAY_IN[1]),
+                            new DynamicDrawable(() -> pumpMode.getValue().isImport() ?
+                                    GTGuiTextures.MANUAL_IO_OVERLAY_OUT[2] : GTGuiTextures.MANUAL_IO_OVERLAY_IN[2])
+                    })
+                    .build());
+
+        if (createPumpModeRow())
+            column.child(new EnumRowBuilder<>(PumpMode.class)
+                    .value(pumpMode)
+                    .lang("cover.pump.mode")
+                    .overlay(GTGuiTextures.CONVEYOR_MODE_OVERLAY) // todo pump mode overlays
+                    .build());
+
+        return column;
+    }
+
+    protected boolean createThroughputRow() {
+        return true;
+    }
+
+    protected boolean createFilterRow() {
+        return true;
+    }
+
+    protected boolean createManualIOModeRow() {
+        return true;
+    }
+
+    protected boolean createPumpModeRow() {
+        return true;
+    }
+
+    protected int getMaxTransferRate() {
+        return 1;
+    }
+
+    @Override
+    public @NotNull EnumActionResult onScrewdriverClick(@NotNull EntityPlayer playerIn, @NotNull EnumHand hand,
+                                                        @NotNull CuboidRayTraceResult hitResult) {
+        if (!getWorld().isRemote) {
             openUI((EntityPlayerMP) playerIn);
         }
         return EnumActionResult.SUCCESS;
     }
 
     @Override
-    public void readUpdateData(int id, PacketBuffer packetBuffer) {
-        super.readUpdateData(id, packetBuffer);
-        if (id == 1) {
-            this.pumpMode = packetBuffer.readEnumValue(PumpMode.class);
-            coverHolder.scheduleRenderUpdate();
+    public void readCustomData(int discriminator, @NotNull PacketBuffer buf) {
+        super.readCustomData(discriminator, buf);
+        if (discriminator == GregtechDataCodes.UPDATE_COVER_MODE) {
+            this.pumpMode = buf.readEnumValue(PumpMode.class);
+            scheduleRenderUpdate();
         }
     }
 
     @Override
-    public void writeInitialSyncData(PacketBuffer packetBuffer) {
+    public void writeInitialSyncData(@NotNull PacketBuffer packetBuffer) {
         super.writeInitialSyncData(packetBuffer);
-        packetBuffer.writeEnumValue(pumpMode);
+        packetBuffer.writeByte(pumpMode.ordinal());
+        getFluidFilterContainer().writeInitialSyncData(packetBuffer);
     }
 
     @Override
-    public void readInitialSyncData(PacketBuffer packetBuffer) {
+    public void readInitialSyncData(@NotNull PacketBuffer packetBuffer) {
         super.readInitialSyncData(packetBuffer);
-        this.pumpMode = packetBuffer.readEnumValue(PumpMode.class);
+        this.pumpMode = PumpMode.VALUES[packetBuffer.readByte()];
+        getFluidFilterContainer().readInitialSyncData(packetBuffer);
     }
 
     @Override
-    public boolean canAttach() {
-        return coverHolder.getCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, attachedSide) != null;
+    public boolean canAttach(@NotNull CoverableView coverable, @NotNull EnumFacing side) {
+        return coverable.hasCapability(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY, side);
     }
 
     @Override
-    public boolean shouldCoverInteractWithOutputside() {
+    public boolean canInteractWithOutputSide() {
         return true;
     }
 
     @Override
-    public void onRemoved() {
-        NonNullList<ItemStack> drops = NonNullList.create();
-        MetaTileEntity.clearInventory(drops, fluidFilter.getFilterInventory());
-        for (ItemStack itemStack : drops) {
-            Block.spawnAsEntity(coverHolder.getWorld(), coverHolder.getPos(), itemStack);
-        }
+    public void onRemoval() {
+        dropInventoryContents(fluidFilterContainer);
     }
 
     @Override
-    public void renderCover(CCRenderState renderState, Matrix4 translation, IVertexOperation[] pipeline, Cuboid6 plateBox, BlockRenderLayer layer) {
+    public void renderCover(@NotNull CCRenderState renderState, @NotNull Matrix4 translation,
+                            IVertexOperation[] pipeline, @NotNull Cuboid6 plateBox, @NotNull BlockRenderLayer layer) {
         if (pumpMode == PumpMode.EXPORT) {
-            Textures.PUMP_OVERLAY.renderSided(attachedSide, plateBox, renderState, pipeline, translation);
+            Textures.PUMP_OVERLAY.renderSided(getAttachedSide(), plateBox, renderState, pipeline, translation);
         } else {
-            Textures.PUMP_OVERLAY_INVERTED.renderSided(attachedSide, plateBox, renderState, pipeline, translation);
+            Textures.PUMP_OVERLAY_INVERTED.renderSided(getAttachedSide(), plateBox, renderState, pipeline, translation);
         }
     }
 
     @Override
-    public <T> T getCapability(Capability<T> capability, T defaultValue) {
+    public <T> T getCapability(@NotNull Capability<T> capability, T defaultValue) {
         if (capability == CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY) {
             if (defaultValue == null) {
                 return null;
@@ -326,46 +385,52 @@ public class CoverPump extends CoverBehavior implements CoverWithUI, ITickable, 
     }
 
     @Override
-    public NBTTagCompound writeToNBT(NBTTagCompound tagCompound) {
+    public void writeToNBT(@NotNull NBTTagCompound tagCompound) {
         super.writeToNBT(tagCompound);
         tagCompound.setInteger("TransferRate", transferRate);
         tagCompound.setInteger("PumpMode", pumpMode.ordinal());
         tagCompound.setInteger("DistributionMode", distributionMode.ordinal());
         tagCompound.setBoolean("WorkingAllowed", isWorkingAllowed);
         tagCompound.setInteger("ManualImportExportMode", manualImportExportMode.ordinal());
-        tagCompound.setTag("Filter", fluidFilter.serializeNBT());
-
-        return tagCompound;
+        tagCompound.setInteger("BucketMode", bucketMode.ordinal());
+        tagCompound.setTag("Filter", fluidFilterContainer.serializeNBT());
     }
 
     @Override
-    public void readFromNBT(NBTTagCompound tagCompound) {
+    public void readFromNBT(@NotNull NBTTagCompound tagCompound) {
         super.readFromNBT(tagCompound);
         this.transferRate = tagCompound.getInteger("TransferRate");
-        this.pumpMode = PumpMode.values()[tagCompound.getInteger("PumpMode")];
-        this.distributionMode = DistributionMode.values()[tagCompound.getInteger("DistributionMode")];
+        this.pumpMode = PumpMode.VALUES[tagCompound.getInteger("PumpMode")];
+        this.distributionMode = DistributionMode.VALUES[tagCompound.getInteger("DistributionMode")];
         this.isWorkingAllowed = tagCompound.getBoolean("WorkingAllowed");
-        this.manualImportExportMode = ManualImportExportMode.values()[tagCompound.getInteger("ManualImportExportMode")];
-        this.fluidFilter.deserializeNBT(tagCompound.getCompoundTag("Filter"));
+        this.manualImportExportMode = ManualImportExportMode.VALUES[tagCompound.getInteger("ManualImportExportMode")];
+        this.bucketMode = BucketMode.VALUES[tagCompound.getInteger("BucketMode")];
+        var filterTag = tagCompound.getCompoundTag("Filter");
+        if (filterTag.hasKey("IsBlacklist"))
+            this.fluidFilterContainer.handleLegacyNBT(filterTag);
+        else
+            this.fluidFilterContainer.deserializeNBT(filterTag);
     }
 
     @Override
     @SideOnly(Side.CLIENT)
-    protected TextureAtlasSprite getPlateSprite() {
+    protected @NotNull TextureAtlasSprite getPlateSprite() {
         return Textures.VOLTAGE_CASINGS[this.tier].getSpriteOnSide(SimpleSidedCubeRenderer.RenderSide.SIDE);
     }
 
     public enum PumpMode implements IStringSerializable, IIOMode {
+
         IMPORT("cover.pump.mode.import"),
         EXPORT("cover.pump.mode.export");
 
+        public static final PumpMode[] VALUES = values();
         public final String localeName;
 
         PumpMode(String localeName) {
             this.localeName = localeName;
         }
 
-        @Nonnull
+        @NotNull
         @Override
         public String getName() {
             return localeName;
@@ -378,16 +443,18 @@ public class CoverPump extends CoverBehavior implements CoverWithUI, ITickable, 
     }
 
     public enum BucketMode implements IStringSerializable {
+
         BUCKET("cover.bucket.mode.bucket"),
         MILLI_BUCKET("cover.bucket.mode.milli_bucket");
 
+        public static final BucketMode[] VALUES = values();
         public final String localeName;
 
         BucketMode(String localeName) {
             this.localeName = localeName;
         }
 
-        @Nonnull
+        @NotNull
         @Override
         public String getName() {
             return localeName;
@@ -396,7 +463,7 @@ public class CoverPump extends CoverBehavior implements CoverWithUI, ITickable, 
 
     private class CoverableFluidHandlerWrapper extends FluidHandlerDelegate {
 
-        public CoverableFluidHandlerWrapper(IFluidHandler delegate) {
+        public CoverableFluidHandlerWrapper(@NotNull IFluidHandler delegate) {
             super(delegate);
         }
 

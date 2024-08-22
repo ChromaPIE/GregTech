@@ -1,21 +1,13 @@
 package gregtech.common.metatileentities.multi.multiblockpart;
 
-import codechicken.lib.render.CCRenderState;
-import codechicken.lib.render.pipeline.ColourMultiplier;
-import codechicken.lib.render.pipeline.IVertexOperation;
-import codechicken.lib.vec.Matrix4;
-import com.google.common.collect.ImmutableSet;
 import gregtech.api.GTValues;
 import gregtech.api.metatileentity.MetaTileEntity;
 import gregtech.api.metatileentity.interfaces.IGregTechTileEntity;
-import gregtech.api.metatileentity.multiblock.CleanroomType;
-import gregtech.api.metatileentity.multiblock.ICleanroomProvider;
-import gregtech.api.metatileentity.multiblock.ICleanroomReceiver;
-import gregtech.api.metatileentity.multiblock.MultiblockControllerBase;
+import gregtech.api.metatileentity.multiblock.*;
 import gregtech.api.util.GTUtility;
 import gregtech.client.renderer.ICubeRenderer;
 import gregtech.client.renderer.texture.Textures;
-import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
+
 import net.minecraft.client.resources.I18n;
 import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.item.ItemStack;
@@ -23,22 +15,30 @@ import net.minecraft.util.NonNullList;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
-import org.apache.commons.lang3.ArrayUtils;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
+import codechicken.lib.render.CCRenderState;
+import codechicken.lib.render.pipeline.ColourMultiplier;
+import codechicken.lib.render.pipeline.IVertexOperation;
+import codechicken.lib.vec.Matrix4;
+import com.google.common.collect.ImmutableSet;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
+import org.apache.commons.lang3.ArrayUtils;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
 import java.util.List;
 import java.util.Set;
 
 public class MetaTileEntityCleaningMaintenanceHatch extends MetaTileEntityAutoMaintenanceHatch {
-
-    private static final CleaningMaintenanceHatchDummyCleanroom DUMMY_CLEANROOM = new CleaningMaintenanceHatchDummyCleanroom();
 
     protected static final Set<CleanroomType> CLEANED_TYPES = new ObjectOpenHashSet<>();
 
     static {
         CLEANED_TYPES.add(CleanroomType.CLEANROOM);
     }
+
+    // must come after the static block
+    private static final ICleanroomProvider DUMMY_CLEANROOM = DummyCleanroom.createForTypes(CLEANED_TYPES);
 
     public MetaTileEntityCleaningMaintenanceHatch(ResourceLocation metaTileEntityId) {
         super(metaTileEntityId);
@@ -52,7 +52,8 @@ public class MetaTileEntityCleaningMaintenanceHatch extends MetaTileEntityAutoMa
     @Override
     public void addToMultiBlock(MultiblockControllerBase controllerBase) {
         super.addToMultiBlock(controllerBase);
-        if (controllerBase instanceof ICleanroomReceiver && ((ICleanroomReceiver) controllerBase).getCleanroom() == null) {
+        if (controllerBase instanceof ICleanroomReceiver &&
+                ((ICleanroomReceiver) controllerBase).getCleanroom() == null) {
             ((ICleanroomReceiver) controllerBase).setCleanroom(DUMMY_CLEANROOM);
         }
     }
@@ -106,7 +107,7 @@ public class MetaTileEntityCleaningMaintenanceHatch extends MetaTileEntityAutoMa
      * @param type the type to add
      */
     @SuppressWarnings("unused")
-    public static void addCleanroomType(@Nonnull CleanroomType type) {
+    public static void addCleanroomType(@NotNull CleanroomType type) {
         CLEANED_TYPES.add(type);
     }
 
@@ -116,44 +117,5 @@ public class MetaTileEntityCleaningMaintenanceHatch extends MetaTileEntityAutoMa
     @SuppressWarnings("unused")
     public static ImmutableSet<CleanroomType> getCleanroomTypes() {
         return ImmutableSet.copyOf(CLEANED_TYPES);
-    }
-
-    protected static class CleaningMaintenanceHatchDummyCleanroom implements ICleanroomProvider {
-
-        public CleaningMaintenanceHatchDummyCleanroom() {/**/}
-
-        @Override
-        public boolean isClean() {
-            return true;
-        }
-
-        @Override
-        public boolean drainEnergy(boolean simulate) {
-            return true;
-        }
-
-        @Override
-        public long getEnergyInputPerSecond() {
-            return 0;
-        }
-
-        @Override
-        public int getEnergyTier() {
-            return 0;
-        }
-
-        @Nonnull
-        @Override
-        public Set<CleanroomType> getTypes() {
-            return getCleanroomTypes();
-        }
-
-        @Override
-        public void setCleanAmount(int amount) {
-        }
-
-        @Override
-        public void adjustCleanAmount(int amount) {
-        }
     }
 }

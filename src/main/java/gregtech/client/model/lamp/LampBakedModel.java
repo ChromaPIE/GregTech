@@ -1,9 +1,10 @@
 package gregtech.client.model.lamp;
 
 import gregtech.api.GTValues;
+import gregtech.api.util.GTUtility;
 import gregtech.client.utils.BloomEffectUtil;
 import gregtech.client.utils.RenderUtil;
-import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.block.model.*;
@@ -11,7 +12,6 @@ import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.item.EnumDyeColor;
 import net.minecraft.util.BlockRenderLayer;
 import net.minecraft.util.EnumFacing;
-import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.client.ForgeHooksClient;
 import net.minecraftforge.client.MinecraftForgeClient;
 import net.minecraftforge.client.event.ModelBakeEvent;
@@ -19,14 +19,17 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.relauncher.Side;
 
-import javax.annotation.Nullable;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
 import java.util.*;
 
 // TODO could probably be combined with new OreBakedModel or AVBBM
 @Mod.EventBusSubscriber(modid = GTValues.MODID, value = Side.CLIENT)
 public class LampBakedModel implements IBakedModel {
 
-    private static final String[] BLOOM_TEXTURE_SUFFIX = {"_bloom", "_emissive", "_bloom_ctm", "_emissive_ctm"};
+    private static final String[] BLOOM_TEXTURE_SUFFIX = { "_bloom", "_emissive", "_bloom_ctm", "_emissive_ctm" };
     private static final Map<Key, Entry> ENTRIES = new Object2ObjectOpenHashMap<>();
 
     public static Entry register(EnumDyeColor color, LampModelType modelType, boolean bloom, boolean active) {
@@ -62,18 +65,19 @@ public class LampBakedModel implements IBakedModel {
             return getFilteredQuads(true, true, state, side, rand);
         } else if (layer == BlockRenderLayer.SOLID) {
             return getFilteredQuads(false, true, state, side, rand);
-        } else if (layer == BloomEffectUtil.BLOOM || layer == BlockRenderLayer.CUTOUT) {
+        } else if (layer == BloomEffectUtil.getBloomLayer() || layer == BlockRenderLayer.CUTOUT) {
             return getFilteredQuads(true, false, state, side, rand);
         } else {
             return Collections.emptyList();
         }
     }
 
-    private List<BakedQuad> getFilteredQuads(boolean emissive, boolean nonEmissive, @Nullable IBlockState state, @Nullable EnumFacing side, long rand) {
+    private List<BakedQuad> getFilteredQuads(boolean emissive, boolean nonEmissive, @Nullable IBlockState state,
+                                             @Nullable EnumFacing side, long rand) {
         if (!emissive && !nonEmissive) return Collections.emptyList();
         List<BakedQuad> quads = new ArrayList<>();
         BlockRenderLayer layer = MinecraftForgeClient.getRenderLayer();
-        ForgeHooksClient.setRenderLayer(null); // Fuck you CTM
+        ForgeHooksClient.setRenderLayer(null); // ctm
         List<BakedQuad> originalQuads = getModel().getQuads(state, side, rand);
         ForgeHooksClient.setRenderLayer(layer);
         for (BakedQuad q : originalQuads) {
@@ -108,16 +112,19 @@ public class LampBakedModel implements IBakedModel {
         return false;
     }
 
+    @NotNull
     @Override
     public TextureAtlasSprite getParticleTexture() {
         return getModel().getParticleTexture();
     }
 
+    @NotNull
     @Override
     public ItemOverrideList getOverrides() {
         return ItemOverrideList.NONE;
     }
 
+    @NotNull
     @Override
     @SuppressWarnings("deprecation")
     public ItemCameraTransforms getItemCameraTransforms() {
@@ -125,7 +132,7 @@ public class LampBakedModel implements IBakedModel {
     }
 
     @Override
-    public boolean isAmbientOcclusion(IBlockState state) {
+    public boolean isAmbientOcclusion(@NotNull IBlockState state) {
         return getModel().isAmbientOcclusion(state);
     }
 
@@ -205,9 +212,9 @@ public class LampBakedModel implements IBakedModel {
                 String baseModelId = "active_lamp_" + key.modelType.modelName.getNamespace() +
                         "_" + key.modelType.modelName.getPath() + "_" + key.color.getName();
                 this.customItemModel = new ModelResourceLocation(
-                        new ResourceLocation(GTValues.MODID, baseModelId + "_item"), "");
+                        GTUtility.gregtechId(baseModelId + "_item"), "");
                 this.customBlockModel = new ModelResourceLocation(
-                        new ResourceLocation(GTValues.MODID, baseModelId + "_block" + (key.bloom ? "_bloom" : "")), "");
+                        GTUtility.gregtechId(baseModelId + "_block" + (key.bloom ? "_bloom" : "")), "");
             } else { // just use original model, no custom code required
                 this.customItemModel = this.customBlockModel = null;
             }

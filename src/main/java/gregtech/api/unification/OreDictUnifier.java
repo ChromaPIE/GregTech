@@ -1,32 +1,32 @@
 package gregtech.api.unification;
 
-import com.google.common.base.Joiner;
-import com.google.common.collect.Sets;
+import gregtech.api.GTValues;
 import gregtech.api.GregTechAPI;
-import gregtech.api.unification.material.MarkerMaterial;
 import gregtech.api.unification.material.Material;
 import gregtech.api.unification.material.properties.PropertyKey;
+import gregtech.api.unification.material.registry.MaterialRegistry;
 import gregtech.api.unification.ore.OrePrefix;
-import gregtech.api.unification.stack.ItemAndMetadata;
-import gregtech.api.unification.stack.ItemMaterialInfo;
-import gregtech.api.unification.stack.MaterialStack;
-import gregtech.api.unification.stack.UnificationEntry;
+import gregtech.api.unification.stack.*;
 import gregtech.api.util.CustomModPriorityComparator;
 import gregtech.api.util.GTUtility;
 import gregtech.common.ConfigHolder;
-import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
-import net.minecraft.block.Block;
+
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
-import net.minecraft.util.NonNullList;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.oredict.OreDictionary;
 import net.minecraftforge.oredict.OreDictionary.OreRegisterEvent;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-import java.util.AbstractMap.SimpleEntry;
+import com.google.common.base.Joiner;
+import com.google.common.collect.Sets;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
 import java.util.*;
+import java.util.AbstractMap.SimpleEntry;
 import java.util.Map.Entry;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -37,12 +37,10 @@ public class OreDictUnifier {
 
     private OreDictUnifier() {}
 
-    //simple version of material registry for marker materials
-    private static final Map<String, MarkerMaterial> markerMaterialRegistry = new Object2ObjectOpenHashMap<>();
     private static final Map<ItemAndMetadata, ItemMaterialInfo> materialUnificationInfo = new Object2ObjectOpenHashMap<>();
     private static final Map<ItemAndMetadata, UnificationEntry> stackUnificationInfo = new Object2ObjectOpenHashMap<>();
     private static final Map<UnificationEntry, ArrayList<ItemAndMetadata>> stackUnificationItems = new Object2ObjectOpenHashMap<>();
-    private static final Map<ItemAndMetadata, Set<String>> stackOreDictName = new Object2ObjectOpenHashMap<>();
+    private static final Map<Item, ItemVariantMap.Mutable<Set<String>>> stackOreDictName = new Object2ObjectOpenHashMap<>();
     private static final Map<String, List<ItemStack>> oreDictNameStacks = new Object2ObjectOpenHashMap<>();
 
     @Nullable
@@ -52,7 +50,7 @@ public class OreDictUnifier {
         if (stackComparator == null) {
             List<String> modPriorities = Arrays.asList(ConfigHolder.compat.modPriorities);
             if (modPriorities.isEmpty()) {
-                //noinspection ConstantConditions
+                // noinspection ConstantConditions
                 Function<ItemAndMetadata, String> modIdExtractor = stack -> stack.item.getRegistryName().getNamespace();
                 stackComparator = Comparator.comparing(modIdExtractor);
             } else {
@@ -65,13 +63,6 @@ public class OreDictUnifier {
     public static Comparator<ItemStack> getItemStackComparator() {
         Comparator<ItemAndMetadata> comparator = getSimpleItemStackComparator();
         return (first, second) -> comparator.compare(new ItemAndMetadata(first), new ItemAndMetadata(second));
-    }
-
-    public static void registerMarkerMaterial(MarkerMaterial markerMaterial) {
-        if (markerMaterialRegistry.containsKey(markerMaterial.toString())) {
-            throw new IllegalArgumentException(("Marker material with id " + markerMaterial + " is already registered!"));
-        }
-        markerMaterialRegistry.put(markerMaterial.toString(), markerMaterial);
     }
 
     public static void registerOre(ItemStack itemStack, ItemMaterialInfo materialInfo) {
@@ -95,8 +86,7 @@ public class OreDictUnifier {
 
     public static void init() {
         for (String registeredOreName : OreDictionary.getOreNames()) {
-            NonNullList<ItemStack> theseOres = OreDictionary.getOres(registeredOreName);
-            for (ItemStack itemStack : theseOres) {
+            for (ItemStack itemStack : OreDictionary.getOres(registeredOreName)) {
                 onItemRegistration(new OreRegisterEvent(registeredOreName, itemStack));
             }
         }
@@ -105,19 +95,26 @@ public class OreDictUnifier {
 
     @SubscribeEvent
     public static void onItemRegistration(OreRegisterEvent event) {
-        ItemAndMetadata key = new ItemAndMetadata(event.getOre());
         String oreName = event.getName();
-        //cache this registration by name
-        stackOreDictName.computeIfAbsent(key, k -> new HashSet<>()).add(oreName);
-        List<ItemStack> itemStackListForOreDictName = oreDictNameStacks.computeIfAbsent(oreName, k -> new ArrayList<>());
+        // cache this registration by name
+        ItemVariantMap.Mutable<Set<String>> entry = stackOreDictName.computeIfAbsent(event.getOre().getItem(),
+                item -> item.getHasSubtypes() ? new MultiItemVariantMap<>() : new SingleItemVariantMap<>());
+        Set<String> set = entry.get(event.getOre());
+        if (set == null) {
+            set = new ObjectOpenHashSet<>();
+            entry.put(event.getOre(), set);
+        }
+        set.add(oreName);
+        List<ItemStack> itemStackListForOreDictName = oreDictNameStacks.computeIfAbsent(oreName,
+                k -> new ArrayList<>());
         addAndSort(itemStackListForOreDictName, event.getOre().copy(), getItemStackComparator());
 
-        //and try to transform registration name into OrePrefix + Material pair
+        // and try to transform registration name into OrePrefix + Material pair
         OrePrefix orePrefix = OrePrefix.getPrefix(oreName);
         Material material = null;
         if (orePrefix == null) {
-            //split ore dict name to parts
-            //oreBasalticMineralSand -> ore, Basaltic, Mineral, Sand
+            // split ore dict name to parts
+            // oreBasalticMineralSand -> ore, Basaltic, Mineral, Sand
             ArrayList<String> splits = new ArrayList<>();
             StringBuilder builder = new StringBuilder();
             for (char character : oreName.toCharArray()) {
@@ -131,31 +128,36 @@ public class OreDictUnifier {
             if (builder.length() > 0) {
                 splits.add(builder.toString());
             }
-            //try to combine in different manners
-            //oreBasaltic MineralSand , ore BasalticMineralSand
-            StringBuilder buffer = new StringBuilder();
-            for (int i = 0; i < splits.size(); i++) {
-                buffer.append(splits.get(i));
-                OrePrefix maybePrefix = OrePrefix.getPrefix(buffer.toString()); //ore -> OrePrefix.ore
-                String possibleMaterialName = Joiner.on("").join(splits.subList(i + 1, splits.size())); //BasalticMineralSand
-                String underscoreName = GTUtility.toLowerCaseUnderscore(possibleMaterialName); //basaltic_mineral_sand
-                Material possibleMaterial = GregTechAPI.MATERIAL_REGISTRY.getObject(underscoreName); //Materials.BasalticSand
-                if (possibleMaterial == null) {
-                    //if we didn't found real material, try using marker material registry
-                    possibleMaterial = markerMaterialRegistry.get(underscoreName);
+            for (MaterialRegistry registry : GregTechAPI.materialManager.getRegistries()) {
+                // try to combine in different manners
+                // oreBasaltic MineralSand , ore BasalticMineralSand
+                StringBuilder buffer = new StringBuilder();
+                for (int i = 0; i < splits.size(); i++) {
+                    buffer.append(splits.get(i));
+                    OrePrefix maybePrefix = OrePrefix.getPrefix(buffer.toString()); // ore -> OrePrefix.ore
+                    String possibleMaterialName = Joiner.on("").join(splits.subList(i + 1, splits.size())); // BasalticMineralSand
+                    String underscoreName = GTUtility.toLowerCaseUnderscore(possibleMaterialName); // basaltic_mineral_sand
+                    Material possibleMaterial = registry.getObject(underscoreName); // Materials.BasalticSand
+                    if (possibleMaterial == null) {
+                        // if we didn't find real material, try using marker material registry
+                        possibleMaterial = GregTechAPI.markerMaterialRegistry.getMarkerMaterial(underscoreName);
+                    }
+                    if (maybePrefix != null && possibleMaterial != null) {
+                        orePrefix = maybePrefix;
+                        material = possibleMaterial;
+                        break;
+                    }
                 }
-                if (maybePrefix != null && possibleMaterial != null) {
-                    orePrefix = maybePrefix;
-                    material = possibleMaterial;
-                    break;
-                }
+                if (material != null) break;
             }
         }
 
-        //finally register item
+        // finally register item
         if (orePrefix != null && (material != null || orePrefix.isSelfReferencing)) {
+            ItemAndMetadata key = new ItemAndMetadata(event.getOre());
             UnificationEntry unificationEntry = new UnificationEntry(orePrefix, material);
-            ArrayList<ItemAndMetadata> itemListForUnifiedEntry = stackUnificationItems.computeIfAbsent(unificationEntry, p -> new ArrayList<>());
+            ArrayList<ItemAndMetadata> itemListForUnifiedEntry = stackUnificationItems.computeIfAbsent(unificationEntry,
+                    p -> new ArrayList<>());
             addAndSort(itemListForUnifiedEntry, key, getSimpleItemStackComparator());
 
             if (!unificationEntry.orePrefix.isMarkerPrefix()) {
@@ -165,22 +167,61 @@ public class OreDictUnifier {
         }
     }
 
-    public static Set<String> getOreDictionaryNames(ItemStack itemStack) {
+    @NotNull
+    public static Set<String> getOreDictionaryNames(@NotNull ItemStack itemStack) {
         if (itemStack.isEmpty()) return Collections.emptySet();
-        ItemAndMetadata key = new ItemAndMetadata(itemStack);
-        Set<String> names = stackOreDictName.get(key);
-        Set<String> wildcardNames = key.isWildcard() ? null : stackOreDictName.get(key.toWildcard());
+        ItemVariantMap<Set<String>> nameEntry = stackOreDictName.get(itemStack.getItem());
+        if (nameEntry == null) return Collections.emptySet();
+        short itemDamage = (short) itemStack.getItemDamage();
+        Set<String> names = nameEntry.get(itemDamage);
+        Set<String> wildcardNames = itemDamage == GTValues.W ? null : nameEntry.get(GTValues.W);
         if (names == null) {
             return wildcardNames == null ? Collections.emptySet() : Collections.unmodifiableSet(wildcardNames);
-        } else if (wildcardNames == null) {
+        } else if (wildcardNames == null || names == wildcardNames) { // single variant items have identical entries
             return Collections.unmodifiableSet(names);
         } else {
             return Sets.union(names, wildcardNames);
         }
     }
 
-    public static List<ItemStack> getAllWithOreDictionaryName(String oreDictionaryName) {
-        return oreDictNameStacks.get(oreDictionaryName).stream()
+    @Nullable
+    public static ItemVariantMap<Set<String>> getOreDictionaryEntry(@NotNull Item item) {
+        ItemVariantMap.Mutable<Set<String>> entry = stackOreDictName.get(item);
+        return entry == null ? null : ItemVariantMap.unmodifiableSetView(entry);
+    }
+
+    @NotNull
+    public static ItemVariantMap<Set<String>> getOreDictionaryEntryOrEmpty(@NotNull Item item) {
+        ItemVariantMap.Mutable<Set<String>> entry = stackOreDictName.get(item);
+        return entry == null ? ItemVariantMap.empty() : ItemVariantMap.unmodifiableSetView(entry);
+    }
+
+    public static boolean hasOreDictionaryEntry(@NotNull Item item) {
+        return stackOreDictName.containsKey(item);
+    }
+
+    public static boolean hasOreDictionary(@NotNull ItemStack itemStack, @NotNull String oreDictName) {
+        if (itemStack.isEmpty()) return false;
+        ItemVariantMap<Set<String>> nameEntry = stackOreDictName.get(itemStack.getItem());
+        if (nameEntry == null) return false;
+
+        short itemDamage = (short) itemStack.getItemDamage();
+        Set<String> names = nameEntry.get(itemDamage);
+        if (names != null && names.contains(oreDictName)) return true;
+
+        if (itemDamage == GTValues.W) return false;
+
+        Set<String> wildcardNames = nameEntry.get(GTValues.W);
+        return wildcardNames != null && wildcardNames != names && wildcardNames.contains(oreDictName);
+    }
+
+    public static @NotNull List<@NotNull ItemStack> getAllWithOreDictionaryName(@NotNull String oreDictionaryName) {
+        var stacks = oreDictNameStacks.get(oreDictionaryName);
+        if (stacks == null) {
+            return Collections.emptyList();
+        }
+
+        return stacks.stream()
                 .map(ItemStack::copy)
                 .collect(Collectors.toList());
     }
@@ -216,10 +257,6 @@ public class OreDictUnifier {
         return entry != null ? entry.orePrefix : null;
     }
 
-    public static OrePrefix getPrefix(Block block) {
-        return getPrefix(new ItemStack(block));
-    }
-
     @Nullable
     public static UnificationEntry getUnificationEntry(ItemStack itemStack) {
         if (itemStack.isEmpty()) return null;
@@ -229,7 +266,8 @@ public class OreDictUnifier {
     public static ItemStack getUnificated(ItemStack itemStack) {
         if (itemStack.isEmpty()) return ItemStack.EMPTY;
         UnificationEntry unificationEntry = getUnificationEntry(itemStack);
-        if (unificationEntry == null || !stackUnificationItems.containsKey(unificationEntry) || !unificationEntry.orePrefix.isUnificationEnabled)
+        if (unificationEntry == null || !stackUnificationItems.containsKey(unificationEntry) ||
+                !unificationEntry.orePrefix.isUnificationEnabled)
             return itemStack;
         ArrayList<ItemAndMetadata> keys = stackUnificationItems.get(unificationEntry);
         return keys.size() > 0 ? keys.get(0).toItemStack(itemStack.getCount()) : itemStack;
@@ -317,9 +355,8 @@ public class OreDictUnifier {
     }
 
     public static ItemStack getGem(MaterialStack materialStack) {
-        if (materialStack.material.hasProperty(PropertyKey.GEM)
-                && !OrePrefix.gem.isIgnored(materialStack.material)
-                && materialStack.amount == OrePrefix.gem.getMaterialAmount(materialStack.material)) {
+        if (materialStack.material.hasProperty(PropertyKey.GEM) && !OrePrefix.gem.isIgnored(materialStack.material) &&
+                materialStack.amount == OrePrefix.gem.getMaterialAmount(materialStack.material)) {
             return get(OrePrefix.gem, materialStack.material, (int) (materialStack.amount / M));
         }
         return getDust(materialStack);
@@ -340,8 +377,8 @@ public class OreDictUnifier {
      * @return value corresponding to given key or its wildcard counterpart
      */
     @Nullable
-    private static <T> T getOrWildcard(@Nonnull Map<ItemAndMetadata, T> map,
-                                       @Nonnull ItemAndMetadata key) {
+    private static <T> T getOrWildcard(@NotNull Map<ItemAndMetadata, T> map,
+                                       @NotNull ItemAndMetadata key) {
         T t = map.get(key);
         if (t != null) return t;
         if (key.isWildcard()) return null;

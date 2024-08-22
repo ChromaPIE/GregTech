@@ -102,12 +102,25 @@ public class MixerRecipes {
                 .fluidOutputs(DrillingFluid.getFluid(5000))
                 .duration(64).EUt(16).buildAndRegister();
 
+        MIXER_RECIPES.recipeBuilder()
+                .input(dust, Stone)
+                .fluidInputs(Lubricant.getFluid(20))
+                .fluidInputs(DistilledWater.getFluid(4980))
+                .fluidOutputs(DrillingFluid.getFluid(5000))
+                .duration(48).EUt(16).buildAndRegister();
+
         MIXER_RECIPES.recipeBuilder().duration(160).EUt(VA[HV])
                 .input(dust, Beryllium)
                 .input(dust, Potassium, 4)
                 .fluidInputs(Nitrogen.getFluid(5000))
                 .circuitMeta(1)
                 .output(dust, EnderPearl, 10)
+                .buildAndRegister();
+
+        MIXER_RECIPES.recipeBuilder().duration(200).EUt(VA[HV])
+                .fluidInputs(PolychlorinatedBiphenyl.getFluid(750))
+                .fluidInputs(DistilledWater.getFluid(250))
+                .fluidOutputs(PCBCoolant.getFluid(1000))
                 .buildAndRegister();
 
         // Alloys
@@ -230,6 +243,19 @@ public class MixerRecipes {
                 .input(dust, Steel, 3)
                 .circuitMeta(1)
                 .output(dust, BlackSteel, 5)
+                .buildAndRegister();
+
+        // Black Steel shortcut
+        // Normal recipe would be 125 ticks per recipe at HV overclock, plus 125 ticks for the Black Bronze step,
+        // for a total of 750 ticks. This recipe is 5 batches at once, so is equivalent time but saves a step.
+        MIXER_RECIPES.recipeBuilder().duration(750).EUt(VA[HV])
+                .input(dust, Copper, 3)
+                .input(dust, Gold)
+                .input(dust, Silver)
+                .input(dust, Nickel, 5)
+                .input(dust, Steel, 15)
+                .circuitMeta(2)
+                .output(dust, BlackSteel, 25)
                 .buildAndRegister();
 
         MIXER_RECIPES.recipeBuilder().duration(600).EUt(VA[ULV])
@@ -508,7 +534,7 @@ public class MixerRecipes {
                 .buildAndRegister();
 
         MIXER_RECIPES.recipeBuilder().duration(200).EUt(VA[EV])
-                .input(dust, Uranium238)
+                .input(dust, Uranium)
                 .input(dust, Platinum, 3)
                 .circuitMeta(4)
                 .output(dust, UraniumTriplatinum, 4)
@@ -535,7 +561,7 @@ public class MixerRecipes {
                 .buildAndRegister();
 
         MIXER_RECIPES.recipeBuilder().duration(150).EUt(VA[ZPM])
-                .input(dust, Uranium238)
+                .input(dust, Uranium)
                 .input(dust, Rhodium)
                 .input(dust, Naquadah, 2)
                 .circuitMeta(4)
@@ -559,6 +585,32 @@ public class MixerRecipes {
                 .fluidInputs(Oxygen.getFluid(8000))
                 .circuitMeta(4)
                 .output(dust, RutheniumTriniumAmericiumNeutronate, 14)
+                .buildAndRegister();
+
+        MIXER_RECIPES.recipeBuilder().duration(300).EUt(VA[EV])
+                .input(dust, Ruthenium, 4)
+                .input(dust, Tungsten, 2)
+                .input(dust, Molybdenum)
+                .circuitMeta(1)
+                .output(dust, RTMAlloy, 7)
+                .buildAndRegister();
+
+        MIXER_RECIPES.recipeBuilder().duration(600).EUt(VA[EV])
+                .input(dust, Zirconium, 16)
+                .input(dust, Tin, 2)
+                .input(dust, Chrome, 1)
+                .circuitMeta(1)
+                .output(dust, Zircaloy4, 19)
+                .buildAndRegister();
+
+        MIXER_RECIPES.recipeBuilder().duration(400).EUt(VA[EV])
+                .input(dust, Nickel, 5)
+                .input(dust, Chrome, 2)
+                .input(dust, Iron, 2)
+                .input(dust, Niobium)
+                .input(dust, Molybdenum)
+                .circuitMeta(4)
+                .output(dust, Inconel718, 11)
                 .buildAndRegister();
     }
 }

@@ -1,22 +1,21 @@
 package gregtech.api.capability.impl;
 
-import gnu.trove.map.TIntObjectMap;
-import gnu.trove.map.hash.TIntObjectHashMap;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.IItemHandlerModifiable;
 
-import javax.annotation.Nonnull;
-import java.util.IdentityHashMap;
-import java.util.List;
-import java.util.Map;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import org.jetbrains.annotations.NotNull;
+
+import java.util.*;
 
 /**
  * Efficiently delegates calls into multiple item handlers
  */
 public class ItemHandlerList implements IItemHandlerModifiable {
 
-    private final TIntObjectMap<IItemHandler> handlerBySlotIndex = new TIntObjectHashMap<>();
+    private final Int2ObjectMap<IItemHandler> handlerBySlotIndex = new Int2ObjectOpenHashMap<>();
     private final Map<IItemHandler, Integer> baseIndexOffset = new IdentityHashMap<>();
 
     public ItemHandlerList(List<? extends IItemHandler> itemHandlerList) {
@@ -40,14 +39,14 @@ public class ItemHandlerList implements IItemHandlerModifiable {
     }
 
     @Override
-    public void setStackInSlot(int slot, @Nonnull ItemStack stack) {
+    public void setStackInSlot(int slot, @NotNull ItemStack stack) {
         IItemHandler itemHandler = handlerBySlotIndex.get(slot);
         if (!(itemHandler instanceof IItemHandlerModifiable))
             throw new UnsupportedOperationException("Handler " + itemHandler + " does not support this method");
         ((IItemHandlerModifiable) itemHandler).setStackInSlot(slot - baseIndexOffset.get(itemHandler), stack);
     }
 
-    @Nonnull
+    @NotNull
     @Override
     public ItemStack getStackInSlot(int slot) {
         IItemHandler itemHandler = handlerBySlotIndex.get(slot);
@@ -61,18 +60,22 @@ public class ItemHandlerList implements IItemHandlerModifiable {
         return itemHandler.getSlotLimit(slot - baseIndexOffset.get(itemHandler));
     }
 
-    @Nonnull
+    @NotNull
     @Override
-    public ItemStack insertItem(int slot, @Nonnull ItemStack stack, boolean simulate) {
+    public ItemStack insertItem(int slot, @NotNull ItemStack stack, boolean simulate) {
         IItemHandler itemHandler = handlerBySlotIndex.get(slot);
         return itemHandler.insertItem(slot - baseIndexOffset.get(itemHandler), stack, simulate);
     }
 
-    @Nonnull
+    @NotNull
     @Override
     public ItemStack extractItem(int slot, int amount, boolean simulate) {
         IItemHandler itemHandler = handlerBySlotIndex.get(slot);
         return itemHandler.extractItem(slot - baseIndexOffset.get(itemHandler), amount, simulate);
     }
 
+    @NotNull
+    public Collection<IItemHandler> getBackingHandlers() {
+        return Collections.unmodifiableCollection(handlerBySlotIndex.values());
+    }
 }

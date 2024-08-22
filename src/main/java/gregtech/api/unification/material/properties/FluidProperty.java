@@ -1,99 +1,133 @@
 package gregtech.api.unification.material.properties;
 
-import com.google.common.base.Preconditions;
-import gregtech.api.fluids.fluidType.FluidType;
-import gregtech.api.fluids.fluidType.FluidTypes;
+import gregtech.api.fluids.FluidBuilder;
+import gregtech.api.fluids.store.FluidStorage;
+import gregtech.api.fluids.store.FluidStorageImpl;
+import gregtech.api.fluids.store.FluidStorageKey;
+import gregtech.api.fluids.store.FluidStorageKeys;
+import gregtech.api.unification.material.Material;
+
 import net.minecraftforge.fluids.Fluid;
 import net.minecraftforge.fluids.FluidStack;
 
-import javax.annotation.Nonnull;
+import org.jetbrains.annotations.ApiStatus;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
-public class FluidProperty implements IMaterialProperty<FluidProperty> {
+public class FluidProperty implements IMaterialProperty, FluidStorage {
 
-    public static final int BASE_TEMP = 293; // Room Temperature
+    private final FluidStorageImpl storage = new FluidStorageImpl();
+    private FluidStorageKey primaryKey = null;
+    private @Nullable Fluid solidifyingFluid = null;
 
-    /**
-     * Internal material fluid field
-     */
-    private Fluid fluid;
-
-    private final FluidType fluidType;
-
-    private boolean hasBlock;
-    private boolean isGas;
-    private int fluidTemperature = BASE_TEMP;
-
-    public FluidProperty(@Nonnull FluidType fluidType, boolean hasBlock) {
-        this.fluidType = fluidType;
-        this.isGas = fluidType == FluidTypes.GAS;
-        this.hasBlock = hasBlock;
-    }
+    public FluidProperty() {}
 
     /**
-     * Default values of: no Block, not Gas.
+     * Helper constructor which automatically calls {@link #enqueueRegistration(FluidStorageKey, FluidBuilder)} for a
+     * builder.
+     * <p>
+     * This is primarily useful for adding FluidProperties to materials after they are registered with a single fluid
+     * stored.
+     *
+     * @param key     the fluid storage key to store the builder with
+     * @param builder the builder to enqueue
      */
-    public FluidProperty() {
-        this(FluidTypes.LIQUID, false);
-    }
-
-    public boolean isGas() {
-        return isGas;
+    public FluidProperty(@NotNull FluidStorageKey key, @NotNull FluidBuilder builder) {
+        enqueueRegistration(key, builder);
     }
 
     /**
-     * internal usage only
+     * Obsolete method, FluidProperty now contains this functionality.
+     *
+     * @deprecated {@link FluidStorage}
      */
-    public void setFluid(@Nonnull Fluid materialFluid) {
-        Preconditions.checkNotNull(materialFluid);
-        this.fluid = materialFluid;
+    @ApiStatus.ScheduledForRemoval(inVersion = "2.9")
+    @Deprecated
+    public @NotNull FluidStorage getStorage() {
+        return this;
     }
 
-    public Fluid getFluid() {
-        return fluid;
+    /**
+     * @see FluidStorageImpl#registerFluids(Material)
+     */
+    @ApiStatus.Internal
+    public void registerFluids(@NotNull Material material) {
+        this.storage.registerFluids(material);
     }
 
-    public boolean hasBlock() {
-        return hasBlock;
+    @Override
+    public void enqueueRegistration(@NotNull FluidStorageKey key, @NotNull FluidBuilder builder) {
+        storage.enqueueRegistration(key, builder);
+        if (primaryKey == null) {
+            primaryKey = key;
+        }
     }
 
-    public void setHasBlock(boolean hasBlock) {
-        this.hasBlock = hasBlock;
+    @Override
+    public void store(@NotNull FluidStorageKey key, @NotNull Fluid fluid) {
+        storage.store(key, fluid);
+        if (primaryKey == null) {
+            primaryKey = key;
+        }
     }
 
-    public void setIsGas(boolean isGas) {
-        this.isGas = isGas;
+    @Override
+    public @Nullable Fluid get(@NotNull FluidStorageKey key) {
+        return storage.get(key);
     }
 
-    @Nonnull
-    public FluidStack getFluid(int amount) {
-        return new FluidStack(fluid, amount);
+    @Override
+    public @Nullable FluidBuilder getQueuedBuilder(@NotNull FluidStorageKey key) {
+        return storage.getQueuedBuilder(key);
     }
 
-    public void setFluidTemperature(int fluidTemperature) {
-        setFluidTemperature(fluidTemperature, true);
+    /**
+     *
+     * @return the key the fluid is stored with primarily
+     */
+    public @NotNull FluidStorageKey getPrimaryKey() {
+        return primaryKey;
     }
 
-    public void setFluidTemperature(int fluidTemperature, boolean isKelvin) {
-        if (isKelvin) Preconditions.checkArgument(fluidTemperature >= 0, "Invalid temperature");
-        else fluidTemperature += 273;
-        this.fluidTemperature = fluidTemperature;
-        if (fluid != null)
-            fluid.setTemperature(fluidTemperature);
-    }
-
-    public int getFluidTemperature() {
-        return fluidTemperature;
-    }
-
-    @Nonnull
-    public FluidType getFluidType() {
-        return this.fluidType;
+    /**
+     * @param primaryKey the key to use primarily
+     */
+    public void setPrimaryKey(@NotNull FluidStorageKey primaryKey) {
+        this.primaryKey = primaryKey;
     }
 
     @Override
     public void verifyProperty(MaterialProperties properties) {
-        if (properties.hasProperty(PropertyKey.PLASMA)) {
-            hasBlock = false;
+        if (this.primaryKey == null) {
+            throw new IllegalStateException("FluidProperty cannot be empty");
         }
+    }
+
+    /**
+     * @return the Fluid which solidifies into the material.
+     */
+    public @Nullable Fluid solidifiesFrom() {
+        if (this.solidifyingFluid == null) {
+            return storage.get(FluidStorageKeys.LIQUID);
+        }
+        return solidifyingFluid;
+    }
+
+    /**
+     * @param amount the size of the returned FluidStack.
+     * @return a FluidStack of the Fluid which solidifies into the material.
+     */
+    public FluidStack solidifiesFrom(int amount) {
+        return new FluidStack(solidifiesFrom(), amount);
+    }
+
+    /**
+     * Sets the fluid that solidifies into the material.
+     * 
+     * @param solidifyingFluid The Fluid which solidifies into the material. If left null, it will be left as the
+     *                         default value: the material's liquid.
+     */
+    public void setSolidifyingFluid(@Nullable Fluid solidifyingFluid) {
+        this.solidifyingFluid = solidifyingFluid;
     }
 }

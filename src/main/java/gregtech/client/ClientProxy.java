@@ -1,16 +1,16 @@
 package gregtech.client;
 
-import codechicken.lib.texture.TextureUtils;
 import gregtech.api.GTValues;
-import gregtech.api.fluids.MetaFluids;
+import gregtech.api.fluids.GTFluidRegistration;
 import gregtech.api.items.metaitem.MetaOreDictItem;
 import gregtech.api.items.toolitem.IGTTool;
 import gregtech.api.terminal.TerminalRegistry;
 import gregtech.api.unification.OreDictUnifier;
+import gregtech.api.unification.material.Materials;
 import gregtech.api.unification.stack.UnificationEntry;
 import gregtech.api.util.FluidTooltipUtil;
 import gregtech.api.util.IBlockOre;
-import gregtech.api.util.ModCompatibility;
+import gregtech.api.util.Mods;
 import gregtech.client.model.customtexture.CustomTextureModelHandler;
 import gregtech.client.model.customtexture.MetadataSectionCTM;
 import gregtech.client.renderer.handler.FacadeRenderer;
@@ -18,19 +18,22 @@ import gregtech.client.renderer.handler.MetaTileEntityRenderer;
 import gregtech.client.renderer.pipe.CableRenderer;
 import gregtech.client.renderer.pipe.FluidPipeRenderer;
 import gregtech.client.renderer.pipe.ItemPipeRenderer;
+import gregtech.client.renderer.pipe.LaserPipeRenderer;
+import gregtech.client.renderer.pipe.OpticalPipeRenderer;
+import gregtech.client.renderer.pipe.PipeRenderer;
+import gregtech.client.utils.ItemRenderCompat;
 import gregtech.client.utils.TooltipHelper;
 import gregtech.common.CommonProxy;
 import gregtech.common.ConfigHolder;
 import gregtech.common.MetaEntities;
-import gregtech.common.blocks.*;
+import gregtech.common.blocks.BlockCompressed;
+import gregtech.common.blocks.BlockFrame;
+import gregtech.common.blocks.MetaBlocks;
 import gregtech.common.items.MetaItems;
 import gregtech.common.items.ToolItems;
+
 import net.minecraft.block.Block;
-import net.minecraft.block.BlockColored;
-import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.color.IBlockColor;
-import net.minecraft.client.renderer.color.IItemColor;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.client.resources.SimpleReloadableResourceManager;
 import net.minecraft.entity.player.EntityPlayer;
@@ -42,9 +45,7 @@ import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.item.ItemBlock;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.text.TextFormatting;
-import net.minecraft.world.IBlockAccess;
 import net.minecraftforge.client.event.ModelRegistryEvent;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.util.Constants;
@@ -52,16 +53,17 @@ import net.minecraftforge.event.entity.player.ItemTooltipEvent;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.IFluidBlock;
 import net.minecraftforge.fluids.capability.templates.FluidHandlerItemStack;
-import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import net.minecraftforge.oredict.OreDictionary;
+
+import codechicken.lib.texture.TextureUtils;
+import org.jetbrains.annotations.NotNull;
 import paulscode.sound.SoundSystemConfig;
 
-import javax.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -70,65 +72,28 @@ import java.util.Optional;
 @Mod.EventBusSubscriber(Side.CLIENT)
 public class ClientProxy extends CommonProxy {
 
-    public static final IBlockColor COMPRESSED_BLOCK_COLOR = (IBlockState state, IBlockAccess worldIn, BlockPos pos, int tintIndex) ->
-            state.getValue(((BlockCompressed) state.getBlock()).variantProperty).getMaterialRGB();
-
-    public static final IItemColor COMPRESSED_ITEM_COLOR = (stack, tintIndex) -> {
-        BlockCompressed block = (BlockCompressed) ((ItemBlock) stack.getItem()).getBlock();
-        IBlockState state = block.getStateFromMeta(stack.getItemDamage());
-        return state.getValue(block.variantProperty).getMaterialRGB();
-    };
-
-    public static final IBlockColor FRAME_BLOCK_COLOR = (IBlockState state, IBlockAccess worldIn, BlockPos pos, int tintIndex) ->
-            state.getValue(((BlockFrame) state.getBlock()).variantProperty).getMaterialRGB();
-
-    public static final IItemColor FRAME_ITEM_COLOR = (stack, tintIndex) -> {
-        BlockFrame block = (BlockFrame) ((ItemBlock) stack.getItem()).getBlock();
-        IBlockState state = block.getStateFromMeta(stack.getItemDamage());
-        return state.getValue(block.variantProperty).getMaterialRGB();
-    };
-
-    public static final IBlockColor ORE_BLOCK_COLOR = (IBlockState state, IBlockAccess worldIn, BlockPos pos, int tintIndex) ->
-            tintIndex == 1 ? ((BlockOre) state.getBlock()).material.getMaterialRGB() : 0xFFFFFF;
-
-    public static final IItemColor ORE_ITEM_COLOR = (stack, tintIndex) ->
-            tintIndex == 1 ? ((BlockOre) ((ItemBlock) stack.getItem()).getBlock()).material.getMaterialRGB() : 0xFFFFFF;
-
-    public static final IBlockColor FOAM_BLOCK_COLOR = (IBlockState state, IBlockAccess worldIn, BlockPos pos, int tintIndex) ->
-            state.getValue(BlockColored.COLOR).colorValue;
-
-    public static final IBlockColor SURFACE_ROCK_BLOCK_COLOR = (IBlockState state, IBlockAccess worldIn, BlockPos pos, int tintIndex) ->
-            tintIndex == 1 ? state.getValue(((BlockSurfaceRock) state.getBlock()).variantProperty).getMaterialRGB() : -1;
-
-    public static final IBlockColor RUBBER_LEAVES_BLOCK_COLOR = (IBlockState state, IBlockAccess worldIn, BlockPos pos, int tintIndex) ->
-            0x98de4b;
-
-    public static final IItemColor RUBBER_LEAVES_ITEM_COLOR = (stack, tintIndex) -> 0x98de4b;
-
-    public static final IBlockColor MACHINE_CASING_BLOCK_COLOR = (state, world, pos, tintIndex) ->
-            state.getBlock() instanceof BlockMachineCasing && MetaBlocks.MACHINE_CASING.getMetaFromState(state) == 0 ? 0xFFFFFF : ConfigHolder.client.defaultPaintingColor;
-
-    public static final IItemColor MACHINE_CASING_ITEM_COLOR = (stack, tintIndex) ->
-            stack.getItemDamage() == 0 && ((ItemBlock) stack.getItem()).getBlock() instanceof BlockMachineCasing ? 0xFFFFFF : ConfigHolder.client.defaultPaintingColor;
-
     public void onPreLoad() {
         super.onPreLoad();
 
         SoundSystemConfig.setNumberNormalChannels(ConfigHolder.client.maxNumSounds);
 
-        if (!Loader.isModLoaded(GTValues.MODID_CTM)) {
-            Minecraft.getMinecraft().metadataSerializer.registerMetadataSectionType(new MetadataSectionCTM.Serializer(), MetadataSectionCTM.class);
+        if (!Mods.CTM.isModLoaded()) {
+            Minecraft.getMinecraft().metadataSerializer.registerMetadataSectionType(new MetadataSectionCTM.Serializer(),
+                    MetadataSectionCTM.class);
             MinecraftForge.EVENT_BUS.register(CustomTextureModelHandler.INSTANCE);
-            ((SimpleReloadableResourceManager) Minecraft.getMinecraft().getResourceManager()).registerReloadListener(CustomTextureModelHandler.INSTANCE);
+            ((SimpleReloadableResourceManager) Minecraft.getMinecraft().getResourceManager())
+                    .registerReloadListener(CustomTextureModelHandler.INSTANCE);
         }
 
         MetaTileEntityRenderer.preInit();
         CableRenderer.INSTANCE.preInit();
         FluidPipeRenderer.INSTANCE.preInit();
         ItemPipeRenderer.INSTANCE.preInit();
+        OpticalPipeRenderer.INSTANCE.preInit();
+        LaserPipeRenderer.INSTANCE.preInit();
         MetaEntities.initRenderers();
-        MetaFluids.initIconFluidSprites();
-        TextureUtils.addIconRegister(MetaFluids::registerSprites);
+        TextureUtils.addIconRegister(GTFluidRegistration.INSTANCE::registerSprites);
+        TextureUtils.addIconRegister(PipeRenderer::initializeRestrictor);
     }
 
     @Override
@@ -141,7 +106,7 @@ public class ClientProxy extends CommonProxy {
     public void onPostLoad() {
         super.onPostLoad();
         TerminalRegistry.initTerminalFiles();
-        ModCompatibility.initCompat();
+        ItemRenderCompat.init();
         FacadeRenderer.init();
     }
 
@@ -160,11 +125,12 @@ public class ClientProxy extends CommonProxy {
     }
 
     @SubscribeEvent
-    public static void addMaterialFormulaHandler(@Nonnull ItemTooltipEvent event) {
+    public static void addMaterialFormulaHandler(@NotNull ItemTooltipEvent event) {
         ItemStack itemStack = event.getItemStack();
         if (itemStack.getItem() instanceof ItemBlock) {
             Block block = ((ItemBlock) itemStack.getItem()).getBlock();
-            if (!(block instanceof BlockFrame) && !(block instanceof BlockCompressed) && !(block instanceof IBlockOre) && !(block instanceof IFluidBlock)) {
+            if (!(block instanceof BlockFrame) && !(block instanceof BlockCompressed) &&
+                    !(block instanceof IBlockOre) && !(block instanceof IFluidBlock)) {
                 // Do not apply this tooltip to blocks other than:
                 // - Frames
                 // - Compressed Blocks
@@ -183,30 +149,36 @@ public class ClientProxy extends CommonProxy {
         if (itemStack.getItem() instanceof MetaOreDictItem) { // Test for OreDictItems
             MetaOreDictItem oreDictItem = (MetaOreDictItem) itemStack.getItem();
             Optional<String> oreDictName = OreDictUnifier.getOreDictionaryNames(itemStack).stream().findFirst();
-            if (oreDictName.isPresent() && oreDictItem.OREDICT_TO_FORMULA.containsKey(oreDictName.get()) && !oreDictItem.OREDICT_TO_FORMULA.get(oreDictName.get()).isEmpty()) {
+            if (oreDictName.isPresent() && oreDictItem.OREDICT_TO_FORMULA.containsKey(oreDictName.get()) &&
+                    !oreDictItem.OREDICT_TO_FORMULA.get(oreDictName.get()).isEmpty()) {
                 tooltips.add(TextFormatting.YELLOW + oreDictItem.OREDICT_TO_FORMULA.get(oreDictName.get()));
             }
         } else if (unificationEntry != null && unificationEntry.material != null) {
-            if (unificationEntry.material.getChemicalFormula() != null && !unificationEntry.material.getChemicalFormula().isEmpty())
+            if (unificationEntry.material.getChemicalFormula() != null &&
+                    !unificationEntry.material.getChemicalFormula().isEmpty())
                 tooltips.add(TextFormatting.YELLOW + unificationEntry.material.getChemicalFormula());
         } else if (itemStack.hasTagCompound()) { // Test for Fluids
             // Vanilla bucket
-            //noinspection ConstantConditions
+            // noinspection ConstantConditions
             tooltips = FluidTooltipUtil.getFluidTooltip(itemStack.getTagCompound().getString("FluidName"));
 
             // GTCE Cells, Forestry cans, some other containers
             if (tooltips == null || tooltips.size() == 0) {
-                //if (itemStack.getItem() instanceof ItemBlock && ((ItemBlock) itemStack.getItem()).getBlock() == GregTechAPI.MACHINE && itemStack.getItemDamage())
+                // if (itemStack.getItem() instanceof ItemBlock && ((ItemBlock) itemStack.getItem()).getBlock() ==
+                // GregTechAPI.MACHINE && itemStack.getItemDamage())
                 NBTTagCompound compound = itemStack.getTagCompound();
-                if (compound != null && compound.hasKey(FluidHandlerItemStack.FLUID_NBT_KEY, Constants.NBT.TAG_COMPOUND)) {
-                    FluidStack fstack = FluidStack.loadFluidStackFromNBT(compound.getCompoundTag(FluidHandlerItemStack.FLUID_NBT_KEY));
+                if (compound != null &&
+                        compound.hasKey(FluidHandlerItemStack.FLUID_NBT_KEY, Constants.NBT.TAG_COMPOUND)) {
+                    FluidStack fstack = FluidStack
+                            .loadFluidStackFromNBT(compound.getCompoundTag(FluidHandlerItemStack.FLUID_NBT_KEY));
                     tooltips = FluidTooltipUtil.getFluidTooltip(fstack);
                 }
             }
-        } else if (itemStack.getItem().equals(Items.WATER_BUCKET)) { // Water and Lava buckets have a separate registry name from other buckets
-            tooltips = FluidTooltipUtil.getWaterTooltip();
+        } else if (itemStack.getItem().equals(Items.WATER_BUCKET)) { // Water and Lava buckets have a separate registry
+                                                                     // name from other buckets
+            tooltips = FluidTooltipUtil.getFluidTooltip(Materials.Water.getFluid());
         } else if (itemStack.getItem().equals(Items.LAVA_BUCKET)) {
-            tooltips = FluidTooltipUtil.getLavaTooltip();
+            tooltips = FluidTooltipUtil.getFluidTooltip(Materials.Lava.getFluid());
         }
 
         if (tooltips != null) {
@@ -217,7 +189,7 @@ public class ClientProxy extends CommonProxy {
         }
     }
 
-    private static final String[] clearRecipes = new String[]{
+    private static final String[] clearRecipes = new String[] {
             "quantum_tank",
             "quantum_chest",
             "super_chest",
@@ -249,7 +221,7 @@ public class ClientProxy extends CommonProxy {
                 if (stackResult == event.getItemStack()) {
                     if (!stackResult.isEmpty() && ItemStack.areItemsEqual(stackResult, event.getItemStack())) {
                         String unlocalizedName = stackResult.getTranslationKey();
-                        //noinspection ConstantConditions
+                        // noinspection ConstantConditions
                         String namespace = stackResult.getItem().getRegistryName().getNamespace();
                         for (String key : clearRecipes) {
                             if (unlocalizedName.contains(key) && namespace.equals(GTValues.MODID)) {
@@ -284,15 +256,19 @@ public class ClientProxy extends CommonProxy {
             // Remove durability keys. These can always be removed, as GT puts one of its own in the tooltip already.
             if (stack.getItem() instanceof IGTTool) {
                 // vanilla durability key
-                tooltip.remove(I18n.format("item.durability", stack.getMaxDamage() - stack.getItemDamage(), stack.getMaxDamage()));
+                tooltip.remove(I18n.format("item.durability", stack.getMaxDamage() - stack.getItemDamage(),
+                        stack.getMaxDamage()));
                 // EnderCore durability key
-                tooltip.remove(net.minecraft.util.text.translation.I18n.translateToLocal("endercore.tooltip.durability") + " " + (stack.getMaxDamage() - stack.getItemDamage()) + "/" + stack.getMaxDamage());
+                tooltip.remove(
+                        net.minecraft.util.text.translation.I18n.translateToLocal("endercore.tooltip.durability") +
+                                " " + (stack.getMaxDamage() - stack.getItemDamage()) + "/" + stack.getMaxDamage());
             }
 
             // MC and EnderCore debug tooltips. Remove these always, as we will format them differently later
             String nbtTags = null, registryName = null;
             if (stack.getTagCompound() != null) {
-                nbtTags = TextFormatting.DARK_GRAY + I18n.format("item.nbt_tags", stack.getTagCompound().getKeySet().size());
+                nbtTags = TextFormatting.DARK_GRAY +
+                        I18n.format("item.nbt_tags", stack.getTagCompound().getKeySet().size());
                 tooltip.remove(nbtTags);
             }
             if (stack.getItem().getRegistryName() != null) {
@@ -307,7 +283,8 @@ public class ClientProxy extends CommonProxy {
                 if (TooltipHelper.isShiftDown()) {
                     int[] oreIds = OreDictionary.getOreIDs(event.getItemStack());
                     if (oreIds.length > 0) {
-                        tooltip.remove(net.minecraft.util.text.translation.I18n.translateToLocal("endercore.tooltip.oreDictNames"));
+                        tooltip.remove(net.minecraft.util.text.translation.I18n
+                                .translateToLocal("endercore.tooltip.oreDictNames"));
                         for (int i : oreIds) {
                             tooltip.remove("  - " + OreDictionary.getOreName(i));
                         }
@@ -323,9 +300,11 @@ public class ClientProxy extends CommonProxy {
 
     private static boolean hasActuallyAdvancedInfo(List<String> tooltip) {
         // Actually Additions Keys
-        if (tooltip.contains(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + I18n.format("tooltip.actuallyadditions.extraInfo.desc") + ":"))
+        if (tooltip.contains(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC +
+                I18n.format("tooltip.actuallyadditions.extraInfo.desc") + ":"))
             return true;
-        if (tooltip.contains(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + I18n.format("tooltip.actuallyadditions.ctrlForMoreInfo.desc")))
+        if (tooltip.contains(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC +
+                I18n.format("tooltip.actuallyadditions.ctrlForMoreInfo.desc")))
             return true;
         // Actually Advanced Info Keys
         if (tooltip.contains(TextFormatting.DARK_GRAY + "" + TextFormatting.ITALIC + "Advanced Info:")) return true;

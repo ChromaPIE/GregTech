@@ -3,9 +3,10 @@ package gregtech.api.worldgen.bedrockFluids;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.math.ChunkPos;
 
-import javax.annotation.Nonnull;
+import org.jetbrains.annotations.NotNull;
 
 public class ChunkPosDimension extends ChunkPos {
+
     public int dimension;
 
     public ChunkPosDimension(int dimension, int x, int z) {
@@ -25,7 +26,12 @@ public class ChunkPosDimension extends ChunkPos {
         return this.dimension == coordinatePair.dimension && this.x == coordinatePair.x && this.z == coordinatePair.z;
     }
 
-    @Nonnull
+    @Override
+    public int hashCode() {
+        return super.hashCode() ^ (31 + dimension);
+    }
+
+    @NotNull
     @Override
     public String toString() {
         return "[dim:" + this.dimension + "; " + this.x + ", " + this.z + "]";

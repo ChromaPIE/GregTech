@@ -9,16 +9,15 @@ import java.util.*;
 public class MaterialProperties {
 
     private static final Set<PropertyKey<?>> baseTypes = new HashSet<>(Arrays.asList(
-            PropertyKey.PLASMA, PropertyKey.FLUID, PropertyKey.DUST,
-            PropertyKey.INGOT, PropertyKey.GEM, PropertyKey.EMPTY
-    ));
+            PropertyKey.FLUID, PropertyKey.DUST,
+            PropertyKey.INGOT, PropertyKey.GEM, PropertyKey.EMPTY));
 
     @SuppressWarnings("unused")
     public static void addBaseType(PropertyKey<?> baseTypeKey) {
         baseTypes.add(baseTypeKey);
     }
 
-    private final Map<PropertyKey<? extends IMaterialProperty<?>>, IMaterialProperty<?>> propertyMap;
+    private final Map<PropertyKey<? extends IMaterialProperty>, IMaterialProperty> propertyMap;
     private Material material;
 
     public MaterialProperties() {
@@ -29,15 +28,15 @@ public class MaterialProperties {
         return propertyMap.isEmpty();
     }
 
-    public <T extends IMaterialProperty<T>> T getProperty(PropertyKey<T> key) {
+    public <T extends IMaterialProperty> T getProperty(PropertyKey<T> key) {
         return key.cast(propertyMap.get(key));
     }
 
-    public <T extends IMaterialProperty<T>> boolean hasProperty(PropertyKey<T> key) {
+    public <T extends IMaterialProperty> boolean hasProperty(PropertyKey<T> key) {
         return propertyMap.get(key) != null;
     }
 
-    public <T extends IMaterialProperty<T>> void setProperty(PropertyKey<T> key, IMaterialProperty<T> value) {
+    public <T extends IMaterialProperty> void setProperty(PropertyKey<T> key, IMaterialProperty value) {
         if (value == null) throw new IllegalArgumentException("Material Property must not be null!");
         if (hasProperty(key))
             throw new IllegalArgumentException("Material Property " + key.toString() + " already registered!");
@@ -45,7 +44,7 @@ public class MaterialProperties {
         propertyMap.remove(PropertyKey.EMPTY);
     }
 
-    public <T extends IMaterialProperty<T>> void ensureSet(PropertyKey<T> key, boolean verify) {
+    public <T extends IMaterialProperty> void ensureSet(PropertyKey<T> key, boolean verify) {
         if (!hasProperty(key)) {
             propertyMap.put(key, key.constructDefault());
             propertyMap.remove(PropertyKey.EMPTY);
@@ -53,12 +52,12 @@ public class MaterialProperties {
         }
     }
 
-    public <T extends IMaterialProperty<T>> void ensureSet(PropertyKey<T> key) {
+    public <T extends IMaterialProperty> void ensureSet(PropertyKey<T> key) {
         ensureSet(key, false);
     }
 
     public void verify() {
-        List<IMaterialProperty<?>> oldList;
+        List<IMaterialProperty> oldList;
         do {
             oldList = new ArrayList<>(propertyMap.values());
             oldList.forEach(p -> p.verifyProperty(this));
@@ -70,7 +69,8 @@ public class MaterialProperties {
                     GTLog.logger.debug("Creating empty placeholder Material {}", material);
                 }
                 propertyMap.put(PropertyKey.EMPTY, PropertyKey.EMPTY.constructDefault());
-            } else throw new IllegalArgumentException("Material must have at least one of: " + baseTypes + " specified!");
+            } else
+                throw new IllegalArgumentException("Material must have at least one of: " + baseTypes + " specified!");
         }
     }
 

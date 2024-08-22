@@ -1,33 +1,22 @@
 package gregtech.common.covers;
 
-import codechicken.lib.raytracer.CuboidRayTraceResult;
-import codechicken.lib.render.CCRenderState;
-import codechicken.lib.render.pipeline.IVertexOperation;
-import codechicken.lib.vec.Cuboid6;
-import codechicken.lib.vec.Matrix4;
-import gnu.trove.list.TIntList;
-import gnu.trove.list.array.TIntArrayList;
-import gregtech.api.GTValues;
+import gregtech.api.capability.GregtechDataCodes;
 import gregtech.api.capability.GregtechTileCapabilities;
 import gregtech.api.capability.IControllable;
 import gregtech.api.capability.impl.ItemHandlerDelegate;
-import gregtech.api.cover.CoverBehavior;
+import gregtech.api.cover.CoverBase;
+import gregtech.api.cover.CoverDefinition;
 import gregtech.api.cover.CoverWithUI;
-import gregtech.api.cover.ICoverable;
-import gregtech.api.gui.GuiTextures;
-import gregtech.api.gui.ModularUI;
-import gregtech.api.gui.widgets.*;
-import gregtech.api.metatileentity.MetaTileEntity;
+import gregtech.api.cover.CoverableView;
+import gregtech.api.mui.GTGuiTextures;
+import gregtech.api.mui.GTGuis;
 import gregtech.api.util.GTTransferUtils;
 import gregtech.api.util.ItemStackHashStrategy;
 import gregtech.client.renderer.texture.Textures;
 import gregtech.client.renderer.texture.cube.SimpleSidedCubeRenderer;
 import gregtech.common.covers.filter.ItemFilterContainer;
 import gregtech.common.pipelike.itempipe.tile.TileEntityItemPipe;
-import it.unimi.dsi.fastutil.objects.Object2ObjectOpenCustomHashMap;
-import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
-import it.unimi.dsi.fastutil.objects.ObjectOpenCustomHashSet;
-import net.minecraft.block.Block;
+
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -35,7 +24,12 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.network.PacketBuffer;
 import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.*;
+import net.minecraft.util.BlockRenderLayer;
+import net.minecraft.util.EnumActionResult;
+import net.minecraft.util.EnumFacing;
+import net.minecraft.util.EnumHand;
+import net.minecraft.util.IStringSerializable;
+import net.minecraft.util.ITickable;
 import net.minecraft.util.math.MathHelper;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.fml.relauncher.Side;
@@ -43,12 +37,39 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 import net.minecraftforge.items.CapabilityItemHandler;
 import net.minecraftforge.items.IItemHandler;
 
-import javax.annotation.Nonnull;
+import codechicken.lib.raytracer.CuboidRayTraceResult;
+import codechicken.lib.render.CCRenderState;
+import codechicken.lib.render.pipeline.IVertexOperation;
+import codechicken.lib.vec.Cuboid6;
+import codechicken.lib.vec.Matrix4;
+import com.cleanroommc.modularui.api.drawable.IDrawable;
+import com.cleanroommc.modularui.api.widget.Interactable;
+import com.cleanroommc.modularui.drawable.DynamicDrawable;
+import com.cleanroommc.modularui.factory.SidedPosGuiData;
+import com.cleanroommc.modularui.screen.ModularPanel;
+import com.cleanroommc.modularui.utils.Color;
+import com.cleanroommc.modularui.utils.MouseData;
+import com.cleanroommc.modularui.value.sync.EnumSyncValue;
+import com.cleanroommc.modularui.value.sync.IntSyncValue;
+import com.cleanroommc.modularui.value.sync.PanelSyncManager;
+import com.cleanroommc.modularui.value.sync.StringSyncValue;
+import com.cleanroommc.modularui.widget.ParentWidget;
+import com.cleanroommc.modularui.widgets.ButtonWidget;
+import com.cleanroommc.modularui.widgets.layout.Column;
+import com.cleanroommc.modularui.widgets.layout.Row;
+import com.cleanroommc.modularui.widgets.textfield.TextFieldWidget;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntList;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenCustomHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectOpenCustomHashSet;
+import org.jetbrains.annotations.NotNull;
+
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 
-public class CoverConveyor extends CoverBehavior implements CoverWithUI, ITickable, IControllable {
+public class CoverConveyor extends CoverBase implements CoverWithUI, ITickable, IControllable {
 
     public final int tier;
     public final int maxItemTransferRate;
@@ -61,8 +82,9 @@ public class CoverConveyor extends CoverBehavior implements CoverWithUI, ITickab
     private CoverableItemHandlerWrapper itemHandlerWrapper;
     protected boolean isWorkingAllowed = true;
 
-    public CoverConveyor(ICoverable coverable, EnumFacing attachedSide, int tier, int itemsPerSecond) {
-        super(coverable, attachedSide);
+    public CoverConveyor(@NotNull CoverDefinition definition, @NotNull CoverableView coverableView,
+                         @NotNull EnumFacing attachedSide, int tier, int itemsPerSecond) {
+        super(definition, coverableView, attachedSide);
         this.tier = tier;
         this.maxItemTransferRate = itemsPerSecond;
         this.transferRate = maxItemTransferRate;
@@ -73,17 +95,18 @@ public class CoverConveyor extends CoverBehavior implements CoverWithUI, ITickab
     }
 
     public void setTransferRate(int transferRate) {
-        this.transferRate = transferRate;
-        coverHolder.markDirty();
+        this.transferRate = MathHelper.clamp(transferRate, 1, maxItemTransferRate);
+        CoverableView coverable = getCoverableView();
+        coverable.markDirty();
 
-        if (coverHolder.getWorld() != null && coverHolder.getWorld().isRemote) {
+        if (getWorld() != null && getWorld().isRemote) {
             // tile at cover holder pos
-            TileEntity te = coverHolder.getWorld().getTileEntity(coverHolder.getPos());
+            TileEntity te = getTileEntityHere();
             if (te instanceof TileEntityItemPipe) {
                 ((TileEntityItemPipe) te).resetTransferred();
             }
             // tile neighbour to holder pos at attached side
-            te = coverHolder.getWorld().getTileEntity(coverHolder.getPos().offset(attachedSide));
+            te = getNeighbor(getAttachedSide());
             if (te instanceof TileEntityItemPipe) {
                 ((TileEntityItemPipe) te).resetTransferred();
             }
@@ -100,8 +123,8 @@ public class CoverConveyor extends CoverBehavior implements CoverWithUI, ITickab
 
     public void setConveyorMode(ConveyorMode conveyorMode) {
         this.conveyorMode = conveyorMode;
-        writeUpdateData(1, buf -> buf.writeEnumValue(conveyorMode));
-        coverHolder.markDirty();
+        writeCustomData(GregtechDataCodes.UPDATE_COVER_MODE, buf -> buf.writeEnumValue(conveyorMode));
+        markDirty();
     }
 
     public ConveyorMode getConveyorMode() {
@@ -114,7 +137,7 @@ public class CoverConveyor extends CoverBehavior implements CoverWithUI, ITickab
 
     public void setDistributionMode(DistributionMode distributionMode) {
         this.distributionMode = distributionMode;
-        coverHolder.markDirty();
+        markDirty();
     }
 
     public ManualImportExportMode getManualImportExportMode() {
@@ -123,7 +146,7 @@ public class CoverConveyor extends CoverBehavior implements CoverWithUI, ITickab
 
     protected void setManualImportExportMode(ManualImportExportMode manualImportExportMode) {
         this.manualImportExportMode = manualImportExportMode;
-        coverHolder.markDirty();
+        markDirty();
     }
 
     public ItemFilterContainer getItemFilterContainer() {
@@ -132,11 +155,14 @@ public class CoverConveyor extends CoverBehavior implements CoverWithUI, ITickab
 
     @Override
     public void update() {
-        long timer = coverHolder.getOffsetTimer();
+        CoverableView coverable = getCoverableView();
+        long timer = coverable.getOffsetTimer();
         if (timer % 5 == 0 && isWorkingAllowed && itemsLeftToTransferLastSecond > 0) {
-            TileEntity tileEntity = coverHolder.getWorld().getTileEntity(coverHolder.getPos().offset(attachedSide));
-            IItemHandler itemHandler = tileEntity == null ? null : tileEntity.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, attachedSide.getOpposite());
-            IItemHandler myItemHandler = coverHolder.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, attachedSide);
+            EnumFacing side = getAttachedSide();
+            TileEntity tileEntity = coverable.getNeighbor(side);
+            IItemHandler itemHandler = tileEntity == null ? null :
+                    tileEntity.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, side.getOpposite());
+            IItemHandler myItemHandler = coverable.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, side);
             if (itemHandler != null && myItemHandler != null) {
                 int totalTransferred = doTransferItems(itemHandler, myItemHandler, itemsLeftToTransferLastSecond);
                 this.itemsLeftToTransferLastSecond -= totalTransferred;
@@ -160,7 +186,8 @@ public class CoverConveyor extends CoverBehavior implements CoverWithUI, ITickab
         return 0;
     }
 
-    protected int doTransferItemsByGroup(IItemHandler itemHandler, IItemHandler myItemHandler, Map<Object, GroupItemInfo> itemInfos, int maxTransferAmount) {
+    protected int doTransferItemsByGroup(IItemHandler itemHandler, IItemHandler myItemHandler,
+                                         Map<Integer, GroupItemInfo> itemInfos, int maxTransferAmount) {
         if (conveyorMode == ConveyorMode.IMPORT) {
             return moveInventoryItems(itemHandler, myItemHandler, itemInfos, maxTransferAmount);
         } else if (conveyorMode == ConveyorMode.EXPORT) {
@@ -169,7 +196,8 @@ public class CoverConveyor extends CoverBehavior implements CoverWithUI, ITickab
         return 0;
     }
 
-    protected Map<Object, GroupItemInfo> doCountDestinationInventoryItemsByMatchIndex(IItemHandler itemHandler, IItemHandler myItemHandler) {
+    protected Map<Integer, GroupItemInfo> doCountDestinationInventoryItemsByMatchIndex(IItemHandler itemHandler,
+                                                                                       IItemHandler myItemHandler) {
         if (conveyorMode == ConveyorMode.IMPORT) {
             return countInventoryItemsByMatchSlot(myItemHandler);
         } else if (conveyorMode == ConveyorMode.EXPORT) {
@@ -178,7 +206,8 @@ public class CoverConveyor extends CoverBehavior implements CoverWithUI, ITickab
         return Collections.emptyMap();
     }
 
-    protected Map<ItemStack, TypeItemInfo> doCountSourceInventoryItemsByType(IItemHandler itemHandler, IItemHandler myItemHandler) {
+    protected Map<ItemStack, TypeItemInfo> doCountSourceInventoryItemsByType(IItemHandler itemHandler,
+                                                                             IItemHandler myItemHandler) {
         if (conveyorMode == ConveyorMode.IMPORT) {
             return countInventoryItemsByType(itemHandler);
         } else if (conveyorMode == ConveyorMode.EXPORT) {
@@ -187,7 +216,8 @@ public class CoverConveyor extends CoverBehavior implements CoverWithUI, ITickab
         return Collections.emptyMap();
     }
 
-    protected boolean doTransferItemsExact(IItemHandler itemHandler, IItemHandler myItemHandler, TypeItemInfo itemInfo) {
+    protected boolean doTransferItemsExact(IItemHandler itemHandler, IItemHandler myItemHandler,
+                                           TypeItemInfo itemInfo) {
         if (conveyorMode == ConveyorMode.IMPORT) {
             return moveInventoryItemsExact(itemHandler, myItemHandler, itemInfo);
         } else if (conveyorMode == ConveyorMode.EXPORT) {
@@ -196,10 +226,11 @@ public class CoverConveyor extends CoverBehavior implements CoverWithUI, ITickab
         return false;
     }
 
-    protected static boolean moveInventoryItemsExact(IItemHandler sourceInventory, IItemHandler targetInventory, TypeItemInfo itemInfo) {
-        //first, compute how much can we extract in reality from the machine,
-        //because totalCount is based on what getStackInSlot returns, which may differ from what
-        //extractItem() will return
+    protected static boolean moveInventoryItemsExact(IItemHandler sourceInventory, IItemHandler targetInventory,
+                                                     TypeItemInfo itemInfo) {
+        // first, compute how much can we extract in reality from the machine,
+        // because totalCount is based on what getStackInSlot returns, which may differ from what
+        // extractItem() will return
         ItemStack resultStack = itemInfo.itemStack.copy();
         int totalExtractedCount = 0;
         int itemsLeftToExtract = itemInfo.totalCount;
@@ -217,25 +248,25 @@ public class CoverConveyor extends CoverBehavior implements CoverWithUI, ITickab
                 break;
             }
         }
-        //if amount of items extracted is not equal to the amount of items we
-        //wanted to extract, abort item extraction
+        // if amount of items extracted is not equal to the amount of items we
+        // wanted to extract, abort item extraction
         if (totalExtractedCount != itemInfo.totalCount) {
             return false;
         }
-        //adjust size of the result stack accordingly
+        // adjust size of the result stack accordingly
         resultStack.setCount(totalExtractedCount);
 
-        //now, see how much we can insert into destination inventory
-        //if we can't insert as much as itemInfo requires, and remainder is empty, abort, abort
+        // now, see how much we can insert into destination inventory
+        // if we can't insert as much as itemInfo requires, and remainder is empty, abort, abort
         ItemStack remainder = GTTransferUtils.insertItem(targetInventory, resultStack, true);
         if (!remainder.isEmpty()) {
             return false;
         }
 
-        //otherwise, perform real insertion and then remove items from the source inventory
+        // otherwise, perform real insertion and then remove items from the source inventory
         GTTransferUtils.insertItem(targetInventory, resultStack, false);
 
-        //perform real extraction of the items from the source inventory now
+        // perform real extraction of the items from the source inventory now
         itemsLeftToExtract = itemInfo.totalCount;
         for (int i = 0; i < itemInfo.slots.size(); i++) {
             int slotIndex = itemInfo.slots.get(i);
@@ -252,21 +283,25 @@ public class CoverConveyor extends CoverBehavior implements CoverWithUI, ITickab
         return true;
     }
 
-    protected int moveInventoryItems(IItemHandler sourceInventory, IItemHandler targetInventory, Map<Object, GroupItemInfo> itemInfos, int maxTransferAmount) {
+    protected int moveInventoryItems(IItemHandler sourceInventory, IItemHandler targetInventory,
+                                     Map<Integer, GroupItemInfo> itemInfos, int maxTransferAmount) {
         int itemsLeftToTransfer = maxTransferAmount;
         for (int i = 0; i < sourceInventory.getSlots(); i++) {
             ItemStack itemStack = sourceInventory.getStackInSlot(i);
             if (itemStack.isEmpty()) {
                 continue;
             }
-            Object matchSlotIndex = itemFilterContainer.matchItemStack(itemStack);
-            if (matchSlotIndex == null || !itemInfos.containsKey(matchSlotIndex)) {
+
+            var matchResult = itemFilterContainer.match(itemStack);
+            int matchSlotIndex = matchResult.getFilterIndex();
+            if (!matchResult.isMatched() || !itemInfos.containsKey(matchSlotIndex)) {
                 continue;
             }
 
             GroupItemInfo itemInfo = itemInfos.get(matchSlotIndex);
 
-            ItemStack extractedStack = sourceInventory.extractItem(i, Math.min(itemInfo.totalCount, itemsLeftToTransfer), true);
+            ItemStack extractedStack = sourceInventory.extractItem(i,
+                    Math.min(itemInfo.totalCount, itemsLeftToTransfer), true);
 
             ItemStack remainderStack = GTTransferUtils.insertItem(targetInventory, extractedStack, true);
             int amountToInsert = extractedStack.getCount() - remainderStack.getCount();
@@ -295,16 +330,18 @@ public class CoverConveyor extends CoverBehavior implements CoverWithUI, ITickab
         return maxTransferAmount - itemsLeftToTransfer;
     }
 
-    protected int moveInventoryItems(IItemHandler sourceInventory, IItemHandler targetInventory, int maxTransferAmount) {
+    protected int moveInventoryItems(IItemHandler sourceInventory, IItemHandler targetInventory,
+                                     int maxTransferAmount) {
         int itemsLeftToTransfer = maxTransferAmount;
         for (int srcIndex = 0; srcIndex < sourceInventory.getSlots(); srcIndex++) {
             ItemStack sourceStack = sourceInventory.extractItem(srcIndex, itemsLeftToTransfer, true);
             if (sourceStack.isEmpty()) {
                 continue;
             }
-            if (!itemFilterContainer.testItemStack(sourceStack)) {
-                continue;
-            }
+
+            var result = itemFilterContainer.match(sourceStack);
+            if (!result.isMatched()) continue;
+
             ItemStack remainder = GTTransferUtils.insertItem(targetInventory, sourceStack, true);
             int amountToInsert = sourceStack.getCount() - remainder.getCount();
 
@@ -324,12 +361,13 @@ public class CoverConveyor extends CoverBehavior implements CoverWithUI, ITickab
     }
 
     protected static class TypeItemInfo {
+
         public final ItemStack itemStack;
-        public final Object filterSlot;
-        public final TIntList slots;
+        public final int filterSlot;
+        public final IntList slots;
         public int totalCount;
 
-        public TypeItemInfo(ItemStack itemStack, Object filterSlot, TIntList slots, int totalCount) {
+        public TypeItemInfo(ItemStack itemStack, int filterSlot, IntList slots, int totalCount) {
             this.itemStack = itemStack;
             this.filterSlot = filterSlot;
             this.slots = slots;
@@ -338,31 +376,34 @@ public class CoverConveyor extends CoverBehavior implements CoverWithUI, ITickab
     }
 
     protected static class GroupItemInfo {
-        public final Object filterSlot;
+
+        public final int filterSlot;
         public final Set<ItemStack> itemStackTypes;
         public int totalCount;
 
-        public GroupItemInfo(Object filterSlot, Set<ItemStack> itemStackTypes, int totalCount) {
+        public GroupItemInfo(int filterSlot, Set<ItemStack> itemStackTypes, int totalCount) {
             this.filterSlot = filterSlot;
             this.itemStackTypes = itemStackTypes;
             this.totalCount = totalCount;
         }
     }
 
-    @Nonnull
-    protected Map<ItemStack, TypeItemInfo> countInventoryItemsByType(@Nonnull IItemHandler inventory) {
-        Map<ItemStack, TypeItemInfo> result = new Object2ObjectOpenCustomHashMap<>(ItemStackHashStrategy.comparingAllButCount());
+    @NotNull
+    protected Map<ItemStack, TypeItemInfo> countInventoryItemsByType(@NotNull IItemHandler inventory) {
+        Map<ItemStack, TypeItemInfo> result = new Object2ObjectOpenCustomHashMap<>(
+                ItemStackHashStrategy.comparingAllButCount());
         for (int srcIndex = 0; srcIndex < inventory.getSlots(); srcIndex++) {
             ItemStack itemStack = inventory.getStackInSlot(srcIndex);
             if (itemStack.isEmpty()) {
                 continue;
             }
-            Object transferSlotIndex = itemFilterContainer.matchItemStack(itemStack);
-            if (transferSlotIndex == null) {
-                continue;
-            }
+
+            var matchResult = itemFilterContainer.match(itemStack);
+            if (!matchResult.isMatched()) continue;
+
             if (!result.containsKey(itemStack)) {
-                TypeItemInfo itemInfo = new TypeItemInfo(itemStack.copy(), transferSlotIndex, new TIntArrayList(), 0);
+                TypeItemInfo itemInfo = new TypeItemInfo(itemStack.copy(), matchResult.getFilterIndex(),
+                        new IntArrayList(), 0);
                 itemInfo.totalCount += itemStack.getCount();
                 itemInfo.slots.add(srcIndex);
                 result.put(itemStack.copy(), itemInfo);
@@ -375,63 +416,65 @@ public class CoverConveyor extends CoverBehavior implements CoverWithUI, ITickab
         return result;
     }
 
-    @Nonnull
-    protected Map<Object, GroupItemInfo> countInventoryItemsByMatchSlot(@Nonnull IItemHandler inventory) {
-        Map<Object, GroupItemInfo> result = new Object2ObjectOpenHashMap<>();
+    @NotNull
+    protected Map<Integer, GroupItemInfo> countInventoryItemsByMatchSlot(@NotNull IItemHandler inventory) {
+        Map<Integer, GroupItemInfo> result = new Int2ObjectOpenHashMap<>();
         for (int srcIndex = 0; srcIndex < inventory.getSlots(); srcIndex++) {
             ItemStack itemStack = inventory.getStackInSlot(srcIndex);
             if (itemStack.isEmpty()) {
                 continue;
             }
-            Object transferSlotIndex = itemFilterContainer.matchItemStack(itemStack);
-            if (transferSlotIndex == null) {
-                continue;
-            }
-            if (!result.containsKey(transferSlotIndex)) {
-                GroupItemInfo itemInfo = new GroupItemInfo(transferSlotIndex, new ObjectOpenCustomHashSet<>(ItemStackHashStrategy.comparingAllButCount()), 0);
+
+            var matchResult = itemFilterContainer.match(itemStack);
+            if (!matchResult.isMatched()) continue;
+            int matchedSlot = matchResult.getFilterIndex();
+
+            if (!result.containsKey(matchedSlot)) {
+                GroupItemInfo itemInfo = new GroupItemInfo(matchedSlot,
+                        new ObjectOpenCustomHashSet<>(ItemStackHashStrategy.comparingAllButCount()), 0);
                 itemInfo.itemStackTypes.add(itemStack.copy());
                 itemInfo.totalCount += itemStack.getCount();
-                result.put(transferSlotIndex, itemInfo);
+                result.put(matchedSlot, itemInfo);
             } else {
-                GroupItemInfo itemInfo = result.get(transferSlotIndex);
+                GroupItemInfo itemInfo = result.get(matchedSlot);
                 itemInfo.itemStackTypes.add(itemStack.copy());
                 itemInfo.totalCount += itemStack.getCount();
             }
+
         }
         return result;
     }
 
     @Override
-    public boolean canAttach() {
-        return coverHolder.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, attachedSide) != null;
+    public boolean canAttach(@NotNull CoverableView coverable, @NotNull EnumFacing side) {
+        return coverable.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, getAttachedSide()) != null;
     }
 
     @Override
-    public boolean shouldCoverInteractWithOutputside() {
+    public boolean canInteractWithOutputSide() {
         return true;
     }
 
     @Override
-    public void onRemoved() {
-        NonNullList<ItemStack> drops = NonNullList.create();
-        MetaTileEntity.clearInventory(drops, itemFilterContainer.getFilterInventory());
-        for (ItemStack itemStack : drops) {
-            Block.spawnAsEntity(coverHolder.getWorld(), coverHolder.getPos(), itemStack);
-        }
+    public void onRemoval() {
+        dropInventoryContents(itemFilterContainer);
     }
 
     @Override
-    public void renderCover(CCRenderState renderState, Matrix4 translation, IVertexOperation[] pipeline, Cuboid6 plateBox, BlockRenderLayer layer) {
+    public void renderCover(CCRenderState renderState, Matrix4 translation, IVertexOperation[] pipeline,
+                            Cuboid6 plateBox, BlockRenderLayer layer) {
         if (conveyorMode == ConveyorMode.EXPORT) {
-            Textures.CONVEYOR_OVERLAY.renderSided(attachedSide, plateBox, renderState, pipeline, translation);
+            Textures.CONVEYOR_OVERLAY.renderSided(getAttachedSide(), plateBox, renderState, pipeline, translation);
         } else {
-            Textures.CONVEYOR_OVERLAY_INVERTED.renderSided(attachedSide, plateBox, renderState, pipeline, translation);
+            Textures.CONVEYOR_OVERLAY_INVERTED.renderSided(getAttachedSide(), plateBox, renderState, pipeline,
+                    translation);
         }
     }
 
     @Override
-    public EnumActionResult onScrewdriverClick(EntityPlayer playerIn, EnumHand hand, CuboidRayTraceResult hitResult) {
-        if (!coverHolder.getWorld().isRemote) {
+    public @NotNull EnumActionResult onScrewdriverClick(@NotNull EntityPlayer playerIn, @NotNull EnumHand hand,
+                                                        @NotNull CuboidRayTraceResult hitResult) {
+        if (!getCoverableView().getWorld().isRemote) {
             openUI((EntityPlayerMP) playerIn);
         }
         return EnumActionResult.SUCCESS;
@@ -455,57 +498,130 @@ public class CoverConveyor extends CoverBehavior implements CoverWithUI, ITickab
         return defaultValue;
     }
 
-    protected String getUITitle() {
-        return "cover.conveyor.title";
-    }
-
-    protected ModularUI buildUI(ModularUI.Builder builder, EntityPlayer player) {
-        return builder.build(this, player);
+    @Override
+    public boolean usesMui2() {
+        return true;
     }
 
     @Override
-    public ModularUI createUI(EntityPlayer player) {
-        WidgetGroup primaryGroup = new WidgetGroup();
-        primaryGroup.addWidget(new LabelWidget(10, 5, getUITitle(), GTValues.VN[tier]));
+    public ModularPanel buildUI(SidedPosGuiData guiData, PanelSyncManager guiSyncManager) {
+        var panel = GTGuis.createPanel(this, 176, 192 + 18);
 
-        primaryGroup.addWidget(new IncrementButtonWidget(136, 20, 30, 20, 1, 8, 64, 512, this::adjustTransferRate)
-                .setDefaultTooltip()
-                .setShouldClientCallback(false));
-        primaryGroup.addWidget(new IncrementButtonWidget(10, 20, 30, 20, -1, -8, -64, -512, this::adjustTransferRate)
-                .setDefaultTooltip()
-                .setShouldClientCallback(false));
+        getItemFilterContainer().setMaxTransferSize(getMaxStackSize());
 
-        primaryGroup.addWidget(new ImageWidget(40, 20, 96, 20, GuiTextures.DISPLAY));
-        primaryGroup.addWidget(new TextFieldWidget2(42, 26, 92, 20, () -> String.valueOf(transferRate), val -> {
-                    if (val != null && !val.isEmpty())
-                        setTransferRate(MathHelper.clamp(Integer.parseInt(val), 1, maxItemTransferRate));
-                })
-                        .setNumbersOnly(1, maxItemTransferRate)
-                        .setMaxLength(4)
-                        .setPostFix("cover.conveyor.transfer_rate")
-        );
+        return panel.child(CoverWithUI.createTitleRow(getPickItem()))
+                .child(createUI(panel, guiSyncManager))
+                .bindPlayerInventory();
+    }
 
-        primaryGroup.addWidget(new CycleButtonWidget(10, 45, 75, 20,
-                ConveyorMode.class, this::getConveyorMode, this::setConveyorMode));
-        primaryGroup.addWidget(new CycleButtonWidget(7, 166, 116, 20,
-                ManualImportExportMode.class, this::getManualImportExportMode, this::setManualImportExportMode)
-                .setTooltipHoverString("cover.universal.manual_import_export.mode.description"));
+    protected ParentWidget<Column> createUI(ModularPanel mainPanel, PanelSyncManager guiSyncManager) {
+        var column = new Column().top(24).margin(7, 0)
+                .widthRel(1f).coverChildrenHeight();
 
-        if (coverHolder.getWorld().getTileEntity(coverHolder.getPos()) instanceof TileEntityItemPipe ||
-                coverHolder.getWorld().getTileEntity(coverHolder.getPos().offset(attachedSide)) instanceof TileEntityItemPipe) {
-            final ImageCycleButtonWidget distributionModeButton = new ImageCycleButtonWidget(149, 166, 20, 20, GuiTextures.DISTRIBUTION_MODE, 3,
-                    () -> distributionMode.ordinal(),
-                    val -> setDistributionMode(DistributionMode.values()[val]))
-                    .setTooltipHoverString(val -> DistributionMode.values()[val].getName());
-            primaryGroup.addWidget(distributionModeButton);
-        }
+        EnumSyncValue<ManualImportExportMode> manualIOmode = new EnumSyncValue<>(ManualImportExportMode.class,
+                this::getManualImportExportMode, this::setManualImportExportMode);
 
-        this.itemFilterContainer.initUI(70, primaryGroup::addWidget);
+        EnumSyncValue<ConveyorMode> conveyorMode = new EnumSyncValue<>(ConveyorMode.class,
+                this::getConveyorMode, this::setConveyorMode);
 
-        ModularUI.Builder builder = ModularUI.builder(GuiTextures.BACKGROUND, 176, 190 + 82)
-                .widget(primaryGroup)
-                .bindPlayerInventory(player.inventory, GuiTextures.SLOT, 7, 190);
-        return buildUI(builder, player);
+        IntSyncValue throughput = new IntSyncValue(this::getTransferRate, this::setTransferRate);
+        throughput.updateCacheFromSource(true);
+
+        StringSyncValue formattedThroughput = new StringSyncValue(throughput::getStringValue,
+                throughput::setStringValue);
+
+        EnumSyncValue<DistributionMode> distributionMode = new EnumSyncValue<>(DistributionMode.class,
+                this::getDistributionMode, this::setDistributionMode);
+
+        guiSyncManager.syncValue("manual_io", manualIOmode);
+        guiSyncManager.syncValue("conveyor_mode", conveyorMode);
+        guiSyncManager.syncValue("distribution_mode", distributionMode);
+        guiSyncManager.syncValue("throughput", throughput);
+
+        if (createThroughputRow())
+            column.child(new Row().coverChildrenHeight()
+                    .marginBottom(2).widthRel(1f)
+                    .child(new ButtonWidget<>()
+                            .left(0).width(18)
+                            .onMousePressed(mouseButton -> {
+                                int val = throughput.getValue() - getIncrementValue(MouseData.create(mouseButton));
+                                throughput.setValue(val, true, true);
+                                Interactable.playButtonClickSound();
+                                return true;
+                            })
+                            .onUpdateListener(w -> w.overlay(createAdjustOverlay(false))))
+                    .child(new TextFieldWidget()
+                            .left(18).right(18)
+                            .setTextColor(Color.WHITE.darker(1))
+                            .setNumbers(1, maxItemTransferRate)
+                            .value(formattedThroughput)
+                            .background(GTGuiTextures.DISPLAY))
+                    .child(new ButtonWidget<>()
+                            .right(0).width(18)
+                            .onMousePressed(mouseButton -> {
+                                int val = throughput.getValue() + getIncrementValue(MouseData.create(mouseButton));
+                                throughput.setValue(val, true, true);
+                                Interactable.playButtonClickSound();
+                                return true;
+                            })
+                            .onUpdateListener(w -> w.overlay(createAdjustOverlay(true)))));
+
+        if (createFilterRow())
+            column.child(getItemFilterContainer().initUI(mainPanel, guiSyncManager));
+
+        if (createManualIOModeRow())
+            column.child(new EnumRowBuilder<>(ManualImportExportMode.class)
+                    .value(manualIOmode)
+                    .lang("cover.generic.manual_io")
+                    .overlay(new IDrawable[] {
+                            new DynamicDrawable(() -> conveyorMode.getValue().isImport() ?
+                                    GTGuiTextures.MANUAL_IO_OVERLAY_OUT[0] : GTGuiTextures.MANUAL_IO_OVERLAY_IN[0]),
+                            new DynamicDrawable(() -> conveyorMode.getValue().isImport() ?
+                                    GTGuiTextures.MANUAL_IO_OVERLAY_OUT[1] : GTGuiTextures.MANUAL_IO_OVERLAY_IN[1]),
+                            new DynamicDrawable(() -> conveyorMode.getValue().isImport() ?
+                                    GTGuiTextures.MANUAL_IO_OVERLAY_OUT[2] : GTGuiTextures.MANUAL_IO_OVERLAY_IN[2])
+                    })
+                    .build());
+
+        if (createConveyorModeRow())
+            column.child(new EnumRowBuilder<>(ConveyorMode.class)
+                    .value(conveyorMode)
+                    .lang("cover.generic.io")
+                    .overlay(GTGuiTextures.CONVEYOR_MODE_OVERLAY)
+                    .build());
+
+        if (createDistributionModeRow())
+            column.child(new EnumRowBuilder<>(DistributionMode.class)
+                    .value(distributionMode)
+                    .overlay(16, GTGuiTextures.DISTRIBUTION_MODE_OVERLAY)
+                    .lang("cover.conveyor.distribution.name")
+                    .build());
+
+        return column;
+    }
+
+    protected boolean createThroughputRow() {
+        return true;
+    }
+
+    protected boolean createFilterRow() {
+        return true;
+    }
+
+    protected boolean createManualIOModeRow() {
+        return true;
+    }
+
+    protected boolean createConveyorModeRow() {
+        return true;
+    }
+
+    protected boolean createDistributionModeRow() {
+        return true;
+    }
+
+    protected int getMaxStackSize() {
+        return 1;
     }
 
     @Override
@@ -519,30 +635,36 @@ public class CoverConveyor extends CoverBehavior implements CoverWithUI, ITickab
     }
 
     @Override
-    public void readUpdateData(int id, PacketBuffer packetBuffer) {
-        super.readUpdateData(id, packetBuffer);
-        if (id == 1) {
-            this.conveyorMode = packetBuffer.readEnumValue(ConveyorMode.class);
-            coverHolder.scheduleRenderUpdate();
+    public void readCustomData(int discriminator, @NotNull PacketBuffer buf) {
+        super.readCustomData(discriminator, buf);
+        if (discriminator == GregtechDataCodes.UPDATE_COVER_MODE) {
+            this.conveyorMode = buf.readEnumValue(ConveyorMode.class);
+            getCoverableView().scheduleRenderUpdate();
         }
     }
 
     @Override
-    public void writeInitialSyncData(PacketBuffer packetBuffer) {
+    public void writeInitialSyncData(@NotNull PacketBuffer packetBuffer) {
         super.writeInitialSyncData(packetBuffer);
-        packetBuffer.writeEnumValue(conveyorMode);
-        packetBuffer.writeEnumValue(distributionMode);
+        packetBuffer.writeInt(transferRate);
+        packetBuffer.writeByte(conveyorMode.ordinal());
+        packetBuffer.writeByte(distributionMode.ordinal());
+        packetBuffer.writeByte(manualImportExportMode.ordinal());
+        getItemFilterContainer().writeInitialSyncData(packetBuffer);
     }
 
     @Override
-    public void readInitialSyncData(PacketBuffer packetBuffer) {
+    public void readInitialSyncData(@NotNull PacketBuffer packetBuffer) {
         super.readInitialSyncData(packetBuffer);
-        this.conveyorMode = packetBuffer.readEnumValue(ConveyorMode.class);
-        this.distributionMode = packetBuffer.readEnumValue(DistributionMode.class);
+        this.transferRate = packetBuffer.readInt();
+        this.conveyorMode = ConveyorMode.VALUES[packetBuffer.readByte()];
+        this.distributionMode = DistributionMode.VALUES[packetBuffer.readByte()];
+        this.manualImportExportMode = ManualImportExportMode.VALUES[packetBuffer.readByte()];
+        getItemFilterContainer().readInitialSyncData(packetBuffer);
     }
 
     @Override
-    public NBTTagCompound writeToNBT(NBTTagCompound tagCompound) {
+    public void writeToNBT(@NotNull NBTTagCompound tagCompound) {
         super.writeToNBT(tagCompound);
         tagCompound.setInteger("TransferRate", transferRate);
         tagCompound.setInteger("ConveyorMode", conveyorMode.ordinal());
@@ -550,38 +672,43 @@ public class CoverConveyor extends CoverBehavior implements CoverWithUI, ITickab
         tagCompound.setBoolean("WorkingAllowed", isWorkingAllowed);
         tagCompound.setInteger("ManualImportExportMode", manualImportExportMode.ordinal());
         tagCompound.setTag("Filter", this.itemFilterContainer.serializeNBT());
-
-        return tagCompound;
     }
 
     @Override
-    public void readFromNBT(NBTTagCompound tagCompound) {
+    public void readFromNBT(@NotNull NBTTagCompound tagCompound) {
         super.readFromNBT(tagCompound);
         this.transferRate = tagCompound.getInteger("TransferRate");
-        this.conveyorMode = ConveyorMode.values()[tagCompound.getInteger("ConveyorMode")];
-        this.distributionMode = DistributionMode.values()[tagCompound.getInteger("DistributionMode")];
+        this.conveyorMode = ConveyorMode.VALUES[tagCompound.getInteger("ConveyorMode")];
+        this.distributionMode = DistributionMode.VALUES[tagCompound.getInteger("DistributionMode")];
         this.isWorkingAllowed = tagCompound.getBoolean("WorkingAllowed");
-        this.manualImportExportMode = ManualImportExportMode.values()[tagCompound.getInteger("ManualImportExportMode")];
-        this.itemFilterContainer.deserializeNBT(tagCompound.getCompoundTag("Filter"));
+        this.manualImportExportMode = ManualImportExportMode.VALUES[tagCompound.getInteger("ManualImportExportMode")];
+        var filterTag = tagCompound.getCompoundTag("Filter");
+        if (filterTag.hasKey("IsBlacklist")) {
+            this.itemFilterContainer.handleLegacyNBT(filterTag);
+        } else {
+            this.itemFilterContainer.deserializeNBT(filterTag);
+        }
     }
 
     @Override
     @SideOnly(Side.CLIENT)
-    protected TextureAtlasSprite getPlateSprite() {
+    protected @NotNull TextureAtlasSprite getPlateSprite() {
         return Textures.VOLTAGE_CASINGS[this.tier].getSpriteOnSide(SimpleSidedCubeRenderer.RenderSide.SIDE);
     }
 
     public enum ConveyorMode implements IStringSerializable, IIOMode {
+
         IMPORT("cover.conveyor.mode.import"),
         EXPORT("cover.conveyor.mode.export");
 
+        public static final ConveyorMode[] VALUES = values();
         public final String localeName;
 
         ConveyorMode(String localeName) {
             this.localeName = localeName;
         }
 
-        @Nonnull
+        @NotNull
         @Override
         public String getName() {
             return localeName;
@@ -599,19 +726,20 @@ public class CoverConveyor extends CoverBehavior implements CoverWithUI, ITickab
             super(delegate);
         }
 
-        @Nonnull
+        @NotNull
         @Override
-        public ItemStack insertItem(int slot, @Nonnull ItemStack stack, boolean simulate) {
+        public ItemStack insertItem(int slot, @NotNull ItemStack stack, boolean simulate) {
             if (conveyorMode == ConveyorMode.EXPORT && manualImportExportMode == ManualImportExportMode.DISABLED) {
                 return stack;
             }
-            if (manualImportExportMode == ManualImportExportMode.FILTERED && !itemFilterContainer.testItemStack(stack)) {
+            if (manualImportExportMode == ManualImportExportMode.FILTERED &&
+                    !itemFilterContainer.test(stack)) {
                 return stack;
             }
             return super.insertItem(slot, stack, simulate);
         }
 
-        @Nonnull
+        @NotNull
         @Override
         public ItemStack extractItem(int slot, int amount, boolean simulate) {
             if (conveyorMode == ConveyorMode.IMPORT && manualImportExportMode == ManualImportExportMode.DISABLED) {
@@ -619,7 +747,7 @@ public class CoverConveyor extends CoverBehavior implements CoverWithUI, ITickab
             }
             if (manualImportExportMode == ManualImportExportMode.FILTERED) {
                 ItemStack result = super.extractItem(slot, amount, true);
-                if (result.isEmpty() || !itemFilterContainer.testItemStack(result)) {
+                if (result.isEmpty() || !itemFilterContainer.test(result)) {
                     return ItemStack.EMPTY;
                 }
                 return simulate ? result : super.extractItem(slot, amount, false);
