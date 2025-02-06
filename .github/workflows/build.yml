@@ -27,7 +27,7 @@ jobs:
     - name: Build with Gradle
       run: ./gradlew build --stacktrace
     - name: Upload artifacts to Github Actions
-      uses: actions/upload-artifact@v3.2.1
+      uses: actions/upload-artifact@v4.6.0
       with:
         name: GTCEu
         path: build/libs
